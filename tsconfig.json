@@ -1,0 +1,11 @@
+{
+  // Solution file. Holds no sources of its own — it exists so that `tsc --build`
+  // and the editor both see the three layers as separate projects with
+  // different globals available. See tsconfig.core.json for why that matters.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.core.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.web.json" }
+  ]
+}

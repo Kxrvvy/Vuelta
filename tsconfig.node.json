@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // Main process and build tooling: Node globals, no DOM.
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "outDir": ".tsbuild/node",
+    "tsBuildInfoFile": ".tsbuild/node.tsbuildinfo"
+  },
+  "include": ["src/main/**/*.ts", "electron.vite.config.ts", "vitest.config.ts"],
+  "references": [{ "path": "./tsconfig.core.json" }]
+}

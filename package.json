@@ -1,0 +1,46 @@
+{
+  "name": "vuelta",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A Windows desktop turntable that mirrors your Spotify playback.",
+  "license": "MIT",
+  "author": "Kirby Acoba",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=24.12.0 <25"
+  },
+  "packageManager": "npm@11.6.2",
+  "scripts": {
+    "env:check": "node scripts/env-check.mjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --build",
+    "typecheck:clean": "tsc --build --clean",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run env:check && npm run typecheck && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.1.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "eslint": "10.9.1",
+    "prettier": "3.9.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.11",
+    "zustand": "5.0.15"
+  }
+}

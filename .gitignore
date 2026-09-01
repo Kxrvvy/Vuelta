@@ -1,0 +1,27 @@
+# Dependencies — the project's "site-packages". Never committed; restored with `npm ci`.
+node_modules/
+
+# Build output
+out/
+dist/
+release/
+.tsbuild/
+*.tsbuildinfo
+
+# Local environment overrides (dev flags only).
+# NOTE: the Spotify Client ID is NOT stored here. It is a runtime user setting
+# written to Electron's userData directory on first run — see src/main/config.ts.
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
