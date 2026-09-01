@@ -58,6 +58,13 @@ function createWindow(): void {
   // Avoid the white flash before React paints.
   window.once('ready-to-show', () => window.show())
 
+  // Dev-only convenience. `isDev` is checked here as well as in the value
+  // itself so that a packaged build cannot open DevTools even if someone
+  // shipped a .env with the flag turned on.
+  if (isDev && import.meta.env.MAIN_VITE_OPEN_DEVTOOLS === 'true') {
+    window.webContents.openDevTools({ mode: 'detach' })
+  }
+
   // Any link that wants a new window opens in the real browser instead. Vuelta
   // must never host Spotify's login form, and this is the belt to that braces.
   window.webContents.setWindowOpenHandler(({ url }) => {
