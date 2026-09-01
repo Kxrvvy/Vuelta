@@ -1,0 +1,31 @@
+# Packaging configuration.
+#
+# Declared at M0 so the shape of the build is settled, but NOT exercised yet —
+# packaging is M7. Expect to revisit icons, signing, and the NSIS options then.
+#
+# Windows SmartScreen will flag the unsigned installer. That is expected and
+# documented rather than fixed: code signing certificates cost hundreds per year
+# and are not worth it for this project (spec §3).
+
+appId: com.vuelta.app
+productName: Vuelta
+copyright: MIT licensed. Not affiliated with Spotify.
+
+directories:
+  output: release
+  buildResources: build
+
+# electron-vite has already bundled everything into out/, so only that ships.
+files:
+  - out/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

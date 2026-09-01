@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // The boundary, enforced by the compiler rather than by discipline.
+    //
+    // No "DOM" lib  -> `document`, `window`, `fetch` do not exist here.
+    // No "types"    -> Node globals (`process`, `Buffer`, `__dirname`) do not exist here.
+    //
+    // Spec §5: "core/ must run in a plain Vitest file with no DOM and no React
+    // imports." If that ever stops being true, this project stops compiling.
+    "lib": ["ES2023"],
+    "types": [],
+    "outDir": ".tsbuild/core",
+    "tsBuildInfoFile": ".tsbuild/core.tsbuildinfo"
+  },
+  "include": ["src/core/**/*.ts"]
+}
