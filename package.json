@@ -12,6 +12,7 @@
   "packageManager": "npm@11.6.2",
   "scripts": {
     "env:check": "node scripts/env-check.mjs",
+    "security:check": "node scripts/security-check.mjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -23,7 +24,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run env:check && npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run env:check && npm run security:check && npm run typecheck && npm run lint && npm run test"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
