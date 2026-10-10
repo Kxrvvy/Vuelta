@@ -10,6 +10,13 @@
     "outDir": ".tsbuild/web",
     "tsBuildInfoFile": ".tsbuild/web.tsbuildinfo"
   },
-  "include": ["src/app/**/*.ts", "src/app/**/*.tsx", "src/views/**/*.tsx", "src/skins/**/*.tsx"],
+  "include": [
+    "src/app/**/*.ts",
+    "src/app/**/*.tsx",
+    "src/views/**/*.ts",
+    "src/views/**/*.tsx",
+    "src/skins/**/*.ts",
+    "src/skins/**/*.tsx"
+  ],
   "references": [{ "path": "./tsconfig.core.json" }]
 }

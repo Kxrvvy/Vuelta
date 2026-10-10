@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { createVueltaStore } from '../core/store.js'
 import { AuthFailedScreen } from './screens/AuthFailedScreen.js'
 import { ConnectingScreen } from './screens/ConnectingScreen.js'
@@ -17,7 +17,19 @@ import { useStoreValue } from './useStore.js'
  */
 const store = createVueltaStore()
 
+/**
+ * The 3D skin, as its own chunk.
+ *
+ * Lazy rather than a direct import so three.js never lands in the main bundle.
+ * The render below is additionally guarded by `import.meta.env.DEV`, so in a
+ * packaged build the chunk is never requested.
+ */
+const Harness = import.meta.env.DEV
+  ? lazy(() => import('../skins/3d/dev/Harness.js').then((module) => ({ default: module.Harness })))
+  : null
+
 export function App() {
+  const [showSkin, setShowSkin] = useState(false)
   const app = useStoreValue(store, (state) => state.app)
   const setup = useStoreValue(store, (state) => state.setup)
   const snapshot = useStoreValue(store, (state) => state.snapshot)
@@ -109,6 +121,17 @@ export function App() {
     void window.vuelta.copyText(text)
   }, [])
 
+  // Dev-only: the 3D skin, driven by a synthetic RenderState. Replaced by the
+  // real store at M1. `import.meta.env.DEV` is false in a packaged build, so
+  // this whole branch and its chunk drop out.
+  if (import.meta.env.DEV && showSkin && Harness) {
+    return (
+      <Suspense fallback={<div className="screen screen--centered">Loading scene…</div>}>
+        <Harness onExit={() => setShowSkin(false)} />
+      </Suspense>
+    )
+  }
+
   // Config hasn't been read yet. One frame, typically.
   if (!setup) return <div className="screen screen--centered" />
 
@@ -169,6 +192,11 @@ export function App() {
             {snapshot?.deviceName ? ` · ${snapshot.deviceName}` : ''}
           </span>
           <span className="row" style={{ gap: '0.9rem' }}>
+            {import.meta.env.DEV ? (
+              <button type="button" className="link" onClick={() => setShowSkin(true)}>
+                3D skin
+              </button>
+            ) : null}
             {!setup.secureStorageAvailable ? (
               <span style={{ color: 'var(--danger)' }}>Secure storage unavailable</span>
             ) : null}
