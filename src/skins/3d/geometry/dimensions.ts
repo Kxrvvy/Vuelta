@@ -165,15 +165,21 @@ export const CAMERA = {
   /** Off vertical. Enough to read the lid's form and the plinth's front edge
    *  without ceasing to be a top view. */
   TILT_DEG: 38,
-  DISTANCE: 0.98,
   FOV: 32,
-  /**
-   * Look well to the right of the spindle, which pushes the machine to the
-   * left of frame. The now-playing panel lives on the right, and at the
-   * previous framing it sat on top of the volume knob and the arm pivot —
-   * covering the two controls it is meant to complement.
-   */
-  TARGET_X: 0.14,
+} as const
+
+/**
+ * The volume the camera frames against.
+ *
+ * Slightly larger than the cabinet itself: the lid overhangs it a little, and
+ * a bare-minimum box would leave the machine touching the edges of the frame.
+ */
+export const FIT_BOX = {
+  WIDTH: LID.WIDTH,
+  DEPTH: LID.DEPTH,
+  /** Feet to the top of the closed lid. */
+  HEIGHT: PLINTH.HEIGHT + FOOT.HEIGHT + LID.WALL_HEIGHT,
+  CENTER_X: PLINTH.CENTER_X,
 } as const
 
 /** 33⅓ rpm in degrees per second — 200°/s exactly. */

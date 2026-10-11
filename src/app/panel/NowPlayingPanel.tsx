@@ -49,6 +49,7 @@ export function usePointerActivity(): boolean {
 }
 
 export function NowPlayingPanel({
+  ref,
   track,
   progressMs,
   durationMs,
@@ -58,6 +59,8 @@ export function NowPlayingPanel({
   actions,
   visible,
 }: {
+  /** Measured by TopView so the camera can frame around the panel. */
+  ref?: React.Ref<HTMLElement>
   track: TrackSummary | null
   progressMs: number
   durationMs: number
@@ -71,6 +74,7 @@ export function NowPlayingPanel({
 
   return (
     <aside
+      ref={ref}
       className="panel"
       data-visible={visible ? 'true' : 'false'}
       // Hidden from the pointer when faded out, so it cannot swallow a click
