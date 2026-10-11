@@ -22,7 +22,8 @@ import {
   vinylMaterial,
 } from '../materials/surfaces.js'
 import { fallbackLabelTexture } from '../materials/textures.js'
-import { DEG, damp, useRenderStateRef } from '../useFrameState.js'
+import { useInteraction } from '../interaction/context.js'
+import { DEG, damp, setCursor, useRenderStateRef } from '../useFrameState.js'
 
 /**
  * Load album art as a texture.
@@ -72,6 +73,7 @@ function useAlbumArtTexture(url: string | null): Texture | null {
 
 export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
   const stateRef = useRenderStateRef()
+  const { actions } = useInteraction()
   const spinner = useRef<Group>(null)
   const degPerSec = useRef(0)
 
@@ -127,12 +129,20 @@ export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
           <primitive object={vinylEdgeMaterial()} attach="material" />
         </mesh>
 
-        {/* The playing surface. A separate disc so the groove, roughness and
-            anisotropy maps apply only where they are actually visible. */}
+        {/* The playing surface, and the play/pause target.
+            Spec §11: the disc is the click target, not the arm — the arm is
+            thin and moving, which makes it a poor one. */}
         <mesh
           position={[0, RECORD_SURFACE_Y + 0.00002, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
           receiveShadow
+          onClick={(event) => {
+            event.stopPropagation()
+            if (stateRef.current.isPlaying) actions.pause()
+            else actions.play()
+          }}
+          onPointerOver={() => setCursor('pointer')}
+          onPointerOut={() => setCursor('default')}
         >
           <circleGeometry args={[RECORD.RADIUS, 192]} />
           <primitive object={surface} attach="material" />

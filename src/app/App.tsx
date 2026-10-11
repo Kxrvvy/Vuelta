@@ -1,14 +1,15 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createVueltaStore } from '../core/store.js'
+import { TopView } from '../views/TopView.js'
 import { AuthFailedScreen } from './screens/AuthFailedScreen.js'
 import { ConnectingScreen } from './screens/ConnectingScreen.js'
 import { IdleScreen } from './screens/IdleScreen.js'
 import { NoDeviceScreen } from './screens/NoDeviceScreen.js'
 import { NotAllowlistedScreen } from './screens/NotAllowlistedScreen.js'
-import { NowPlayingText } from './screens/NowPlayingText.js'
 import { SetupScreen } from './screens/SetupScreen.js'
 import { Shell } from './screens/Shell.js'
 import { useStoreValue } from './useStore.js'
+import { useSync } from './useSync.js'
 
 /**
  * The store is created once, outside the component, so it survives remounts and
@@ -17,41 +18,22 @@ import { useStoreValue } from './useStore.js'
  */
 const store = createVueltaStore()
 
-/**
- * The 3D skin, as its own chunk.
- *
- * Lazy rather than a direct import so three.js never lands in the main bundle.
- * The render below is additionally guarded by `import.meta.env.DEV`, so in a
- * packaged build the chunk is never requested.
- */
-const Harness = import.meta.env.DEV
-  ? lazy(() => import('../skins/3d/dev/Harness.js').then((module) => ({ default: module.Harness })))
-  : null
+/** Phases in which there is a session worth polling for. */
+const CONNECTED = new Set(['connecting', 'no-device', 'playing', 'paused'])
 
 export function App() {
-  const [showSkin, setShowSkin] = useState(false)
   const app = useStoreValue(store, (state) => state.app)
   const setup = useStoreValue(store, (state) => state.setup)
-  const snapshot = useStoreValue(store, (state) => state.snapshot)
 
   const [busy, setBusy] = useState(false)
   const [setupError, setSetupError] = useState<string | null>(null)
 
-  const poll = useCallback(async () => {
-    store.getState().applyPoll(await window.vuelta.getPlayer())
-  }, [])
+  // M1's state layer. It owns the poll loop and the clock from here on, so
+  // nothing else in this file fetches playback.
+  const sync = useSync(store, CONNECTED.has(app.phase))
 
-  const refresh = useCallback(async () => {
-    setBusy(true)
-    try {
-      await poll()
-    } finally {
-      setBusy(false)
-    }
-  }, [poll])
-
-  // Launch: read config, tell the state machine what we found, and reconnect
-  // straight away if a refresh token is already on disk.
+  // Launch: read config and tell the state machine what we found. Polling
+  // starts on its own once the phase says there is a session.
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -64,12 +46,11 @@ export function App() {
         hasClientId: info.clientId !== null,
         hasStoredSession: info.hasStoredSession,
       })
-      if (info.clientId !== null && info.hasStoredSession) await poll()
     })()
     return () => {
       cancelled = true
     }
-  }, [poll])
+  }, [])
 
   const connect = useCallback(async () => {
     setBusy(true)
@@ -84,11 +65,10 @@ export function App() {
       dispatch({ type: 'AUTH_SUCCEEDED' })
       // The port may have moved to a fallback during the flow.
       setSetup(await window.vuelta.getSetup())
-      await poll()
     } finally {
       setBusy(false)
     }
-  }, [poll])
+  }, [])
 
   const saveClientId = useCallback(async (clientId: string) => {
     setBusy(true)
@@ -121,16 +101,14 @@ export function App() {
     void window.vuelta.copyText(text)
   }, [])
 
-  // Dev-only: the 3D skin, driven by a synthetic RenderState. Replaced by the
-  // real store at M1. `import.meta.env.DEV` is false in a packaged build, so
-  // this whole branch and its chunk drop out.
-  if (import.meta.env.DEV && showSkin && Harness) {
-    return (
-      <Suspense fallback={<div className="screen screen--centered">Loading scene…</div>}>
-        <Harness onExit={() => setShowSkin(false)} />
-      </Suspense>
-    )
-  }
+  const checkAgain = useCallback(async () => {
+    setBusy(true)
+    try {
+      await sync.pollNow()
+    } finally {
+      setBusy(false)
+    }
+  }, [sync])
 
   // Config hasn't been read yet. One frame, typically.
   if (!setup) return <div className="screen screen--centered" />
@@ -154,12 +132,10 @@ export function App() {
       case 'connecting':
         return <ConnectingScreen />
       case 'no-device':
-        return <NoDeviceScreen busy={busy} onRetry={() => void refresh()} />
+        return <NoDeviceScreen busy={busy} onRetry={() => void checkAgain()} />
       case 'playing':
       case 'paused':
-        return (
-          <NowPlayingText snapshot={snapshot} busy={busy} onRefresh={() => void refresh()} />
-        )
+        return <TopView sync={sync} />
       case 'not-allowlisted':
         return (
           <NotAllowlistedScreen
@@ -189,14 +165,9 @@ export function App() {
           <span className="row" style={{ gap: '0.5rem' }}>
             <span className={app.phase === 'playing' ? 'dot dot--live' : 'dot'} />
             {statusLabel(app.phase)}
-            {snapshot?.deviceName ? ` · ${snapshot.deviceName}` : ''}
+            {sync.readout.deviceName ? ` · ${sync.readout.deviceName}` : ''}
           </span>
           <span className="row" style={{ gap: '0.9rem' }}>
-            {import.meta.env.DEV ? (
-              <button type="button" className="link" onClick={() => setShowSkin(true)}>
-                3D skin
-              </button>
-            ) : null}
             {!setup.secureStorageAvailable ? (
               <span style={{ color: 'var(--danger)' }}>Secure storage unavailable</span>
             ) : null}

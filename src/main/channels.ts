@@ -9,4 +9,13 @@ export const CHANNELS = {
   signOut: 'vuelta:sign-out',
   getPlayer: 'vuelta:get-player',
   copyText: 'vuelta:copy-text',
+
+  // Playback control. Each is a round trip to Spotify's servers, which relay
+  // to the desktop client — Vuelta plays no audio of its own.
+  play: 'vuelta:play',
+  pause: 'vuelta:pause',
+  seek: 'vuelta:seek',
+  next: 'vuelta:next',
+  previous: 'vuelta:previous',
+  setVolume: 'vuelta:set-volume',
 } as const

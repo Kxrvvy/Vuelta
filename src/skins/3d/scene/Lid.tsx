@@ -14,13 +14,15 @@
 
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import type { Group } from 'three'
+import { DoubleSide, type Group } from 'three'
 import { LID, PLINTH } from '../geometry/dimensions.js'
+import { useInteraction } from '../interaction/context.js'
 import { acrylicEdgeMaterial, acrylicMaterial, plasticMaterial } from '../materials/surfaces.js'
-import { DEG, damp, useRenderStateRef } from '../useFrameState.js'
+import { DEG, damp, setCursor, useRenderStateRef } from '../useFrameState.js'
 
 export function Lid() {
   const stateRef = useRenderStateRef()
+  const { toggleLid } = useInteraction()
   const hinge = useRef<Group>(null)
 
   useFrame((_, delta) => {
@@ -33,6 +35,16 @@ export function Lid() {
   const halfWidth = LID.WIDTH / 2
   const depth = LID.DEPTH
 
+  // Every acrylic panel shares these, so a click anywhere on the lid counts.
+  const clickable = {
+    onClick: (event: { stopPropagation(): void }) => {
+      event.stopPropagation()
+      toggleLid()
+    },
+    onPointerOver: () => setCursor('pointer'),
+    onPointerOut: () => setCursor('default'),
+  }
+
   return (
     <group position={[PLINTH.CENTER_X, LID.HINGE_Y, LID.HINGE_Z]}>
       {/* Hinge barrels, visible at the back corners in the reference. */}
@@ -44,6 +56,22 @@ export function Lid() {
       ))}
 
       <group ref={hinge}>
+        {/* Click target for the whole lid.
+            The visible acrylic is FrontSide — necessary, because double-sided
+            at any useful opacity fogged the record over. But a FrontSide
+            material is also invisible to the raycaster from behind, and once
+            the lid swings open we are looking at its underside. So the hit
+            surface is its own double-sided plane. */}
+        <mesh
+          visible={false}
+          position={[0, LID.WALL_HEIGHT, depth / 2]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          {...clickable}
+        >
+          <planeGeometry args={[LID.WIDTH, depth]} />
+          <meshBasicMaterial side={DoubleSide} />
+        </mesh>
+
         {/* Top face. */}
         <mesh position={[0, LID.WALL_HEIGHT, depth / 2]} castShadow receiveShadow>
           <boxGeometry args={[LID.WIDTH, LID.THICKNESS, depth]} />
@@ -56,6 +84,7 @@ export function Lid() {
           rotation={[0.06, 0, 0]}
           castShadow
           receiveShadow
+          {...clickable}
         >
           <boxGeometry args={[LID.WIDTH, LID.WALL_HEIGHT, LID.THICKNESS]} />
           <primitive object={acrylicMaterial()} attach="material" />
@@ -63,7 +92,7 @@ export function Lid() {
 
         {/* Side walls. */}
         {[-halfWidth, halfWidth].map((x) => (
-          <mesh key={x} position={[x, LID.WALL_HEIGHT / 2, depth / 2]} castShadow>
+          <mesh key={x} position={[x, LID.WALL_HEIGHT / 2, depth / 2]} castShadow {...clickable}>
             <boxGeometry args={[LID.THICKNESS, LID.WALL_HEIGHT, depth]} />
             <primitive object={acrylicMaterial()} attach="material" />
           </mesh>

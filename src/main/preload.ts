@@ -17,6 +17,13 @@ const bridge: VueltaBridge = {
   signOut: () => ipcRenderer.invoke(CHANNELS.signOut),
   getPlayer: () => ipcRenderer.invoke(CHANNELS.getPlayer),
   copyText: (text) => ipcRenderer.invoke(CHANNELS.copyText, text),
+
+  play: () => ipcRenderer.invoke(CHANNELS.play),
+  pause: () => ipcRenderer.invoke(CHANNELS.pause),
+  seek: (positionMs) => ipcRenderer.invoke(CHANNELS.seek, positionMs),
+  next: () => ipcRenderer.invoke(CHANNELS.next),
+  previous: () => ipcRenderer.invoke(CHANNELS.previous),
+  setVolume: (percent) => ipcRenderer.invoke(CHANNELS.setVolume, percent),
 }
 
 contextBridge.exposeInMainWorld('vuelta', bridge)

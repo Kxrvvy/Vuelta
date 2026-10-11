@@ -44,3 +44,13 @@ export function damp(current: number, target: number, lambda: number, delta: num
 }
 
 export const DEG = Math.PI / 180
+
+/**
+ * Change the canvas cursor from inside the scene.
+ *
+ * R3F has no cursor concept of its own, and hover feedback is the only thing
+ * telling you the record and the knob are clickable at all.
+ */
+export function setCursor(cursor: 'pointer' | 'default' | 'ew-resize' | 'grabbing'): void {
+  document.body.style.cursor = cursor
+}

@@ -19,20 +19,24 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group } from 'three'
-import { ARM } from '../../../core/contract.js'
 import {
   ARM_BASE_YAW_DEG,
   RECORD_SURFACE_Y,
   TONEARM,
   TONEARM_PIVOT,
 } from '../geometry/dimensions.js'
+import { useArmDrag } from '../interaction/useArmDrag.js'
 import { chromeMaterial, plasticMaterial, stylusMaterial } from '../materials/surfaces.js'
-import { DEG, damp, useRenderStateRef } from '../useFrameState.js'
+import { DEG, damp, setCursor, useRenderStateRef } from '../useFrameState.js'
 
 const L = TONEARM.EFFECTIVE_LENGTH
 
+/** How far the cue lever raises the arm off the record. A few millimetres. */
+const CUE_LIFT = 0.004
+
 export function Tonearm() {
   const stateRef = useRenderStateRef()
+  const { handlers } = useArmDrag()
   const yaw = useRef<Group>(null)
   const lift = useRef<Group>(null)
 
@@ -45,12 +49,15 @@ export function Tonearm() {
     const targetYaw = (ARM_BASE_YAW_DEG - state.armAngle) * DEG
     // Damped rather than snapped: a poll correction should ease the arm across,
     // never jump it. Spec §8 asks for exactly this at the data layer; the skin
-    // honours it visually too.
-    yawGroup.rotation.y = damp(yawGroup.rotation.y, targetYaw, 6, delta)
+    // honours it visually too. A drag is the user's hand, so it tracks hard.
+    yawGroup.rotation.y = damp(yawGroup.rotation.y, targetYaw, state.isDragging ? 26 : 6, delta)
 
-    const shouldLift = state.armAngle <= ARM.REST_ANGLE || !state.isPlaying
-    const targetLift = shouldLift ? -0.05 : 0
-    liftGroup.rotation.x = damp(liftGroup.rotation.x, targetLift, 5, delta)
+    // Cue-lever pause — spec §11. Pausing lifts the arm a few millimetres and
+    // leaves it hovering at its current angle. It does NOT return to the
+    // cradle; only closing the lid does that, and the lid drives armAngle to
+    // REST directly, so there is nothing to special-case here.
+    const cued = !state.isPlaying || state.isDragging
+    liftGroup.position.y = damp(liftGroup.position.y, cued ? CUE_LIFT : 0, 7, delta)
   })
 
   return (
@@ -66,6 +73,30 @@ export function Tonearm() {
       </mesh>
 
       <group ref={yaw} position={[0, TONEARM.PIVOT_HEIGHT - RECORD_SURFACE_Y, 0]}>
+        {/* Grab target. Invisible, and far fatter than the tube it wraps —
+            the real arm is a handful of pixels wide on screen, which is
+            unusable as a drag handle. Sits outside the lift group so the
+            target does not move as the cue lever raises the arm. */}
+        <mesh
+          visible={false}
+          position={[-(L - TONEARM.HEADSHELL_LENGTH) / 2, 0, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+          onPointerDown={handlers.onPointerDown}
+          onPointerMove={handlers.onPointerMove}
+          onPointerUp={handlers.onPointerUp}
+          onPointerCancel={handlers.onPointerUp}
+          // Without this, releasing a drag also lands a click on the record
+          // directly behind the arm, which toggles play/pause. R3F dispatches
+          // to every intersection in depth order, so the nearer object has to
+          // stop it.
+          onClick={(event) => event.stopPropagation()}
+          onPointerOver={() => setCursor('grabbing')}
+          onPointerOut={() => setCursor('default')}
+        >
+          <cylinderGeometry args={[0.016, 0.016, L, 12]} />
+          <meshBasicMaterial />
+        </mesh>
+
         <group ref={lift}>
           {/* Counterweight, behind the pivot. Rotated onto the arm's axis —
               three's cylinders stand on y by default, which from overhead

@@ -9,7 +9,12 @@
  * Uses Node's global `fetch`. No HTTP dependency.
  */
 
-import type { PlaybackSnapshot, PlayerPoll, TrackSummary } from '../../core/contract.js'
+import type {
+  CommandResult,
+  PlaybackSnapshot,
+  PlayerPoll,
+  TrackSummary,
+} from '../../core/contract.js'
 import { SPOTIFY_SCOPES } from '../../core/contract.js'
 import { VueltaError, toVueltaError } from '../errors.js'
 import { clearSession, loadRefreshToken, saveRefreshToken } from '../tokens.js'
@@ -184,10 +189,22 @@ async function request<T>(clientId: string, path: string, init?: RequestInit): P
   if (response.status === 204) return null
 
   if (response.status === 429) {
-    const retryAfter = Number(response.headers.get('retry-after') ?? '1')
+    const header = Number(response.headers.get('retry-after') ?? '1')
+    const seconds = Number.isFinite(header) && header > 0 ? header : 1
     throw new VueltaError(
       'rate-limited',
-      `Spotify asked us to slow down. Retrying is safe in ${Number.isFinite(retryAfter) ? retryAfter : 1}s.`,
+      `Spotify asked us to slow down. Retrying is safe in ${seconds}s.`,
+      seconds * 1000,
+    )
+  }
+
+  if (response.status === 404) {
+    // NO_ACTIVE_DEVICE. On a control call this is not a bug — Spotify simply
+    // is not running, which is the same situation GET /me/player reports as
+    // a 204. Same designed screen, different status code.
+    throw new VueltaError(
+      'no-device',
+      'No active Spotify device. Open Spotify and press play once, then try again.',
     )
   }
 
@@ -265,4 +282,60 @@ export async function getPlayer(clientId: string): Promise<PlayerPoll> {
     const error = toVueltaError(cause)
     return { kind: 'error', code: error.code, message: error.message }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Playback control
+//
+// Every one of these is a round trip to Spotify's servers, which then relay to
+// the desktop client. Vuelta plays no audio; it is a remote control.
+//
+// These endpoints answer 204 with an empty body on success, which `request`
+// already returns as null. A 404 means no active device, and a 403 means
+// either no Premium or a Client ID the user has not allowlisted — all three
+// are mapped to codes the renderer turns into designed screens.
+// ---------------------------------------------------------------------------
+
+async function command(
+  clientId: string,
+  method: 'PUT' | 'POST',
+  path: string,
+): Promise<CommandResult> {
+  try {
+    await request(clientId, path, { method })
+    return { ok: true }
+  } catch (cause) {
+    const error = toVueltaError(cause)
+    return error.retryAfterMs === undefined
+      ? { ok: false, code: error.code, message: error.message }
+      : { ok: false, code: error.code, message: error.message, retryAfterMs: error.retryAfterMs }
+  }
+}
+
+/** No body: Spotify resumes the user's last context, which is how playback
+ *  starts without Vuelta needing a library browser (spec §7). */
+export function play(clientId: string): Promise<CommandResult> {
+  return command(clientId, 'PUT', '/me/player/play')
+}
+
+export function pause(clientId: string): Promise<CommandResult> {
+  return command(clientId, 'PUT', '/me/player/pause')
+}
+
+export function seek(clientId: string, positionMs: number): Promise<CommandResult> {
+  const position = Math.max(0, Math.round(positionMs))
+  return command(clientId, 'PUT', `/me/player/seek?position_ms=${position}`)
+}
+
+export function next(clientId: string): Promise<CommandResult> {
+  return command(clientId, 'POST', '/me/player/next')
+}
+
+export function previous(clientId: string): Promise<CommandResult> {
+  return command(clientId, 'POST', '/me/player/previous')
+}
+
+export function setVolume(clientId: string, percent: number): Promise<CommandResult> {
+  const volume = Math.max(0, Math.min(100, Math.round(percent)))
+  return command(clientId, 'PUT', `/me/player/volume?volume_percent=${volume}`)
 }

@@ -165,10 +165,15 @@ export const CAMERA = {
   /** Off vertical. Enough to read the lid's form and the plinth's front edge
    *  without ceasing to be a top view. */
   TILT_DEG: 38,
-  DISTANCE: 0.88,
+  DISTANCE: 0.98,
   FOV: 32,
-  /** Look slightly right of the spindle so the arm assembly stays in frame. */
-  TARGET_X: 0.03,
+  /**
+   * Look well to the right of the spindle, which pushes the machine to the
+   * left of frame. The now-playing panel lives on the right, and at the
+   * previous framing it sat on top of the volume knob and the arm pivot —
+   * covering the two controls it is meant to complement.
+   */
+  TARGET_X: 0.14,
 } as const
 
 /** 33⅓ rpm in degrees per second — 200°/s exactly. */
