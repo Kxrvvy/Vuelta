@@ -3,7 +3,7 @@
  * that is M7.
  */
 
-import { app, BrowserWindow, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, session, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc.js'
 
@@ -39,10 +39,12 @@ function applyContentSecurityPolicy(): void {
 
 function createWindow(): void {
   const window = new BrowserWindow({
-    width: 760,
-    height: 580,
-    minWidth: 560,
-    minHeight: 460,
+    width: 980,
+    height: 680,
+    // A floor low enough to be a useful small window, high enough that the
+    // panel and the turntable both still have room beside each other.
+    minWidth: 640,
+    minHeight: 520,
     show: false,
     backgroundColor: '#141210',
     title: 'Vuelta',
@@ -57,6 +59,22 @@ function createWindow(): void {
 
   // Avoid the white flash before React paints.
   window.once('ready-to-show', () => window.show())
+
+  // Removing the menu also removes the accelerators it carried, so dev builds
+  // get the two that are actually useful back. Production gets neither, which
+  // is correct — there is no reason to ship a DevTools shortcut.
+  //
+  // Clipboard shortcuts are NOT restored here on purpose: on Windows, Ctrl+C
+  // and Ctrl+V inside a text field are handled by Blink itself rather than by
+  // the menu's edit roles, so pasting a Client ID still works without a menu.
+  // (macOS would need them back; this app is Windows-only.)
+  if (isDev) {
+    window.webContents.on('before-input-event', (_event, input) => {
+      if (input.type !== 'keyDown') return
+      if (input.key === 'F12') window.webContents.toggleDevTools()
+      if (input.control && input.key.toLowerCase() === 'r') window.webContents.reload()
+    })
+  }
 
   // Dev-only convenience. `isDev` is checked here as well as in the value
   // itself so that a packaged build cannot open DevTools even if someone
@@ -104,6 +122,12 @@ app.setName('Vuelta')
 
 // Windows taskbar grouping and notification identity.
 app.setAppUserModelId('com.vuelta.app')
+
+// No File / Edit / View / Window bar. Electron installs a stock menu by
+// default; none of it does anything this app needs, and a menu bar makes the
+// window read as a document editor rather than as an object on a desk. M7
+// takes this further with frameless chrome.
+Menu.setApplicationMenu(null)
 
 // A second instance would race for port 8888 and for the config file.
 if (!app.requestSingleInstanceLock()) {

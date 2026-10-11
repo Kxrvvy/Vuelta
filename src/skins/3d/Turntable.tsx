@@ -14,6 +14,7 @@ import { Canvas } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Actions } from '../../core/contract.js'
 import { CAMERA } from './geometry/dimensions.js'
+import { CameraRig } from './scene/CameraRig.js'
 import { InteractionProvider, type SkinInteraction } from './interaction/context.js'
 import { NeedleReadout } from './interaction/NeedleReadout.js'
 import { Cabinet } from './scene/Cabinet.js'
@@ -22,7 +23,7 @@ import { Lid } from './scene/Lid.js'
 import { Record } from './scene/Record.js'
 import { Staging } from './scene/Staging.js'
 import { Tonearm } from './scene/Tonearm.js'
-import { DEG, RenderStateProvider, setCursor, type RenderStateRef } from './useFrameState.js'
+import { RenderStateProvider, setCursor, type RenderStateRef } from './useFrameState.js'
 
 export type TurntableProps = {
   /** Live state, mutated in place. Never a prop that changes per frame. */
@@ -38,15 +39,12 @@ export type TurntableProps = {
   onArmDragStart: () => void
   onArmDragTo: (progressMs: number) => void
   onArmDragEnd: () => void
+  /** CSS pixels the overlay panel occupies on the right, measured live. */
+  reserveRightPx: number
 }
 
 /** How long to keep rendering after things stop, so spin-down can finish. */
 const SETTLE_MS = 2600
-
-function cameraPosition(): [number, number, number] {
-  const tilt = CAMERA.TILT_DEG * DEG
-  return [CAMERA.TARGET_X, CAMERA.DISTANCE * Math.cos(tilt), CAMERA.DISTANCE * Math.sin(tilt)]
-}
 
 export function Turntable({
   state,
@@ -58,6 +56,7 @@ export function Turntable({
   onArmDragStart,
   onArmDragTo,
   onArmDragEnd,
+  reserveRightPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
   // frames a second at a motionless record would burn GPU and battery for
@@ -78,8 +77,6 @@ export function Turntable({
   // inherited by whatever screen comes next.
   useEffect(() => () => setCursor('default'), [])
 
-  const position = useMemo(cameraPosition, [])
-
   const interaction = useMemo<SkinInteraction>(
     () => ({
       actions,
@@ -99,12 +96,14 @@ export function Turntable({
         shadows
         dpr={[1, 2]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
-        camera={{ position, fov: CAMERA.FOV, near: 0.05, far: 12 }}
-        onCreated={({ camera }) => camera.lookAt(CAMERA.TARGET_X, 0, 0)}
+        // Position and look-at are owned by CameraRig, which refits them to
+        // the window. Only the fixed optics are declared here.
+        camera={{ fov: CAMERA.FOV, near: 0.05, far: 12 }}
         style={{ width: '100%', height: '100%', display: 'block' }}
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
+            <CameraRig reserveRightPx={reserveRightPx} />
             <Staging />
             <Cabinet />
             <Knob volumePercent={volumePercent} />

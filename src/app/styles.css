@@ -282,11 +282,17 @@ input[type='text']:focus {
   top: 50%;
   right: 1.1rem;
   transform: translateY(-50%);
-  width: 14.5rem;
+  /* Scales with the window: narrow enough at the 640px floor to leave the
+     turntable room, generous on a maximised window instead of staying a
+     postage stamp. TopView measures the result and the camera frames
+     around it, so this is the single source of the number. */
+  width: clamp(9.5rem, 26vw, 19rem);
+  max-height: calc(100% - 2rem);
   display: grid;
   gap: 0.7rem;
   justify-items: center;
   padding: 1rem 1rem 1.15rem;
+  overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: rgba(22, 19, 17, 0.82);
@@ -307,8 +313,10 @@ input[type='text']:focus {
 }
 
 .panel__art {
-  width: 9.5rem;
-  height: 9.5rem;
+  /* Fills the panel rather than a fixed size, so everything inside scales
+     together when the panel does. */
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 6px;
   overflow: hidden;
   background: #0f0d0c;
@@ -366,8 +374,8 @@ input[type='text']:focus {
 }
 
 .panel__transport button {
-  width: 2.3rem;
-  height: 2.3rem;
+  width: clamp(1.9rem, 4.2vw, 2.6rem);
+  height: clamp(1.9rem, 4.2vw, 2.6rem);
   padding: 0;
   display: grid;
   place-items: center;
@@ -376,8 +384,8 @@ input[type='text']:focus {
 }
 
 .panel__transport button.primary {
-  width: 2.8rem;
-  height: 2.8rem;
+  width: clamp(2.3rem, 5.2vw, 3.2rem);
+  height: clamp(2.3rem, 5.2vw, 3.2rem);
   font-size: 1.05rem;
 }
 
@@ -388,8 +396,8 @@ input[type='text']:focus {
 }
 
 .knob {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: clamp(2rem, 4.6vw, 2.9rem);
+  height: clamp(2rem, 4.6vw, 2.9rem);
   border-radius: 50%;
   background: radial-gradient(circle at 38% 32%, #35302b, #141210 70%);
   border: 1px solid #453d35;
