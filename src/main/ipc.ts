@@ -10,6 +10,7 @@
 import { clipboard, ipcMain } from 'electron'
 import type {
   AuthOutcome,
+  CommandResult,
   PlayerPoll,
   SaveClientIdResult,
   SetupInfo,
@@ -24,7 +25,16 @@ import {
   writeConfig,
 } from './config.js'
 import { toVueltaError } from './errors.js'
-import { forgetAccessToken, getPlayer } from './spotify/client.js'
+import {
+  forgetAccessToken,
+  getPlayer,
+  next,
+  pause,
+  play,
+  previous,
+  seek,
+  setVolume,
+} from './spotify/client.js'
 import { clearSession, hasStoredSession, isSecureStorageAvailable } from './tokens.js'
 
 function currentSetup(): SetupInfo {
@@ -99,5 +109,37 @@ export function registerIpcHandlers(): void {
     }
     // getPlayer never throws — it maps every failure onto the PlayerPoll union.
     return getPlayer(clientId)
+  })
+
+  // --- playback control ----------------------------------------------------
+  // Each command module function already returns a CommandResult rather than
+  // throwing, so these handlers only have to supply the Client ID.
+
+  const withClientId =
+    (run: (clientId: string) => Promise<CommandResult>) => async (): Promise<CommandResult> => {
+      const { clientId } = readConfig()
+      if (!clientId) {
+        return { ok: false, code: 'no-client-id', message: 'No Client ID has been set yet.' }
+      }
+      return run(clientId)
+    }
+
+  ipcMain.handle(CHANNELS.play, withClientId(play))
+  ipcMain.handle(CHANNELS.pause, withClientId(pause))
+  ipcMain.handle(CHANNELS.next, withClientId(next))
+  ipcMain.handle(CHANNELS.previous, withClientId(previous))
+
+  ipcMain.handle(CHANNELS.seek, async (_event, positionMs: unknown): Promise<CommandResult> => {
+    if (typeof positionMs !== 'number' || !Number.isFinite(positionMs)) {
+      return { ok: false, code: 'unknown', message: 'Seek position must be a number.' }
+    }
+    return withClientId((clientId) => seek(clientId, positionMs))()
+  })
+
+  ipcMain.handle(CHANNELS.setVolume, async (_event, percent: unknown): Promise<CommandResult> => {
+    if (typeof percent !== 'number' || !Number.isFinite(percent)) {
+      return { ok: false, code: 'unknown', message: 'Volume must be a number.' }
+    }
+    return withClientId((clientId) => setVolume(clientId, percent))()
   })
 }

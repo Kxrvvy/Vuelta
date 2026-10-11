@@ -261,3 +261,167 @@ input[type='text']:focus {
 .dot--live {
   background: var(--accent);
 }
+
+/* ---------------------------------------------------------------------------
+ * The stage and the now-playing panel.
+ *
+ * The panel is an overlay, not a column: spec §13 warns that always-visible
+ * chrome fights the illusion, so it fades in on pointer activity and the
+ * turntable never shifts position to make room for it.
+ * ------------------------------------------------------------------------ */
+
+.stage {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel {
+  position: absolute;
+  top: 50%;
+  right: 1.1rem;
+  transform: translateY(-50%);
+  width: 14.5rem;
+  display: grid;
+  gap: 0.7rem;
+  justify-items: center;
+  padding: 1rem 1rem 1.15rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(22, 19, 17, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+}
+
+.panel[data-visible='true'] {
+  opacity: 1;
+}
+
+.panel[data-visible='false'] {
+  transform: translateY(-50%) translateX(8px);
+}
+
+.panel__art {
+  width: 9.5rem;
+  height: 9.5rem;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0f0d0c;
+  border: 1px solid var(--line);
+}
+
+.panel__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.panel__art--empty {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 40% 35%, #241f1b, #0f0d0c);
+}
+
+.panel__meta {
+  text-align: center;
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+}
+
+.panel__title {
+  font-size: 0.95rem;
+  color: var(--text);
+  /* Track titles get long; one line keeps the panel from jumping about. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel__artist {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel__time {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.panel__transport {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.panel__transport button {
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  border-radius: 50%;
+}
+
+.panel__transport button.primary {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 1.05rem;
+}
+
+.panel__volume {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.knob {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #35302b, #141210 70%);
+  border: 1px solid #453d35;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.07);
+  position: relative;
+  /* Horizontal slide, so say so on hover. */
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.knob:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.knob__pointer {
+  position: absolute;
+  inset: 0;
+  /* The line is drawn as a gradient stripe so it rotates with the knob. */
+  background: linear-gradient(to top, transparent 52%, var(--accent) 52%, var(--accent) 76%, transparent 76%);
+  border-radius: 50%;
+}
+
+.panel__volume-value {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 2ch;
+}
+
+.panel__device {
+  font-size: 0.72rem;
+  color: var(--muted);
+  opacity: 0.8;
+}

@@ -121,7 +121,19 @@ export type PlaybackSnapshot = {
 export type PlayerPoll =
   | { kind: 'ok'; snapshot: PlaybackSnapshot }
   | { kind: 'no-device' }
-  | { kind: 'error'; code: VueltaErrorCode; message: string }
+  | { kind: 'error'; code: VueltaErrorCode; message: string; retryAfterMs?: number }
+
+/**
+ * The result of a playback command.
+ *
+ * A result rather than a thrown error, for the same reason `saveClientId`
+ * returns one: an exception crossing IPC reaches the renderer as "Error
+ * invoking remote method …", which is exactly the raw-error experience
+ * spec §3 warns against.
+ */
+export type CommandResult =
+  | { ok: true }
+  | { ok: false; code: VueltaErrorCode; message: string; retryAfterMs?: number }
 
 // ---------------------------------------------------------------------------
 // Errors and setup
@@ -132,6 +144,8 @@ export type VueltaErrorCode =
   | 'not-allowlisted'
   /** Playback control requires Premium. */
   | 'premium-required'
+  /** HTTP 404 NO_ACTIVE_DEVICE on a control call. Spotify isn't running. */
+  | 'no-device'
   | 'no-client-id'
   | 'auth-failed'
   | 'auth-cancelled'
@@ -184,6 +198,18 @@ export type VueltaBridge = {
    * needs a secure context the packaged app's `file://` origin does not provide.
    */
   copyText(text: string): Promise<void>
+
+  // --- playback control ---------------------------------------------------
+  // Mirrors `Actions`, but async and fallible, because each one is a network
+  // round trip through Spotify's servers to the desktop client.
+  play(): Promise<CommandResult>
+  pause(): Promise<CommandResult>
+  /** Commits on drag release only, never during the drag. */
+  seek(positionMs: number): Promise<CommandResult>
+  next(): Promise<CommandResult>
+  previous(): Promise<CommandResult>
+  /** Throttled by the caller to roughly one call per 400ms. */
+  setVolume(percent: number): Promise<CommandResult>
 }
 
 /** Spotify Client IDs are 32 hex characters. Shared so both sides validate identically. */

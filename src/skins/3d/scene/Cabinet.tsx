@@ -7,15 +7,8 @@
  * move rather than a new build — the machine already exists.
  */
 
-import { FOOT, GRILLE, KNOB, LED, PLATTER, PLINTH } from '../geometry/dimensions.js'
-import {
-  chromeMaterial,
-  deckMaterial,
-  grilleMaterial,
-  ledMaterial,
-  plasticMaterial,
-  plinthMaterial,
-} from '../materials/surfaces.js'
+import { FOOT, GRILLE, PLATTER, PLINTH } from '../geometry/dimensions.js'
+import { deckMaterial, grilleMaterial, plasticMaterial, plinthMaterial } from '../materials/surfaces.js'
 
 const FRONT_Z = PLINTH.CENTER_Z + PLINTH.DEPTH / 2
 
@@ -61,33 +54,6 @@ export function Cabinet() {
         <planeGeometry args={[GRILLE.WIDTH, GRILLE.HEIGHT]} />
         <primitive object={grilleMaterial()} attach="material" />
       </mesh>
-
-      {/* Volume knob: black body, chrome collar, as in the reference. */}
-      <group position={[PLINTH.CENTER_X + KNOB.OFFSET_X, KNOB.OFFSET_Y, FRONT_Z]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <cylinderGeometry args={[KNOB.RADIUS, KNOB.RADIUS, KNOB.HEIGHT, 48]} />
-          <primitive object={plasticMaterial()} attach="material" />
-        </mesh>
-        <mesh position={[0, 0, KNOB.HEIGHT / 2]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[KNOB.RADIUS * 0.72, KNOB.RADIUS * 0.72, 0.0022, 48]} />
-          <primitive object={chromeMaterial()} attach="material" />
-        </mesh>
-      </group>
-
-      {/* Power LED. */}
-      <mesh
-        position={[PLINTH.CENTER_X + LED.OFFSET_X, LED.OFFSET_Y, FRONT_Z + 0.0015]}
-        rotation={[Math.PI / 2, 0, 0]}
-      >
-        <cylinderGeometry args={[LED.RADIUS, LED.RADIUS, 0.002, 16]} />
-        <primitive object={ledMaterial()} attach="material" />
-      </mesh>
-      <pointLight
-        position={[PLINTH.CENTER_X + LED.OFFSET_X, LED.OFFSET_Y, FRONT_Z + 0.012]}
-        intensity={0.012}
-        distance={0.06}
-        color="#4d93ff"
-      />
 
       {feet.map(([x, z], index) => (
         <mesh key={index} position={[x, -PLINTH.HEIGHT - FOOT.HEIGHT / 2, z]} castShadow>

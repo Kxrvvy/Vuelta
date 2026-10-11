@@ -8,11 +8,17 @@ import type { VueltaErrorCode } from '../core/contract.js'
  */
 export class VueltaError extends Error {
   readonly code: VueltaErrorCode
+  /**
+   * Set on a 429 from Spotify's `Retry-After` header. The sync layer needs the
+   * number, not just the message, to back off by the amount actually asked for.
+   */
+  readonly retryAfterMs: number | undefined
 
-  constructor(code: VueltaErrorCode, message: string) {
+  constructor(code: VueltaErrorCode, message: string, retryAfterMs?: number) {
     super(message)
     this.name = 'VueltaError'
     this.code = code
+    this.retryAfterMs = retryAfterMs
   }
 }
 

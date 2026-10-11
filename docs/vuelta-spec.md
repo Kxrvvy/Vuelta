@@ -218,21 +218,40 @@ armAngle = START + (progressMs / durationMs) × (END − START)
 |---|---|---|
 | Disc | Click | Toggle play / pause |
 | Tonearm | Drag | Scrub, commits `seek` on release |
-| Lid | Click | Open at launch, close to return to IDLE |
-| Volume knob | Vertical drag or scroll wheel | `PUT /me/player/volume` |
-| Prev / Next | Click | Skip |
+| Lid | Click | Open to start; close to stop and return to IDLE |
+| Volume knob | Click and hold, slide horizontally | `PUT /me/player/volume` |
+| Prev / Next | Click, in the side panel | Skip |
 
-**The disc is the play/pause target, not the arm.** The arm is thin and moving, which makes it a poor click target. The arm still animates to rest on pause, so nothing is lost visually.
+**The disc is the play/pause target, not the arm.** The arm is thin and moving, which makes it a poor click target.
 
-**Pause behaviour:** arm returns to `REST_ANGLE`. Resume animates it back to the stored angle before playback restarts.
+### Cue-lever pause
 
-**Open problem this creates:** while paused, the arm is off the record, so there is no position indicator and nothing to drag. Proposed fix: a faint marker stays on the disc at the paused position, and dragging *that* scrubs while paused.
+Pause does **not** return the arm to the cradle. It lifts the arm a few millimetres and leaves it **hovering at its current angle**, exactly as a real turntable's cue lever does. The platter still spins down with easing.
 
-**No stop button.** Spotify has no stop endpoint, and pause already lifts the arm to rest. A stop that also reset position would be a destructive control sitting beside play. Three buttons only: previous, play/pause, next.
+This is how an actual record player behaves, and it dissolves a problem the earlier design created for itself. When pause parked the arm in the cradle there was no position indicator and nothing to drag, which forced a proposed faint marker on the disc to scrub against. That marker is no longer needed and has been dropped: while paused the arm stays exactly where it was and stays draggable, with `seek` committing on release just as when playing.
 
-**Knob interaction:** vertical drag plus scroll wheel, not circular drag. Circular dragging on screen is fiddly. The knob still *rotates* visually.
+The lifted state has to be legible or pause looks like nothing happened. Three cues carry it: a slightly larger and softer drop shadow, a small vertical offset, and the needle visibly clear of the groove.
 
----
+### The lid is the stop gesture
+
+**There is no stop button.** Spotify has no stop endpoint, and a stop control that also reset position would be a destructive button sitting next to play.
+
+Closing the lid is what stops playback. It pauses, and it is the only thing that returns the arm to `REST_ANGLE`. Opening the lid issues `PUT /me/player/play` (§7); closing it is the symmetric act.
+
+### Knob interaction
+
+Click and hold the knob, then slide **horizontally**. Not vertical, and not circular — circular dragging on screen is fiddly, and horizontal reads as a natural volume axis. The knob still *rotates* visually as it tracks.
+
+The scroll wheel also works, but only while the pointer is over the knob. Scroll anywhere else does nothing, so a stray wheel event over the record cannot silently change playback volume.
+
+The knob exists in two places at once: as geometry on the cabinet, and mirrored in the side panel. Both drive the same value and both rotate together. The cabinet knob is the honest one; the panel copy exists because at the top-down camera angle the real knob is a small target.
+
+### The side panel
+
+Transport and now-playing live in a panel at the right edge: album art, title, artist, elapsed and total, previous / play-pause / next, and the mirrored volume knob.
+
+It fades in on pointer activity and fades out after a few seconds of stillness, as an overlay rather than a column, so the turntable never shifts position when it appears. This keeps §13's rule — any always-visible chrome fights the illusion — while still giving skip a home, since skipping a track has no natural gesture on a turntable.
+
 
 ## 12. The two views
 
@@ -357,7 +376,7 @@ What's actually needed — smaller than a design system:
 
 ## 19. Still open
 
-1. Background treatment for the player — transparent, dark field, or desk surface?
-2. The paused-position marker on the disc: elegant, or clutter?
+1. ~~Background treatment for the player~~ — **settled: dark field.** The unit floats on the app background; no desk surface, no ground plane, no contact shadow.
+2. ~~The paused-position marker on the disc~~ — **dropped.** The cue-lever pause in §11 leaves the arm hovering at its angle and draggable, so there is nothing for a marker to solve.
 3. Auto-launching the Spotify client via the `spotify:` URI scheme when no device is found, as an M7 stretch goal. Needs a polling loop with a timeout and a graceful fall back to NO_DEVICE.
-4. Whether the SETUP flow gets its own milestone or folds into M0.
+4. ~~Whether the SETUP flow gets its own milestone~~ — **settled: folded into M0**, as built.
