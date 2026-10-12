@@ -138,6 +138,24 @@ export const KNOB = {
   OFFSET_Y: -0.052,
 } as const
 
+/**
+ * The Open button, on the front face to the right of the knob.
+ *
+ * The face runs to +0.2275 from the plinth centre and the knob's right edge
+ * is at 0.1255, so this sits in the clear span between them with about 0.021
+ * of breathing room on the knob side.
+ */
+export const OPEN_BUTTON = {
+  WIDTH: 0.058,
+  HEIGHT: 0.02,
+  /** How far it stands proud of the face. */
+  DEPTH: 0.005,
+  OFFSET_X: 0.175,
+  OFFSET_Y: -0.052,
+  /** Travel when pressed. Small, but enough to read as a real button. */
+  TRAVEL: 0.0018,
+} as const
+
 export const LED = {
   RADIUS: 0.0022,
   OFFSET_X: 0.062,
@@ -162,11 +180,26 @@ export const LID = {
 // ---------------------------------------------------------------------------
 
 export const CAMERA = {
-  /** Off vertical. Enough to read the lid's form and the plinth's front edge
-   *  without ceasing to be a top view. */
-  TILT_DEG: 38,
+  /**
+   * Elevation above the horizon, in degrees — the one number separating the
+   * two views.
+   *
+   * TOP is the overhead working view. 52° is the same angle as the 38° off
+   * vertical it used to be written as, restated so both poses share a
+   * vocabulary. FRONT looks at the face from just above it: level enough to
+   * read the grille, knob and Open button head-on, high enough that a sliver
+   * of the closed lid still shows and the machine keeps its depth.
+   */
+  TOP_ELEVATION_DEG: 52,
+  FRONT_ELEVATION_DEG: 10,
   FOV: 32,
 } as const
+
+export type CameraPose = 'top' | 'front'
+
+export function elevationFor(pose: CameraPose): number {
+  return pose === 'front' ? CAMERA.FRONT_ELEVATION_DEG : CAMERA.TOP_ELEVATION_DEG
+}
 
 /**
  * The volume the camera frames against.
@@ -180,6 +213,12 @@ export const FIT_BOX = {
   /** Feet to the top of the closed lid. */
   HEIGHT: PLINTH.HEIGHT + FOOT.HEIGHT + LID.WALL_HEIGHT,
   CENTER_X: PLINTH.CENTER_X,
+  /**
+   * Vertical midpoint of the machine. The fit used to look at y = 0, which is
+   * deck level — near enough looking down, clearly wrong looking head-on,
+   * where it would park the machine low in the frame.
+   */
+  CENTER_Y: (LID.WALL_HEIGHT - (PLINTH.HEIGHT + FOOT.HEIGHT)) / 2,
 } as const
 
 /** 33⅓ rpm in degrees per second — 200°/s exactly. */

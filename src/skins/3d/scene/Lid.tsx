@@ -22,7 +22,7 @@ import { DEG, damp, setCursor, useRenderStateRef } from '../useFrameState.js'
 
 export function Lid() {
   const stateRef = useRenderStateRef()
-  const { toggleLid } = useInteraction()
+  const { closeLid } = useInteraction()
   const hinge = useRef<Group>(null)
 
   useFrame((_, delta) => {
@@ -39,7 +39,9 @@ export function Lid() {
   const clickable = {
     onClick: (event: { stopPropagation(): void }) => {
       event.stopPropagation()
-      toggleLid()
+      // Closes only. Opening is the Open button's job, and while the lid is
+      // shut there is nothing here worth clicking.
+      closeLid()
     },
     onPointerOver: () => setCursor('pointer'),
     onPointerOut: () => setCursor('default'),

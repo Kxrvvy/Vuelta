@@ -55,8 +55,14 @@ export function TopView({ sync }: { sync: Sync }) {
         albumArtUrl={sync.track?.albumArtUrl ?? null}
         volumePercent={sync.readout.volumePercent}
         active={sync.active}
-        reserveRightPx={reserveRightPx}
-        onToggleLid={sync.toggleLid}
+        // Zeroed when the lid is shut so the front elevation centres in the
+        // whole window. Keyed off the lid, NOT off the panel's fade: the rect
+        // is measured whatever its opacity, which is what stops the camera
+        // drifting every time the panel idles out after a few seconds.
+        reserveRightPx={sync.lidOpen ? reserveRightPx : 0}
+        lidOpen={sync.lidOpen}
+        onOpenLid={sync.openLid}
+        onCloseLid={sync.closeLid}
         onArmDragStart={sync.beginArmDrag}
         onArmDragTo={sync.dragToProgress}
         onArmDragEnd={sync.endArmDrag}
@@ -71,7 +77,9 @@ export function TopView({ sync }: { sync: Sync }) {
         volumePercent={sync.readout.volumePercent}
         deviceName={sync.readout.deviceName}
         actions={sync.actions}
-        visible={awake}
+        // Lid shut is spec §7's IDLE and closing already paused, so there is
+        // nothing playing to report.
+        visible={awake && sync.lidOpen}
       />
     </div>
   )

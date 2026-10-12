@@ -386,6 +386,48 @@ export function grilleTexture(): CanvasTexture {
   })
 }
 
+/**
+ * The Open button's face.
+ *
+ * Drawn rather than loaded, like everything else here, so the packaged app
+ * still needs no files and no network. The lettering is engraved-looking —
+ * dark text on the moulded plastic with a faint highlight above it — which is
+ * how legends on real equipment of this kind are printed.
+ */
+export function openButtonTexture(): CanvasTexture {
+  return cached('open-button', () => {
+    const width = 512
+    const height = 176
+    const context = canvas(width, height)
+
+    const body = context.createLinearGradient(0, 0, 0, height)
+    body.addColorStop(0, '#3b3733')
+    body.addColorStop(0.5, '#262220')
+    body.addColorStop(1, '#171412')
+    context.fillStyle = body
+    context.fillRect(0, 0, width, height)
+
+    // Top bevel, so the button reads as proud of the panel rather than printed.
+    context.fillStyle = 'rgba(255,255,255,0.10)'
+    context.fillRect(0, 0, width, 5)
+    context.fillStyle = 'rgba(0,0,0,0.45)'
+    context.fillRect(0, height - 5, width, 5)
+
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.font = `600 ${height * 0.42}px "Segoe UI", system-ui, sans-serif`
+    context.letterSpacing = `${width * 0.022}px`
+
+    // Engraved: a light edge below the glyphs, dark glyphs over it.
+    context.fillStyle = 'rgba(255,255,255,0.13)'
+    context.fillText('OPEN', width / 2, height / 2 + 2)
+    context.fillStyle = '#cdc4b8'
+    context.fillText('OPEN', width / 2, height / 2)
+
+    return toTexture(context, SRGBColorSpace)
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Environment
 //
