@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { CAMERA, FIT_BOX } from '../dimensions.js'
+import { CAMERA, FIT_BOX, profilePoints } from '../dimensions.js'
 import {
+  FILL_H,
+  FILL_V,
   fitCamera,
   MAX_DISTANCE,
   MIN_DISTANCE,
-  nearOffset,
-  projectedExtent,
+  profile,
 } from '../framing.js'
 
 const PANEL = 232
@@ -34,10 +35,20 @@ describe('which constraint binds', () => {
     expect(narrower.distance).toBeGreaterThan(narrow.distance)
   })
 
-  it('pulls back as the panel takes more room', () => {
+  it('pulls back as the panel takes more room, where width is what binds', () => {
+    // Deliberately a tall, narrow viewport. On a wide one the taller open
+    // silhouette makes *height* the binding constraint, and then a fatter
+    // panel changes nothing — correctly, because the machine already fits
+    // the space left over.
+    const slim = at(700, 900, 150)
+    const fat = at(700, 900, 340)
+    expect(fat.distance).toBeGreaterThan(slim.distance)
+  })
+
+  it('ignores the panel when height is what binds', () => {
     const slim = at(900, 600, 150)
     const fat = at(900, 600, 340)
-    expect(fat.distance).toBeGreaterThan(slim.distance)
+    expect(fat.distance).toBeCloseTo(slim.distance, 10)
   })
 })
 
@@ -54,7 +65,25 @@ describe('the machine ends up beside the panel, not under it', () => {
   })
 
   it('does not shift at all when nothing is reserved', () => {
+    // The hidden-panel case: with nothing to make room for, the machine sits
+    // on its own centre, which is what puts it mid-window.
     expect(at(1280, 800, 0).targetX).toBeCloseTo(FIT_BOX.CENTER_X, 10)
+  })
+
+  it('shifts by whatever share of the visible width the panel takes', () => {
+    // Pins how far the machine glides when the panel fades. Derived rather
+    // than asserted as a magic number, so retuning the fill or the panel
+    // width cannot leave this quietly wrong.
+    const w = 1100
+    const h = 700
+    const reserve = 320
+    const framing = at(w, h, reserve)
+    const extent = profile(framing.elevationDeg, 'top')
+    const visibleWidth = 2 * (framing.distance - extent.near) * HALF_FOV_TAN * (w / h)
+    const shift = framing.targetX - FIT_BOX.CENTER_X
+    expect(shift).toBeCloseTo((reserve / w) * (visibleWidth / 2), 10)
+    // And it is a real distance, not a rounding artefact.
+    expect(shift).toBeGreaterThan(extent.horizontal * 0.1)
   })
 
   it('shifts further the more of the frame the panel occupies', () => {
@@ -107,27 +136,84 @@ describe('rails', () => {
   })
 })
 
-describe('projectedExtent', () => {
-  it('mixes depth and height according to the viewing angle', () => {
-    const top = projectedExtent(CAMERA.TOP_ELEVATION_DEG)
-    expect(top.horizontal).toBe(FIT_BOX.WIDTH)
-    expect(top.vertical).toBeGreaterThan(0)
-    expect(top.vertical).toBeLessThan(FIT_BOX.DEPTH + FIT_BOX.HEIGHT)
+const HALF_FOV_TAN = Math.tan(((CAMERA.FOV * Math.PI) / 180) / 2)
+const DEG = Math.PI / 180
+
+describe('the silhouette', () => {
+  it('is taller with the lid up than with it shut', () => {
+    const open = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
+    const shut = profile(CAMERA.TOP_ELEVATION_DEG, 'front')
+    expect(open.vertical).toBeGreaterThan(shut.vertical)
   })
 
-  it('is dominated by depth overhead and by height head-on', () => {
-    // This is the whole reason one elevation number can describe both views.
-    const top = projectedExtent(CAMERA.TOP_ELEVATION_DEG)
-    const head = projectedExtent(CAMERA.FRONT_ELEVATION_DEG)
-    expect(top.vertical).toBeGreaterThan(head.vertical)
-    expect(head.vertical).toBeGreaterThan(FIT_BOX.HEIGHT * 0.9)
+  it('measures the outline, not a bounding box around it', () => {
+    // A box would call the open silhouette ~0.570 tall. The points say 0.482.
+    // The difference is the whole reason this change costs an 18% shrink
+    // rather than 31%.
+    const open = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
+    expect(open.vertical).toBeCloseTo(0.482, 2)
+    expect(open.vertical).toBeLessThan(0.52)
+  })
+
+  it('includes the raised lid only in the open pose', () => {
+    expect(profilePoints('top').length).toBeGreaterThan(profilePoints('front').length)
+  })
+
+  it('finds the lid tip to be nearest the lens once the lid is up', () => {
+    // Not something a bounding box could know: the camera is above, so the
+    // raised lid is closer than anything on the cabinet.
+    expect(profile(CAMERA.TOP_ELEVATION_DEG, 'top').near).toBeGreaterThan(
+      profile(CAMERA.TOP_ELEVATION_DEG, 'front').near,
+    )
+  })
+})
+
+describe('where the camera looks', () => {
+  it('looks above deck level with the lid up, below it head-on', () => {
+    // The sign of the fix, in both directions. Looking at deck level with the
+    // lid raised is what left ~13.5% of the frame empty underneath.
+    expect(at(1100, 700, 0).targetY).toBeGreaterThan(0)
+    expect(front(1100, 700).targetY).toBeLessThan(0)
+  })
+
+  it('puts the centre of the outline exactly at the look-at', () => {
+    for (const [pose, framing] of [
+      ['top', at(1100, 700, 0)],
+      ['front', front(1100, 700)],
+    ] as const) {
+      const extent = profile(framing.elevationDeg, pose)
+      const lookAtHeight = framing.targetY * Math.cos(framing.elevationDeg * DEG)
+      expect(lookAtHeight).toBeCloseTo(extent.center, 10)
+    }
+  })
+})
+
+describe('nothing crops', () => {
+  it('fits every extreme point in both poses', () => {
+    // Checked at the nearest point, which is the worst case — anything
+    // further from the lens has more room, not less.
+    for (const [pose, framing, w, h] of [
+      ['top', at(1100, 700, 0), 1100, 700],
+      ['front', front(1100, 700), 1100, 700],
+      ['top', at(640, 520, 0), 640, 520],
+      ['front', front(640, 520), 640, 520],
+    ] as const) {
+      const extent = profile(framing.elevationDeg, pose)
+      const visibleHeight = 2 * (framing.distance - extent.near) * HALF_FOV_TAN
+      expect(extent.vertical).toBeLessThanOrEqual(visibleHeight)
+      expect(extent.horizontal).toBeLessThanOrEqual(visibleHeight * (w / h))
+    }
+  })
+
+  it('keeps the camera outside the machine', () => {
+    expect(at(1100, 700, 0).distance).toBeGreaterThan(
+      profile(CAMERA.TOP_ELEVATION_DEG, 'top').near,
+    )
   })
 })
 
 describe('the front pose', () => {
   it('is width-constrained where the top pose is height-constrained', () => {
-    // Head-on the machine is wide and short, so width binds; overhead it is
-    // deep and fills the frame vertically.
     const wideTop = at(1920, 1040, 0)
     const widerTop = at(2560, 1040, 0)
     expect(wideTop.distance).toBeCloseTo(widerTop.distance, 6)
@@ -137,63 +223,47 @@ describe('the front pose', () => {
     expect(widerFront.distance).toBeLessThan(narrowFront.distance)
   })
 
-  it('puts the camera lower and further forward than the top pose', () => {
-    const [, topY, topZ] = at(1280, 800, 0).position
-    const [, frontY, frontZ] = front(1280, 800).position
-    expect(frontY).toBeLessThan(topY)
-    expect(frontZ).toBeGreaterThan(topZ)
-  })
-
-  it('looks at the vertical midpoint of the machine, not at deck level', () => {
-    // Targeting y = 0 is near enough looking down and clearly wrong head-on.
-    expect(front(1280, 800).targetY).toBeCloseTo(FIT_BOX.CENTER_Y, 10)
-    expect(FIT_BOX.CENTER_Y).toBeLessThan(0)
+  it('puts the camera lower and at a shallower angle than the top pose', () => {
+    const top = at(1280, 800, 0)
+    const head = front(1280, 800)
+    expect(head.position[1]).toBeLessThan(top.position[1])
+    expect(head.elevationDeg).toBeLessThan(top.elevationDeg)
+    // Not asserting z: the open silhouette pushes the top camera so far back
+    // that its z component now exceeds the front camera's, which is fine.
   })
 
   it('stays finite on a degenerate viewport, like the top pose', () => {
     for (const framing of [front(0, 0), front(Number.NaN, 600), front(-10, -10)]) {
       expect(Number.isFinite(framing.distance)).toBe(true)
+      expect(Number.isFinite(framing.targetY)).toBe(true)
       expect(framing.position.every(Number.isFinite)).toBe(true)
     }
   })
 })
 
-describe('the 15% shrink', () => {
-  it('holds the machine further back than the fill fractions it was tuned at', () => {
-    // Previously FILL_V 0.82; now 0.70. Height-constrained, the distance
-    // should have grown by very close to 0.82 / 0.70.
-    const heightBound = at(1920, 1040, 0)
-    const extent = projectedExtent(CAMERA.TOP_ELEVATION_DEG)
-    const halfFovTan = Math.tan(((CAMERA.FOV * Math.PI) / 180) / 2)
-    const near = nearOffset(CAMERA.TOP_ELEVATION_DEG)
-    // Compared at the near face, which is what the fill fractions govern.
-    const atOldFill = extent.vertical / (2 * halfFovTan * 0.82)
-    expect((heightBound.distance - near) / atOldFill).toBeCloseTo(0.82 / 0.7, 2)
-  })
-})
-
-describe('perspective', () => {
-  it('fits the near face, not the centre of the box', () => {
-    // A perspective camera projects the closest surface. Fitting to the
-    // centre let the front panel overflow the frame by ~40% head-on, because
-    // it sits most of the cabinet's depth nearer than the middle.
-    const halfFovTan = Math.tan(((CAMERA.FOV * Math.PI) / 180) / 2)
-    for (const [framing, elevation] of [
-      [front(1100, 656), CAMERA.FRONT_ELEVATION_DEG],
-      [at(1100, 656, 0), CAMERA.TOP_ELEVATION_DEG],
-    ] as const) {
-      const near = framing.distance - nearOffset(elevation)
-      const visibleHeight = 2 * near * halfFovTan
-      const extent = projectedExtent(elevation)
-      // The visible face must sit inside the frame with room to spare.
-      expect(extent.vertical).toBeLessThan(visibleHeight)
-      expect(extent.horizontal).toBeLessThan(visibleHeight * (1100 / 656))
-    }
+describe('how much of the frame the machine fills', () => {
+  it('fills exactly FILL_V of the height when height is what binds', () => {
+    // Asserted against the constant rather than a copy of its value, so
+    // retuning the size cannot silently leave this test lying.
+    const framing = at(1920, 1040, 0)
+    const extent = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
+    const visibleHeight = 2 * (framing.distance - extent.near) * HALF_FOV_TAN
+    expect(extent.vertical / visibleHeight).toBeCloseTo(FILL_V, 6)
   })
 
-  it('pushes the camera further back than a centre-fit would', () => {
-    expect(front(1100, 656).distance).toBeGreaterThan(
-      nearOffset(CAMERA.FRONT_ELEVATION_DEG),
-    )
+  it('fills FILL_H of the free width when width is what binds', () => {
+    const w = 700
+    const h = 900
+    const reserve = 150
+    const framing = at(w, h, reserve)
+    const extent = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
+    const visibleWidth = 2 * (framing.distance - extent.near) * HALF_FOV_TAN * (w / h)
+    const freeWidth = visibleWidth * ((w - reserve) / w)
+    expect(extent.horizontal / freeWidth).toBeCloseTo(FILL_H, 6)
+  })
+
+  it('leaves margin on every side — neither fraction reaches 1', () => {
+    expect(FILL_V).toBeLessThan(1)
+    expect(FILL_H).toBeLessThan(1)
   })
 })

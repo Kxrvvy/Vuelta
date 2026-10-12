@@ -152,7 +152,11 @@ IDLE ──click lid──> CONNECTING ──ok──> NO_DEVICE ──device fo
 - **NO_DEVICE** — authorized but Spotify isn't running or isn't active. Needs a designed screen, not an error toast; this happens constantly. Suggested copy: *"No turntable connected. Open Spotify and press play."*
 - **PLAYING / PAUSED** — the main loop.
 
-Opening the lid issues `PUT /me/player/play` with no body, which resumes the user's last context. This is how playback starts without Vuelta needing a library browser.
+**Opening the lid plays nothing.** It is a mechanical act: the lid rises, the camera moves to the overhead view, and the machine waits. On a real deck a lid does not start a record — you drop the needle — and the same should be true here.
+
+Playback starts when the **disc** is clicked, which issues `PUT /me/player/play` with no body and so resumes the user's last context. The point this section was originally making survives intact: playback still begins without Vuelta needing a library browser. It is simply the disc that does it, not the lid.
+
+Closing the lid remains the stop gesture (§11): it pauses, and it is the only thing that returns the arm to the cradle. The asymmetry is deliberate.
 
 ---
 
@@ -236,7 +240,9 @@ The lifted state has to be legible or pause looks like nothing happened. Three c
 
 **There is no stop button.** Spotify has no stop endpoint, and a stop control that also reset position would be a destructive button sitting next to play.
 
-Closing the lid is what stops playback. It pauses, and it is the only thing that returns the arm to `REST_ANGLE`. Opening the lid issues `PUT /me/player/play` (§7); closing it is the symmetric act.
+Closing the lid is what stops playback. It pauses, and it is the only thing that returns the arm to `REST_ANGLE`.
+
+Opening is *not* the symmetric act. The lid rises and nothing plays (§7) — starting the record is the disc's job. A lid that started music the moment it opened would take the decision away from you; a lid shut over a spinning record plainly ends the session.
 
 ### Knob interaction
 

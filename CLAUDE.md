@@ -56,7 +56,8 @@ Nothing else. Do not add scopes speculatively.
 - Arm sweep: `REST_ANGLE` −12°, `START_ANGLE` 0°, `END_ANGLE` 22°.
 - **Disc click** = play/pause. **Arm** = drag only.
 - **Cue-lever pause.** Pause lifts the arm a few millimetres and it *hovers at its current angle*. It does not return to the cradle. The arm stays draggable while paused, and seek still commits on release. The platter still spins down.
-- **Closing the lid is the stop gesture** — only then does the arm return to `REST_ANGLE`. Closing the lid also pauses playback.
+- **Opening the lid plays nothing.** It is mechanical: the lid rises and the machine waits. Playback starts when the **disc** is clicked, which issues the same bodiless `PUT /me/player/play` and resumes the last context.
+- **Closing the lid is the stop gesture** — only then does the arm return to `REST_ANGLE`. Closing the lid also pauses playback. The asymmetry with opening is deliberate.
 - **There is no stop button.** Spotify has no stop endpoint, and the lid is the stop gesture.
 - Volume knob: **click and hold, then slide horizontally**. Not vertical, not circular. Scroll wheel works only while the pointer is over the knob. The knob still rotates visually.
 - Mirror-only. No library browser, no search, no playlist UI. Do not add them.

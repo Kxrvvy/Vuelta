@@ -31,8 +31,21 @@ import { useEffect, useRef } from 'react'
 import { fitCamera } from '../geometry/framing.js'
 import { DEG, damp } from '../useFrameState.js'
 
-/** How briskly the camera travels between the two views. */
-const LAMBDA = 3.4
+/**
+ * How briskly the camera travels between the two views. Deliberately weighty:
+ * the lid arc should feel like a machine moving, not a cut.
+ */
+const POSE_LAMBDA = 3.4
+
+/**
+ * How briskly it slides sideways when the panel appears or disappears.
+ *
+ * Much quicker, because this one is tracking the panel's own 260ms fade. At
+ * the pose rate the machine would still be gliding long after the panel had
+ * gone, and the two would read as unrelated events rather than as the machine
+ * making room.
+ */
+const PAN_LAMBDA = 10
 
 /** Below these the move is over; stop asking for frames. */
 const SETTLED_ANGLE = 0.02 * DEG
@@ -84,10 +97,10 @@ export function CameraRig({
       current.current = { ...target }
     } else {
       const pose = current.current
-      pose.elevation = damp(pose.elevation, target.elevation, LAMBDA, delta)
-      pose.distance = damp(pose.distance, target.distance, LAMBDA, delta)
-      pose.targetX = damp(pose.targetX, target.targetX, LAMBDA, delta)
-      pose.targetY = damp(pose.targetY, target.targetY, LAMBDA, delta)
+      pose.elevation = damp(pose.elevation, target.elevation, POSE_LAMBDA, delta)
+      pose.distance = damp(pose.distance, target.distance, POSE_LAMBDA, delta)
+      pose.targetY = damp(pose.targetY, target.targetY, POSE_LAMBDA, delta)
+      pose.targetX = damp(pose.targetX, target.targetX, PAN_LAMBDA, delta)
     }
 
     const pose = current.current

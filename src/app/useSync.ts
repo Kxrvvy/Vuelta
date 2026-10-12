@@ -53,6 +53,12 @@ export type Readout = {
   isPlaying: boolean
   volumePercent: number | null
   deviceName: string | null
+  /**
+   * Surfaced so the view can refuse to move the camera mid-drag. The scene
+   * re-frames when the panel hides, and sliding the arm's geometry out from
+   * under a cursor that is still holding it would be a nasty surprise.
+   */
+  isDragging: boolean
 }
 
 export type Sync = {
@@ -91,6 +97,7 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     isPlaying: false,
     volumePercent: null,
     deviceName: null,
+    isDragging: false,
   })
 
   // ---- the frame loop ------------------------------------------------------
@@ -131,6 +138,7 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
           isPlaying: value.isPlaying,
           volumePercent: value.volumePercent,
           deviceName: value.deviceName,
+          isDragging: value.isDragging,
         })
         setActive(value.isPlaying || value.isDragging || state.platterRpm > 0)
 
@@ -236,10 +244,11 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       if (lidOpenRef.current === open) return
       lidOpenRef.current = open
       setLidOpen(open)
-      // Spec §7: opening the lid resumes the user's last context. Spec §11:
-      // closing it is the stop gesture, so it pauses.
-      if (open) engine.actions.play()
-      else engine.actions.pause()
+      // Asymmetric on purpose, not a missing branch. Opening is mechanical:
+      // the lid rises and the machine waits, because a lid does not start a
+      // record — clicking the disc does. Closing is the stop gesture (spec
+      // §11), so it pauses and sends the arm back to the cradle.
+      if (!open) engine.actions.pause()
     },
     [engine],
   )

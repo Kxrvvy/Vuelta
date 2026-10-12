@@ -22,20 +22,28 @@
  * CameraRig.tsx applies the result and animates between poses.
  */
 
-import { CAMERA, type CameraPose, elevationFor, FIT_BOX } from './dimensions.js'
+import {
+  CAMERA,
+  type CameraPose,
+  elevationFor,
+  FIT_BOX,
+  profilePoints,
+} from './dimensions.js'
 
 const DEG = Math.PI / 180
 
 /**
  * How much of the frame the machine fills.
  *
- * Both were cut by 15% from the values they were first tuned at (0.82 and
- * 0.92). Scaling the fill fractions rather than hard-coding a larger distance
- * keeps the reduction at 15% for every window size and both poses, which a
- * fixed distance would not.
+ * Exported because they are the dial for how big the turntable renders, and
+ * because the tests assert against them rather than against copies of the
+ * numbers. Scaling these rather than hard-coding a distance keeps the size
+ * consistent at every window size and in both poses.
+ *
+ * History: first tuned at 0.82 / 0.92, cut 15%, then raised 10%.
  */
-const FILL_V = 0.7
-const FILL_H = 0.78
+export const FILL_V = 0.77
+export const FILL_H = 0.86
 
 /** Sanity rails. Past these the scene stops looking like a turntable. */
 export const MIN_DISTANCE = 0.45
@@ -64,44 +72,59 @@ function clamp(value: number, low: number, high: number): number {
 }
 
 /**
- * The machine's extent on screen, in world units, at a given elevation.
+ * The machine's outline, measured on screen, for a given viewing angle.
  *
- * Horizontally it is just the cabinet's width, whichever way you look at it.
- * Vertically the angle mixes depth and height: from overhead the deck's depth
- * fills the frame and its height barely registers, and from head-on it is the
- * other way round.
+ * Both numbers come from the same projection of the same points, rather than
+ * from three separate approximations off a bounding box:
+ *
+ *   h     — position on the screen's vertical axis
+ *   depth — position along the axis running toward the camera
+ *
+ * `extent` and `center` govern how big the machine is and where to look;
+ * `near` is how much closer the nearest part of it is than the point being
+ * looked at. That last one is why a box was never good enough: a perspective
+ * camera projects the nearest surface, and once the lid is up the nearest
+ * surface is the lid's tip, not anything on the cabinet.
  */
-export function projectedExtent(elevationDeg: number): {
-  horizontal: number
-  vertical: number
-} {
+export function profile(elevationDeg: number, pose: CameraPose) {
   const elevation = elevationDeg * DEG
+  const cos = Math.cos(elevation)
+  const sin = Math.sin(elevation)
+
+  let minH = Infinity
+  let maxH = -Infinity
+  let maxDepth = -Infinity
+
+  for (const { y, z } of profilePoints(pose)) {
+    const h = y * cos - z * sin
+    if (h < minH) minH = h
+    if (h > maxH) maxH = h
+    const depth = y * sin + z * cos
+    if (depth > maxDepth) maxDepth = depth
+  }
+
+  const center = (maxH + minH) / 2
   return {
     horizontal: FIT_BOX.WIDTH,
-    vertical: FIT_BOX.DEPTH * Math.sin(elevation) + FIT_BOX.HEIGHT * Math.cos(elevation),
+    vertical: maxH - minH,
+    /** Height of the outline's centre on the screen axis. */
+    center,
+    /**
+     * Where the camera should look so that centre lands mid-frame. The target
+     * sits on the z = 0 plane, so h = targetY * cos(elevation).
+     */
+    targetY: center / cos,
+    /** How far the nearest point sits in front of that target. */
+    near: maxDepth - (center / cos) * sin,
   }
 }
 
-/**
- * How much nearer the closest face of the machine is than its centre.
- *
- * This matters more than it sounds. A perspective camera projects the near
- * face, not the middle of the box, so fitting to the centre distance lets the
- * front of the machine overflow the frame — badly in the head-on view, where
- * the front panel sits most of the cabinet's depth closer than the centre.
- * Adding this back onto the distance makes the *visible* face obey the fill
- * fractions, which is what they were always meant to mean.
- */
-export function nearOffset(elevationDeg: number): number {
-  const elevation = elevationDeg * DEG
-  return (FIT_BOX.DEPTH / 2) * Math.cos(elevation) + (FIT_BOX.HEIGHT / 2) * Math.sin(elevation)
-}
-
 export function fitCamera(viewport: Viewport): Framing {
-  const elevationDeg = elevationFor(viewport.pose ?? 'top')
+  const pose = viewport.pose ?? 'top'
+  const elevationDeg = elevationFor(pose)
   const elevation = elevationDeg * DEG
   const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
-  const extent = projectedExtent(elevationDeg)
+  const extent = profile(elevationDeg, pose)
 
   // A minimised window reports 0 × 0. Every ratio below would become Infinity
   // or NaN and poison the camera's matrix, so fall back to something sane and
@@ -118,8 +141,9 @@ export function fitCamera(viewport: Viewport): Framing {
   )
   const freeFraction = (width - reserved) / width
 
-  // Fit the near face, then push the camera back out to the box centre.
-  const near = nearOffset(elevationDeg)
+  // Fit the nearest part of the outline, then push the camera back out to the
+  // point it is looking at.
+  const near = extent.near
   const byHeight = extent.vertical / (2 * halfFovTan * FILL_V) + near
   const byWidth = extent.horizontal / (2 * halfFovTan * aspect * freeFraction * FILL_H) + near
 
@@ -136,11 +160,11 @@ export function fitCamera(viewport: Viewport): Framing {
   return {
     distance,
     targetX,
-    targetY: FIT_BOX.CENTER_Y,
+    targetY: extent.targetY,
     elevationDeg,
     position: [
       targetX,
-      FIT_BOX.CENTER_Y + distance * Math.sin(elevation),
+      extent.targetY + distance * Math.sin(elevation),
       distance * Math.cos(elevation),
     ],
   }
