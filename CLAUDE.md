@@ -46,9 +46,20 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
 
 ## Scopes
 
-`user-read-playback-state`, `user-modify-playback-state`, `user-read-currently-playing`
+`user-read-playback-state`, `user-modify-playback-state`, `user-read-currently-playing`,
+`playlist-read-private`, `playlist-read-collaborative`
 
 Nothing else. Do not add scopes speculatively.
+
+The first three cover the mirror and the remote control. The two playlist scopes arrived with the
+browser bar: `GET /me/playlists` returns only public playlists without `playlist-read-private` and
+omits collaborative ones without `playlist-read-collaborative`. **The queue needs neither** —
+`GET /me/player/queue` rides on `user-read-playback-state`.
+
+Adding to this list is not free. A refresh token carries the scopes it was granted and **a refresh
+never widens them**, so every existing user must sign out and reconnect once. `SetupInfo.scopesStale`
+exists to detect exactly that, and the browser bar offers one Reconnect button instead of letting
+the read fail with a 403.
 
 ## Domain model
 
@@ -60,7 +71,14 @@ Nothing else. Do not add scopes speculatively.
 - **Closing the lid is the stop gesture** — only then does the arm return to `REST_ANGLE`. Closing the lid also pauses playback. The asymmetry with opening is deliberate.
 - **There is no stop button.** Spotify has no stop endpoint, and the lid is the stop gesture.
 - Volume knob: **click and hold, then slide horizontally**. Not vertical, not circular. Scroll wheel works only while the pointer is over the knob. The knob still rotates visually.
-- Mirror-only. No library browser, no search, no playlist UI. Do not add them.
+- **Platter speed: 16⅔ rpm**, one revolution every 3.6s — deliberately half of life. A real LP
+  turns once every 1.8s, which is accurate and reads as hurried. `PLATTER_RPM` in
+  `core/contract.ts` is the only authority for the rate; `LP_RPM` beside it keeps the true figure.
+- **Mirror-plus-chooser, not a library.** Playlists and the queue are browsable from the browser
+  bar, and that is the whole of it: **no search, no album or artist views, no editing, no library
+  browser.** Vuelta still shows what Spotify is playing — it only lets you choose which record
+  goes on. This retires the original "no playlist UI" rule; do not read it as licence to widen
+  further.
 
 ## Track transitions
 

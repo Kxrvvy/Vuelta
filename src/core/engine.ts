@@ -37,6 +37,8 @@ export type EffectiveState = {
   track: TrackSummary | null
   volumePercent: number | null
   deviceName: string | null
+  /** The playlist or album in play, so the browser bar can act on it. */
+  contextUri: string | null
 }
 
 export type CommandFailure = { code: string; message: string }
@@ -74,6 +76,7 @@ export function createEngine(options: { port: PlaybackPort; now?: NowFn }): Engi
   let track: TrackSummary | null = null
   let volumePercent: number | null = null
   let deviceName: string | null = null
+  let contextUri: string | null = null
   let failure: CommandFailure | null = null
 
   // Throttled volume. The claim lands immediately so the knob responds, while
@@ -174,6 +177,7 @@ export function createEngine(options: { port: PlaybackPort; now?: NowFn }): Engi
     const changedTrack = serverTrackId !== (track?.trackId ?? null)
     track = snapshot.track
     deviceName = snapshot.deviceName
+    contextUri = snapshot.contextUri
     clock.setDuration(snapshot.track?.durationMs ?? 0)
 
     if (volume.peek(at) === undefined) volumePercent = snapshot.volumePercent
@@ -239,6 +243,7 @@ export function createEngine(options: { port: PlaybackPort; now?: NowFn }): Engi
         track,
         volumePercent: volume.peek(at) ?? volumePercent,
         deviceName,
+        contextUri,
       }
     },
 

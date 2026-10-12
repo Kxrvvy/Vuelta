@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { CAMERA, FIT_BOX, profilePoints } from '../dimensions.js'
+import { CAMERA, FIT_BOX, type ProfilePoint, profilePoints } from '../dimensions.js'
 import {
   FILL_H,
   FILL_V,
+  type Framing,
   fitCamera,
   MAX_DISTANCE,
   MIN_DISTANCE,
@@ -17,6 +18,11 @@ const at = (width: number, height: number, reserveRightPx = PANEL) =>
 
 const front = (width: number, height: number, reserveRightPx = 0) =>
   fitCamera({ width, height, reserveRightPx, pose: 'front' })
+
+const BAR = 74
+
+const bottom = (width: number, height: number, reserveBottomPx = BAR, reserveRightPx = 0) =>
+  fitCamera({ width, height, reserveRightPx, reserveBottomPx })
 
 describe('which constraint binds', () => {
   it('is limited by height on a wide window', () => {
@@ -265,5 +271,121 @@ describe('how much of the frame the machine fills', () => {
   it('leaves margin on every side — neither fraction reaches 1', () => {
     expect(FILL_V).toBeLessThan(1)
     expect(FILL_H).toBeLessThan(1)
+  })
+})
+
+/**
+ * Where a point of the outline lands on screen, as a fraction of the half
+ * frame: -1 is the bottom edge, +1 the top.
+ *
+ * Derived from the camera the framing actually describes, rather than from the
+ * same arithmetic the framing used, so a sign error in the look-at shift
+ * cannot pass by agreeing with itself.
+ */
+function screenY(framing: Framing, point: ProfilePoint): number {
+  const elevation = framing.elevationDeg * DEG
+  const cos = Math.cos(elevation)
+  const sin = Math.sin(elevation)
+
+  // Height on the screen axis, relative to the point being looked at.
+  const up = point.y * cos - point.z * sin - framing.targetY * cos
+  // Distance along the view direction.
+  const depth = framing.distance + framing.targetY * sin - (point.y * sin + point.z * cos)
+  return up / (depth * HALF_FOV_TAN)
+}
+
+describe('the bar along the bottom', () => {
+  it('leaves the machine exactly where it was when nothing is reserved', () => {
+    // The default. Every call site predating the bar must be unaffected.
+    const without = at(1100, 700, 0)
+    const zero = bottom(1100, 700, 0)
+    expect(zero.targetY).toBeCloseTo(without.targetY, 10)
+    expect(zero.distance).toBeCloseTo(without.distance, 10)
+  })
+
+  it('lowers the look-at, which is what raises the machine on screen', () => {
+    // The direction is the whole point, and it is the easy thing to get
+    // backwards: dropping the target lifts the subject.
+    expect(bottom(1100, 700).targetY).toBeLessThan(at(1100, 700, 0).targetY)
+    // Not asserting the camera's own height: reserving room also pushes it
+    // back along its elevation ray, and that lifts it by more than the
+    // look-at drops. Only the look-at carries the meaning here.
+  })
+
+  it('raises it by exactly the share of the frame the bar occupies', () => {
+    // Derived rather than asserted as a magic number, so retuning the fill or
+    // the bar height cannot leave this quietly wrong.
+    const h = 700
+    const framing = bottom(1100, h)
+    const extent = profile(framing.elevationDeg, 'top')
+    const visibleHeight = 2 * (framing.distance - extent.near) * HALF_FOV_TAN
+    const shiftOnScreen =
+      (extent.targetY - framing.targetY) * Math.cos(framing.elevationDeg * DEG)
+    expect(shiftOnScreen).toBeCloseTo((BAR / h) * (visibleHeight / 2), 10)
+  })
+
+  it('pulls the camera back, because height is what binds on a wide window', () => {
+    expect(bottom(1600, 800).distance).toBeGreaterThan(at(1600, 800, 0).distance)
+  })
+
+  it('ignores the bar when width is what binds', () => {
+    // A tall narrow window: the machine is already as small as the width
+    // demands, so there is nothing for the bar to take.
+    const slim = fitCamera({ width: 620, height: 1000, reserveRightPx: 0, reserveBottomPx: 0 })
+    const barred = fitCamera({ width: 620, height: 1000, reserveRightPx: 0, reserveBottomPx: BAR })
+    expect(barred.distance).toBeCloseTo(slim.distance, 10)
+  })
+
+  it('still centres horizontally, so the two reserves do not interfere', () => {
+    expect(bottom(1280, 800).targetX).toBeCloseTo(FIT_BOX.CENTER_X, 10)
+    expect(bottom(1280, 800, BAR, 240).targetX).toBeGreaterThan(FIT_BOX.CENTER_X)
+  })
+
+  it('refuses to let the bar claim the entire window', () => {
+    const framing = bottom(600, 500, 9000)
+    expect(Number.isFinite(framing.distance)).toBe(true)
+    expect(Number.isFinite(framing.targetY)).toBe(true)
+    expect(framing.distance).toBeLessThanOrEqual(MAX_DISTANCE)
+  })
+
+  it('survives degenerate viewports, like the other reserve', () => {
+    for (const framing of [
+      bottom(0, 0),
+      bottom(Number.NaN, 600),
+      bottom(800, Number.NaN),
+      bottom(800, 600, Number.NaN),
+      bottom(-100, -100),
+    ]) {
+      expect(Number.isFinite(framing.distance)).toBe(true)
+      expect(Number.isFinite(framing.targetY)).toBe(true)
+      expect(framing.position.every(Number.isFinite)).toBe(true)
+    }
+  })
+
+  it('puts no part of the machine behind the bar', () => {
+    // The assertion the whole change exists for. Checked by projecting every
+    // extreme point through the resulting camera, at several window shapes and
+    // in both poses, against the top edge of the reserved strip.
+    for (const [pose, w, h, bar] of [
+      ['top', 1100, 700, BAR],
+      ['top', 1600, 900, BAR],
+      ['top', 640, 520, BAR],
+      ['top', 900, 600, 140],
+      ['front', 1100, 700, BAR],
+    ] as const) {
+      const framing = fitCamera({
+        width: w,
+        height: h,
+        reserveRightPx: 0,
+        reserveBottomPx: bar,
+        pose,
+      })
+      const barTop = -1 + 2 * (bar / h)
+      for (const point of profilePoints(pose)) {
+        expect(screenY(framing, point)).toBeGreaterThanOrEqual(barTop)
+        // And still inside the top of the frame.
+        expect(screenY(framing, point)).toBeLessThanOrEqual(1)
+      }
+    }
   })
 })

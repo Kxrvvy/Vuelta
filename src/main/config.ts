@@ -29,11 +29,25 @@ export type VueltaConfig = {
   clientId: string | null
   /** The port last successfully used, so the setup screen can show the truth. */
   redirectPort: number
+  /**
+   * The scopes Spotify actually granted the stored session, as reported by the
+   * token endpoint.
+   *
+   * Recorded because a refresh token carries the scopes it was issued with and
+   * a refresh never widens them. Without this, a session granted before a new
+   * scope was added looks healthy and fails one specific call with a 403. Not a
+   * secret — it is a list of permission names, so plain JSON is its right home.
+   *
+   * Empty means unknown, which is the correct reading for a config written
+   * before this field existed.
+   */
+  grantedScopes: string[]
 }
 
 const DEFAULTS: VueltaConfig = {
   clientId: null,
   redirectPort: DEFAULT_REDIRECT_PORT,
+  grantedScopes: [],
 }
 
 function configPath(): string {
@@ -47,6 +61,9 @@ export function readConfig(): VueltaConfig {
       clientId: typeof raw.clientId === 'string' && raw.clientId.length > 0 ? raw.clientId : null,
       redirectPort:
         typeof raw.redirectPort === 'number' ? raw.redirectPort : DEFAULTS.redirectPort,
+      grantedScopes: Array.isArray(raw.grantedScopes)
+        ? raw.grantedScopes.filter((scope): scope is string => typeof scope === 'string')
+        : [],
     }
   } catch {
     // Missing or corrupt config is the first-run case, not an error.

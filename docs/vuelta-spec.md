@@ -34,6 +34,8 @@ Verified against Spotify's developer documentation as of August 2026.
 **Endpoints that survived the February 2026 cull and that Vuelta depends on:**
 `GET /me/player`, `GET /me/player/devices`, `GET /me/player/queue`, `PUT /me/player/play`, `PUT /me/player/pause`, `PUT /me/player/seek`, `PUT /me/player/volume`, `POST /me/player/next`, `POST /me/player/previous`, `PUT /me/player` (transfer).
 
+Added with the browser bar: `GET /me/playlists`, `GET /playlists/{id}/tracks`, `POST /me/player/queue`, and `PUT /me/player/play` with a `context_uri` body (the bodiless form still resumes, and is what the disc click sends). The two playlist reads need `playlist-read-private` and `playlist-read-collaborative`; the queue needs no scope beyond those already held.
+
 ---
 
 ## 3. Distribution model
@@ -190,7 +192,9 @@ Applies to: play, pause, next, previous, seek, volume.
 
 Rejected alternatives: one album per record with A/B sides (too restrictive, most listening is playlists), one playlist as a side (arm becomes uselessly imprecise, no single correct label image).
 
-**Music source: mirror only.** Vuelta shows whatever Spotify is already playing. No library browser, no search, no playlist UI. This cuts roughly 70% of the scope.
+**Music source: mirror, plus a chooser.** Vuelta shows whatever Spotify is already playing, and the browser bar (§11) lets you pick a playlist or look at the queue. Nothing more: no search, no album or artist views, no editing, no library browser.
+
+This supersedes the original rule, which was "mirror only — no library browser, no search, no playlist UI", credited with cutting roughly 70% of the scope. Most of that saving survives: what came back is two read endpoints and a list, not a second Spotify client. The line now sits at *choosing a record*, and the reason it sits there is the same as before — everything past it is a music browser, and Spotify already ships one.
 
 ---
 
@@ -225,6 +229,9 @@ armAngle = START + (progressMs / durationMs) × (END − START)
 | Lid | Click | Open to start; close to stop and return to IDLE |
 | Volume knob | Click and hold, slide horizontally | `PUT /me/player/volume` |
 | Prev / Next | Click, in the side panel | Skip |
+| Playlists / Queue | Click, in the browser bar | Open the matching pane |
+| Playlist row | Click | Open it; the ▶ button plays it |
+| Track row | Click | Play it in place; ⊕ adds it to the queue |
 
 **The disc is the play/pause target, not the arm.** The arm is thin and moving, which makes it a poor click target.
 
@@ -251,6 +258,27 @@ Click and hold the knob, then slide **horizontally**. Not vertical, and not circ
 The scroll wheel also works, but only while the pointer is over the knob. Scroll anywhere else does nothing, so a stray wheel event over the record cannot silently change playback volume.
 
 The knob exists in two places at once: as geometry on the cabinet, and mirrored in the side panel. Both drive the same value and both rotate together. The cabinet knob is the honest one; the panel copy exists because at the top-down camera angle the real knob is a small target.
+
+### The browser bar
+
+A thin strip of chrome at the bottom centre with two buttons, **Playlists** and **Queue**, and a
+sheet that rises from it when a pane is open. Clicking the lit button again dismisses it, as does
+Escape. It is present only while the lid is open — the closed-lid front view stays bare.
+
+Playlists list name, cover and track count. Clicking a row opens it; a separate ▶ plays it. Inside
+a playlist, clicking a track plays the playlist *from that track* (one `play` call with a
+`context_uri` and an `offset`), and ⊕ adds it to the queue. The queue pane lists what is coming up.
+
+**Jumping within the queue is one call, not many.** The first upcoming item is a plain `next`.
+Beyond that, the only single-call route is a context offset, which works for items that came from
+the playlist — nearly all of them — and is refused for one queued by hand. That refusal surfaces as
+an inline message, in preference to firing `next` repeatedly against the rate limit.
+
+The bar fades with the same pointer-idle rule as the side panel, but the camera reserves room for it
+whenever the lid is open rather than only while it is drawn. The look-at height rides the slow pose
+rate because it carries the lid arc, so a reserve that came and went on the idle timer would read as
+a vertical drift. The sheet is an overlay and may cover the machine; reserving room for a list that
+tall would shrink the turntable to nothing.
 
 ### The side panel
 

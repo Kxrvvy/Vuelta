@@ -433,3 +433,301 @@ input[type='text']:focus {
   color: var(--muted);
   opacity: 0.8;
 }
+
+/* ---------------------------------------------------------------------------
+ * The browser bar: playlists and the queue.
+ *
+ * Two pieces with different jobs. The bar is a thin strip of chrome that
+ * fades with the pointer like the panel does, and the camera reserves room
+ * for it so the machine never sits behind it. The sheet is an overlay that
+ * rises from the bar when a pane opens, and it is allowed to cover the
+ * machine — reserving room for a list this tall would shrink the turntable to
+ * nothing.
+ * ------------------------------------------------------------------------ */
+
+.browser {
+  position: absolute;
+  left: 50%;
+  bottom: 1.1rem;
+  transform: translateX(-50%);
+  /* Narrower than the window so the panel on the right stays reachable. */
+  width: min(30rem, 62vw);
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  /* The wrapper is a layout box only; its children take their own events. */
+  pointer-events: none;
+}
+
+.browser__bar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(22, 19, 17, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+}
+
+.browser__bar[data-visible='true'] {
+  opacity: 1;
+}
+
+.browser__bar[data-visible='false'] {
+  transform: translateY(6px);
+}
+
+.browser__bar button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.browser__bar button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.browser__bar button[data-active='true'] {
+  color: var(--accent);
+  border-color: var(--line);
+  background: rgba(201, 162, 39, 0.08);
+}
+
+.browser__bar button span[aria-hidden] {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.browser__sheet {
+  pointer-events: auto;
+  width: 100%;
+  /* Capped so the machine is never fully hidden behind it. */
+  max-height: min(21rem, 46vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(22, 19, 17, 0.9);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.browser__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.browser__head-title {
+  font-size: 0.78rem;
+  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.browser__list {
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  /* The default scrollbar is a pale slab against a near-black sheet, and it
+     is the first thing the eye lands on. */
+  scrollbar-width: thin;
+  scrollbar-color: #3a332c transparent;
+}
+
+.browser__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.browser__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.browser__list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #3a332c;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.browser__list::-webkit-scrollbar-thumb:hover {
+  background: #4d443a;
+  background-clip: content-box;
+}
+
+.browser__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 6px;
+}
+
+.browser__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.browser__row[data-playing='true'] .browser__row-title {
+  color: var(--accent);
+}
+
+.browser__row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.45rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.browser__row-main:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.browser__cover {
+  flex: 0 0 auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.browser__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.browser__cover--empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #241f1b, #15120f);
+}
+
+.browser__row-index {
+  flex: 0 0 1.4rem;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.browser__row-text {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.browser__row-title {
+  font-size: 0.82rem;
+  color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.browser__row-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.browser__row-time {
+  flex: 0 0 auto;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.browser__icon {
+  flex: 0 0 auto;
+  width: 1.8rem;
+  height: 1.8rem;
+  margin-right: 0.3rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.browser__icon:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--line);
+}
+
+.browser__icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.browser__muted {
+  margin: 0;
+  padding: 1rem 0.9rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.browser__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.76rem;
+  color: var(--danger);
+  flex: 0 0 auto;
+}
+
+.browser__notice {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  padding: 0.9rem;
+}
+
+.browser__notice p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}

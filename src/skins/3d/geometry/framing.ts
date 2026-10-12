@@ -7,11 +7,12 @@
  * panel; at the minimum size, the panel sat on top of the tonearm and the
  * volume knob and the cabinet ran off the left edge.
  *
- * So the framing is computed instead. Given the viewport, how much of its
- * right-hand side the panel is occupying, and which way the machine is being
- * looked at, this works out how far back the camera has to sit for the machine
- * to fill the space that is left, and how far to slide the look-at point so it
- * lands in that space rather than under the panel.
+ * So the framing is computed instead. Given the viewport, how much of it the
+ * chrome is occupying — the panel down the right, the browser bar along the
+ * bottom — and which way the machine is being looked at, this works out how
+ * far back the camera has to sit for the machine to fill the space that is
+ * left, and how far to slide the look-at point so it lands in that space
+ * rather than underneath something.
  *
  * The two poses differ by exactly one number — the elevation above the horizon
  * — because the projected extent was always a mix of depth and height weighted
@@ -54,6 +55,13 @@ export type Viewport = {
   height: number
   /** Width in CSS pixels that the overlay panel is taking on the right. */
   reserveRightPx: number
+  /**
+   * Height in CSS pixels that the browser bar is taking along the bottom.
+   *
+   * Optional, defaulting to nothing reserved, so every caller and assertion
+   * that predates the bar keeps its existing meaning.
+   */
+  reserveBottomPx?: number
   /** Which way the machine is being looked at. Defaults to the overhead view. */
   pose?: CameraPose
 }
@@ -133,39 +141,50 @@ export function fitCamera(viewport: Viewport): Framing {
   const height = Number.isFinite(viewport.height) && viewport.height > 0 ? viewport.height : 1
   const aspect = width / height
 
-  // Never let the panel claim so much that there is no room left to fit into.
+  // Never let either reserve claim so much that there is no room left to fit
+  // into. The caps differ because the panel is a column and the bar a strip:
+  // a panel can legitimately take half a narrow window, a bar never should.
   const reserved = clamp(
     Number.isFinite(viewport.reserveRightPx) ? viewport.reserveRightPx : 0,
     0,
     width * 0.6,
   )
+  const reserveBottom = viewport.reserveBottomPx ?? 0
+  const reservedBottom = clamp(Number.isFinite(reserveBottom) ? reserveBottom : 0, 0, height * 0.4)
+
   const freeFraction = (width - reserved) / width
+  const freeVertical = (height - reservedBottom) / height
 
   // Fit the nearest part of the outline, then push the camera back out to the
   // point it is looking at.
   const near = extent.near
-  const byHeight = extent.vertical / (2 * halfFovTan * FILL_V) + near
+  const byHeight = extent.vertical / (2 * halfFovTan * FILL_V * freeVertical) + near
   const byWidth = extent.horizontal / (2 * halfFovTan * aspect * freeFraction * FILL_H) + near
 
   const distance = clamp(Math.max(byHeight, byWidth), MIN_DISTANCE, MAX_DISTANCE)
 
-  // Slide the look-at point right by exactly the panel's share of the frame.
-  // That is what moves the machine into the free region instead of under the
-  // panel — and because it is a share rather than a fixed world offset, it
-  // stays correct at every window size.
-  // Measured at the near face, for the same reason.
-  const visibleWidth = 2 * (distance - near) * halfFovTan * aspect
+  // Slide the look-at point by exactly each reserve's share of the frame. That
+  // is what moves the machine into the free region instead of under the chrome
+  // — and because it is a share rather than a fixed world offset, it stays
+  // correct at every window size. Measured at the near face, for the same
+  // reason the distance is.
+  const visibleHeight = 2 * (distance - near) * halfFovTan
+  const visibleWidth = visibleHeight * aspect
+
   const targetX = FIT_BOX.CENTER_X + (reserved / width) * (visibleWidth / 2)
+
+  // Down, not up. The look-at drops, so the machine rises on screen and clears
+  // the bar. Divided by cos(elevation) because targetY is a world height while
+  // the shift was measured on the screen's vertical axis — the same conversion
+  // profile() does for its own targetY.
+  const targetY =
+    extent.targetY - ((reservedBottom / height) * (visibleHeight / 2)) / Math.cos(elevation)
 
   return {
     distance,
     targetX,
-    targetY: extent.targetY,
+    targetY,
     elevationDeg,
-    position: [
-      targetX,
-      extent.targetY + distance * Math.sin(elevation),
-      distance * Math.cos(elevation),
-    ],
+    position: [targetX, targetY + distance * Math.sin(elevation), distance * Math.cos(elevation)],
   }
 }

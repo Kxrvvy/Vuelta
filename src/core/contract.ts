@@ -67,6 +67,29 @@ export const ARM = {
   END_ANGLE: 22,
 } as const
 
+// ---------------------------------------------------------------------------
+// Platter speed
+// ---------------------------------------------------------------------------
+
+/** 33⅓ rpm — the true speed of a 12" LP. Kept as the physical reference. */
+export const LP_RPM = 100 / 3
+
+/**
+ * What Vuelta actually turns the disc at: half of life, 16⅔ rpm, one
+ * revolution every 3.6s.
+ *
+ * A deliberate deviation, and the only one in the geometry. At the true 33⅓ a
+ * revolution takes 1.8s, which is accurate and reads as hurried — the album art
+ * on the label becomes a flicker rather than something you watch. Halving it
+ * keeps the motion unmistakably a spinning record while letting it sit still
+ * enough to look at.
+ *
+ * This is the one authority for the rate. `platterRpm` is a RenderState field,
+ * so the number belongs to the contract rather than to either the state layer
+ * or the skin — both of which used to carry their own copy.
+ */
+export const PLATTER_RPM = LP_RPM / 2
+
 export const INITIAL_RENDER_STATE: RenderState = {
   progressMs: 0,
   durationMs: 0,
@@ -107,11 +130,66 @@ export type PlaybackSnapshot = {
   volumePercent: number | null
   deviceName: string | null
   /**
+   * The playlist or album playback is running from, as a Spotify URI.
+   *
+   * Carried because it is what makes a queue jump a single call: `play` with a
+   * context plus a track offset lands directly on a track, where otherwise the
+   * only route would be firing `next` repeatedly. It also lets the playlist
+   * pane mark the one that is currently playing.
+   */
+  contextUri: string | null
+  /**
    * Wall-clock ms at which this snapshot was received. M1's reconciler needs
    * it to know how stale the reading is before easing toward it.
    */
   fetchedAt: number
 }
+
+// ---------------------------------------------------------------------------
+// Playlists and the queue
+//
+// Narrow projections again, for the same reason as TrackSummary: the raw
+// playlist and queue payloads are large, deeply nested, and full of fields the
+// renderer has no business seeing.
+// ---------------------------------------------------------------------------
+
+export type PlaylistSummary = {
+  playlistId: string
+  /** Context URI. This is the handle that starts playback. */
+  uri: string
+  name: string
+  trackCount: number
+  coverUrl: string | null
+}
+
+export type PlaylistTrack = {
+  /** Track URI — the play offset, and what gets added to the queue. */
+  uri: string
+  trackId: string
+  title: string
+  /** Already joined for display; the renderer does no formatting. */
+  artist: string
+  durationMs: number
+}
+
+export type QueueSnapshot = {
+  /** URI of what is playing now, so the pane can mark its own first row. */
+  currentUri: string | null
+  /** Upcoming items in order. Spotify returns roughly twenty. */
+  items: PlaylistTrack[]
+}
+
+export type PlaylistsResult =
+  | { ok: true; playlists: PlaylistSummary[] }
+  | { ok: false; code: VueltaErrorCode; message: string }
+
+export type PlaylistTracksResult =
+  | { ok: true; tracks: PlaylistTrack[] }
+  | { ok: false; code: VueltaErrorCode; message: string }
+
+export type QueueResult =
+  | { ok: true; queue: QueueSnapshot }
+  | { ok: false; code: VueltaErrorCode; message: string }
 
 /**
  * `GET /me/player` returning 204 with an empty body is not an error — it is
@@ -142,6 +220,12 @@ export type CommandResult =
 export type VueltaErrorCode =
   /** HTTP 403 — the user has not allowlisted themselves on their own Spotify app. */
   | 'not-allowlisted'
+  /**
+   * HTTP 403 on a playlist read, where the likely cause is a session granted
+   * before the playlist scopes were asked for. A separate code because the
+   * fix is a reconnect, not a trip to the developer dashboard.
+   */
+  | 'scope-missing'
   /** Playback control requires Premium. */
   | 'premium-required'
   /** HTTP 404 NO_ACTIVE_DEVICE on a control call. Spotify isn't running. */
@@ -164,6 +248,16 @@ export type SetupInfo = {
   portIsFallback: boolean
   /** A refresh token is on disk, so launch can skip straight to connecting. */
   hasStoredSession: boolean
+  /**
+   * True when there is a stored session that was granted fewer scopes than
+   * Vuelta now asks for.
+   *
+   * Refreshing a token never widens its scope, so a session from before the
+   * playlist scopes existed can poll the player perfectly well and will fail
+   * every playlist read with a 403. Detecting it here is what lets the UI ask
+   * for one reconnect instead of showing an error that looks like a bug.
+   */
+  scopesStale: boolean
   /** False means we refuse to persist a token rather than write one in plaintext. */
   secureStorageAvailable: boolean
 }
@@ -210,14 +304,49 @@ export type VueltaBridge = {
   previous(): Promise<CommandResult>
   /** Throttled by the caller to roughly one call per 400ms. */
   setVolume(percent: number): Promise<CommandResult>
+
+  // --- playlists and the queue --------------------------------------------
+  // Reads are user-triggered and cached by the caller; none of these joins the
+  // 3-5s player poll.
+  getPlaylists(): Promise<PlaylistsResult>
+  getPlaylistTracks(playlistId: string): Promise<PlaylistTracksResult>
+  getQueue(): Promise<QueueResult>
+  /** Starts a context, optionally at one track within it. */
+  playContext(contextUri: string, offsetUri?: string): Promise<CommandResult>
+  addToQueue(trackUri: string): Promise<CommandResult>
 }
 
 /** Spotify Client IDs are 32 hex characters. Shared so both sides validate identically. */
 export const CLIENT_ID_PATTERN = /^[0-9a-f]{32}$/i
 
-/** Spec: these three scopes and nothing else. Do not add speculatively. */
+/**
+ * Every scope Vuelta asks for, and nothing beyond. Do not add speculatively.
+ *
+ * The first three cover the mirror and the remote control. The two playlist
+ * scopes were added when the browser bar was: `GET /me/playlists` returns only
+ * public playlists without `playlist-read-private`, and omits collaborative
+ * ones without `playlist-read-collaborative`.
+ *
+ * Adding to this list is not free. A refresh token carries the scopes it was
+ * granted and a refresh never widens them, so anyone with an existing session
+ * has to sign out and reconnect once — which is what `SetupInfo.scopesStale`
+ * exists to detect. The queue needs nothing extra; it rides on
+ * `user-read-playback-state`.
+ */
 export const SPOTIFY_SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ] as const
+
+/**
+ * Whether a stored session's granted scopes still cover what Vuelta asks for.
+ *
+ * Pure, and in core, so both the main process and a test can use the same rule.
+ */
+export function scopesSatisfied(granted: readonly string[]): boolean {
+  const have = new Set(granted)
+  return SPOTIFY_SCOPES.every((scope) => have.has(scope))
+}

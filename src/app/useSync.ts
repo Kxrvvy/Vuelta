@@ -21,15 +21,12 @@ import type {
   RenderState,
   TrackSummary,
 } from '../core/contract.js'
-import { ARM, INITIAL_RENDER_STATE } from '../core/contract.js'
+import { ARM, INITIAL_RENDER_STATE, PLATTER_RPM } from '../core/contract.js'
 import type { Engine } from '../core/engine.js'
 import { createEngine } from '../core/engine.js'
 import type { PlaybackPort } from '../core/ports.js'
 import type { VueltaStore } from '../core/store.js'
 import { isPollFailure, nextPollDelay } from '../core/syncPolicy.js'
-
-/** 33⅓ rpm. */
-const PLATTER_RPM = 100 / 3
 
 /** Panel text refresh. The scene reads the ref at 60fps; text needs 4Hz. */
 const READOUT_HZ = 4
@@ -53,6 +50,8 @@ export type Readout = {
   isPlaying: boolean
   volumePercent: number | null
   deviceName: string | null
+  /** The playlist or album in play, so the browser bar can act on it. */
+  contextUri: string | null
   /**
    * Surfaced so the view can refuse to move the camera mid-drag. The scene
    * re-frames when the panel hides, and sliding the arm's geometry out from
@@ -97,6 +96,7 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     isPlaying: false,
     volumePercent: null,
     deviceName: null,
+    contextUri: null,
     isDragging: false,
   })
 
@@ -138,6 +138,7 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
           isPlaying: value.isPlaying,
           volumePercent: value.volumePercent,
           deviceName: value.deviceName,
+          contextUri: value.contextUri,
           isDragging: value.isDragging,
         })
         setActive(value.isPlaying || value.isDragging || state.platterRpm > 0)

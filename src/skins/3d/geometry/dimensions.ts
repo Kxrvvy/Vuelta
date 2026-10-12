@@ -13,6 +13,8 @@
  *   +y  up           -z  away (back, where the lid hinges)
  */
 
+import { PLATTER_RPM } from '../../../core/contract.js'
+
 const DEG = Math.PI / 180
 
 // ---------------------------------------------------------------------------
@@ -263,5 +265,11 @@ export function profilePoints(pose: CameraPose): ProfilePoint[] {
   return pose === 'front' ? cabinet : [...cabinet, raisedLidTip()]
 }
 
-/** 33⅓ rpm in degrees per second — 200°/s exactly. */
-export const PLATTER_DEG_PER_SEC = (100 / 3) * 6
+/**
+ * The platter rate in degrees per second — 16⅔ rpm, so 100°/s.
+ *
+ * Derived from the contract rather than restated, because `platterRpm` travels
+ * through RenderState and the two numbers must agree. See PLATTER_RPM for why
+ * the disc turns at half the real speed of an LP.
+ */
+export const PLATTER_DEG_PER_SEC = PLATTER_RPM * 6

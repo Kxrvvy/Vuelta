@@ -13,8 +13,14 @@ const isDev = !app.isPackaged
  * Applied to the packaged app only — Vite's dev server needs inline scripts and
  * a websocket for HMR, and the dev renderer is a local trusted origin anyway.
  *
- * `img-src` already allows Spotify's CDN so album art works at M2 without
- * anyone having to rediscover why images silently fail to load.
+ * `img-src` allows Spotify's image CDNs so album art and playlist covers work
+ * without anyone having to rediscover why images silently fail to load.
+ *
+ * Three hosts, not one, and they are not interchangeable. Album art is on
+ * i.scdn.co; a playlist with no custom cover gets a four-up mosaic from
+ * mosaic.scdn.co; a playlist with an uploaded cover is served from
+ * image-cdn-*.spotifycdn.com. Dev has no CSP at all, so a missing host here
+ * does not show up until the app is packaged.
  */
 function applyContentSecurityPolicy(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -26,7 +32,7 @@ function applyContentSecurityPolicy(): void {
             "default-src 'self'",
             "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https://i.scdn.co",
+            "img-src 'self' data: https://i.scdn.co https://mosaic.scdn.co https://image-cdn-ak.spotifycdn.com https://image-cdn-fa.spotifycdn.com",
             "connect-src 'self'",
             "form-action 'none'",
             "frame-ancestors 'none'",

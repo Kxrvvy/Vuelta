@@ -24,6 +24,14 @@ const bridge: VueltaBridge = {
   next: () => ipcRenderer.invoke(CHANNELS.next),
   previous: () => ipcRenderer.invoke(CHANNELS.previous),
   setVolume: (percent) => ipcRenderer.invoke(CHANNELS.setVolume, percent),
+
+  getPlaylists: () => ipcRenderer.invoke(CHANNELS.getPlaylists),
+  getPlaylistTracks: (playlistId) =>
+    ipcRenderer.invoke(CHANNELS.getPlaylistTracks, playlistId),
+  getQueue: () => ipcRenderer.invoke(CHANNELS.getQueue),
+  playContext: (contextUri, offsetUri) =>
+    ipcRenderer.invoke(CHANNELS.playContext, contextUri, offsetUri),
+  addToQueue: (trackUri) => ipcRenderer.invoke(CHANNELS.addToQueue, trackUri),
 }
 
 contextBridge.exposeInMainWorld('vuelta', bridge)
