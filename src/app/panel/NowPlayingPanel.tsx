@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Actions, TrackSummary } from '../../core/contract.js'
-import { mmss } from '../format.js'
+import { mmss } from '../../core/format.js'
 
 const IDLE_HIDE_MS = 2800
 

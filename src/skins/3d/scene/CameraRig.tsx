@@ -55,17 +55,9 @@ type Pose = { elevation: number; distance: number; targetX: number; targetY: num
 
 export function CameraRig({
   reserveRightPx,
-  reserveBottomPx,
   lidOpen,
 }: {
   reserveRightPx: number
-  /**
-   * Unlike the right-hand reserve, this one is held for as long as the lid is
-   * open rather than tracking whether the bar is drawn. `targetY` rides the
-   * pose rate because it carries the lid arc, so a reserve that came and went
-   * on the idle timer would show up as a slow vertical drift.
-   */
-  reserveBottomPx: number
   /**
    * A prop rather than a read of the render state, because it has to be a
    * React-visible change: `useFrame` does not run at all in demand mode, so a
@@ -88,7 +80,6 @@ export function CameraRig({
       width: size.width,
       height: size.height,
       reserveRightPx,
-      reserveBottomPx,
       // Lid shut is the resting state, and it gets the front elevation.
       pose: lidOpen ? 'top' : 'front',
     })
@@ -131,10 +122,7 @@ export function CameraRig({
   })
 
   // A resize while idle must still be drawn, and so must a restore.
-  useEffect(
-    () => invalidate(),
-    [invalidate, size.width, size.height, reserveRightPx, reserveBottomPx],
-  )
+  useEffect(() => invalidate(), [invalidate, size.width, size.height, reserveRightPx])
 
   useEffect(() => {
     const redraw = () => invalidate()

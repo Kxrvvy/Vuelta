@@ -24,14 +24,16 @@ import { Turntable } from '../skins/3d/Turntable.js'
 const GUTTER_PX = 18
 
 /**
- * Measures how much of an edge an element is occupying, live.
+ * Measures how much of the right-hand edge an element is occupying, live.
  *
- * Shared by the panel and the bar because they ask the same question of
- * different axes: how far in from the edge does this thing start? Measured
- * from the window edge rather than from the element's own width, so its margin
- * is included without being counted twice.
+ * Measured from the window edge rather than from the element's own width, so
+ * its margin is included without being counted twice.
+ *
+ * Only the panel needs this. The browser bar sits in the margin that exact
+ * vertical centring already leaves beneath the machine, so the camera makes
+ * no allowance for it — see the note at the end of fitCamera.
  */
-function useEdgeReserve<T extends HTMLElement>(axis: 'right' | 'bottom') {
+function useEdgeReserve<T extends HTMLElement>(axis: 'right') {
   // A callback ref rather than useRef, so the measurement restarts when the
   // element itself comes or goes. The bar is only mounted while the lid is
   // open, and a useRef would have been null on the pass that set up the
@@ -84,16 +86,20 @@ export function TopView({
   // A drag keeps the panel up even if the pointer goes still. That is exactly
   // when the floating timestamp matters most, and it stops the camera moving
   // under a cursor that is mid-gesture — see the frozen reserve below.
-  const panelShown = (pointerAwake || sync.readout.isDragging) && sync.lidOpen
+  const awake = pointerAwake || sync.readout.isDragging
+  const panelShown = awake && sync.lidOpen
+  // The sheet holds the bar up on its own: reading a list is exactly when you
+  // stop moving the mouse.
+  const barShown = (awake || library.pane !== 'none') && sync.lidOpen
+
   const [panelRef, panelReserve] = useEdgeReserve<HTMLElement>('right')
-  const [barRef, barReserve] = useEdgeReserve<HTMLDivElement>('bottom')
 
   // Held steady for the length of a drag. Re-framing mid-gesture would slide
   // the tonearm's hit geometry away from the pointer still holding it.
   const live = panelShown ? panelReserve : 0
   const frozen = useRef(live)
   if (!sync.readout.isDragging) frozen.current = live
-  const reserve = sync.readout.isDragging ? frozen.current : live
+  const reserveRight = sync.readout.isDragging ? frozen.current : live
 
   return (
     <div className="stage">
@@ -106,13 +112,7 @@ export function TopView({
         // Only reserve room while the panel is actually drawn, so the machine
         // sits centred the moment it fades. The rect is still measured
         // whatever the opacity; it is the gating that is conditional.
-        reserveRightPx={reserve}
-        // Gated on the lid alone, deliberately unlike the panel. `targetY`
-        // rides the slow pose rate because it carries the lid arc, so a reserve
-        // that came and went on the idle timer would read as a vertical drift.
-        // The strip is thin, so holding it costs little; the bar fades within
-        // the room already set aside for it.
-        reserveBottomPx={sync.lidOpen ? barReserve : 0}
+        reserveRightPx={reserveRight}
         lidOpen={sync.lidOpen}
         onOpenLid={sync.openLid}
         onCloseLid={sync.closeLid}
@@ -137,10 +137,9 @@ export function TopView({
           all until the machine is open. */}
       {sync.lidOpen ? (
         <BrowserBar
-          ref={barRef}
           library={library}
           actions={sync.actions}
-          visible={pointerAwake}
+          visible={barShown}
           playlistsEnabled={!scopesStale}
           onReconnect={onReconnect}
           contextUri={sync.readout.contextUri}

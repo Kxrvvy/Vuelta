@@ -15,7 +15,7 @@
 
 import { useEffect } from 'react'
 import type { Actions, PlaylistSummary, PlaylistTrack } from '../../core/contract.js'
-import { mmss } from '../format.js'
+import { mmss } from '../../core/format.js'
 import type { Library, Load } from '../useLibrary.js'
 
 export function BrowserBar({

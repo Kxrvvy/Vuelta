@@ -28,6 +28,7 @@ import {
   type CameraPose,
   elevationFor,
   FIT_BOX,
+  type ProfilePoint,
   profilePoints,
 } from './dimensions.js'
 
@@ -41,10 +42,48 @@ const DEG = Math.PI / 180
  * numbers. Scaling these rather than hard-coding a distance keeps the size
  * consistent at every window size and in both poses.
  *
- * History: first tuned at 0.82 / 0.92, cut 15%, then raised 10%.
+ * These are *measured* fractions, not nominal ones. They used to be fed into
+ * an orthographic approximation that undershot them — at 1100x700 a nominal
+ * 0.77 drew a machine 0.709 of the frame tall. The solver below hits the
+ * number exactly, so some of these read smaller than the figures they replace
+ * while drawing a larger machine.
+ *
+ * The two poses are sized separately, which they were not before. Only the
+ * open view was asked to grow; the closed one is a different composition —
+ * head-on, much wider than it is tall, and width-bound at most window shapes,
+ * so a shared FILL_H silently grew it by the same 10.5%.
  */
-export const FILL_V = 0.77
-export const FILL_H = 0.86
+
+/** Lid open. History: 0.82 / 0.92, cut 15%, raised 10%, then raised 11%. */
+export const FILL_V = 0.737
+export const FILL_H = 0.95
+
+/**
+ * Lid shut, kept at the size it has always been.
+ *
+ * Not round numbers because they are not new ones. They were calibrated by
+ * measuring what the previous nominal 0.77 / 0.86 actually drew for this pose
+ * and solving for the measured fractions that reproduce it, which they do to
+ * within a pixel from 980x680 up to 2560x1040.
+ *
+ * Only the width figure survived unchanged, because a width-bound fit simply
+ * draws FILL_H of the window whatever the maths behind it. The height figure
+ * moved a long way — 0.77 of a flat estimate turns out to be 0.5675 of the
+ * frame — which is a fair measure of how far off that estimate was.
+ *
+ * Width binds head-on at most window shapes, including the 980x680 the app
+ * opens at, so FILL_H_FRONT governs this view in practice. FILL_V_FRONT takes
+ * over past roughly 16:9 and keeps the machine from running away on a very
+ * wide window.
+ */
+export const FILL_V_FRONT = 0.5675
+export const FILL_H_FRONT = 0.86
+
+function fillFor(pose: CameraPose): { v: number; h: number } {
+  return pose === 'front'
+    ? { v: FILL_V_FRONT, h: FILL_H_FRONT }
+    : { v: FILL_V, h: FILL_H }
+}
 
 /** Sanity rails. Past these the scene stops looking like a turntable. */
 export const MIN_DISTANCE = 0.45
@@ -55,13 +94,6 @@ export type Viewport = {
   height: number
   /** Width in CSS pixels that the overlay panel is taking on the right. */
   reserveRightPx: number
-  /**
-   * Height in CSS pixels that the browser bar is taking along the bottom.
-   *
-   * Optional, defaulting to nothing reserved, so every caller and assertion
-   * that predates the bar keeps its existing meaning.
-   */
-  reserveBottomPx?: number
   /** Which way the machine is being looked at. Defaults to the overhead view. */
   pose?: CameraPose
 }
@@ -69,6 +101,7 @@ export type Viewport = {
 export type Framing = {
   distance: number
   targetX: number
+  /** The look-at height that centres the machine vertically in the window. */
   targetY: number
   elevationDeg: number
   /** Camera position, derived from distance and elevation. */
@@ -127,19 +160,119 @@ export function profile(elevationDeg: number, pose: CameraPose) {
   }
 }
 
+/**
+ * The outline's top and bottom edges as the camera actually projects them, in
+ * half-frame units: -1 is the bottom of the window, +1 the top.
+ *
+ * This is the part a bounding box, and the orthographic `profile()` above,
+ * both get wrong. A perspective camera divides every point by its own depth,
+ * and the machine is not flat: with the lid up its tip is both the highest
+ * point and the nearest one, so it projects larger than the cabinet's far
+ * bottom edge. Centring the orthographic midpoint therefore left the machine
+ * sitting high - at 1100x700 the gaps came out 81px above and 124px below.
+ */
+function projectedSpan(
+  points: readonly ProfilePoint[],
+  elevation: number,
+  distance: number,
+  targetY: number,
+  halfFovTan: number,
+): { lo: number; hi: number } {
+  const cos = Math.cos(elevation)
+  const sin = Math.sin(elevation)
+
+  let lo = Infinity
+  let hi = -Infinity
+
+  for (const { y, z } of points) {
+    const up = y * cos - z * sin - targetY * cos
+    // Never divide by a depth at or behind the lens.
+    const depth = Math.max(distance + targetY * sin - (y * sin + z * cos), 1e-4)
+    const n = up / (depth * halfFovTan)
+    if (n < lo) lo = n
+    if (n > hi) hi = n
+  }
+
+  return { lo, hi }
+}
+
+/**
+ * How far the outline's nearest point reaches toward the lens, measured along
+ * the view axis from the look-at point.
+ *
+ * The machine is the same width at every depth, so what decides how wide it
+ * draws is simply whichever part is closest: the raised lid from overhead,
+ * the front edge head-on. Depth of that point is `distance + targetY * sin`
+ * minus this.
+ */
+function reachTowardLens(points: readonly ProfilePoint[], elevation: number): number {
+  const cos = Math.cos(elevation)
+  const sin = Math.sin(elevation)
+
+  let maxAlong = -Infinity
+  for (const { y, z } of points) {
+    const along = y * sin + z * cos
+    if (along > maxAlong) maxAlong = along
+  }
+  return maxAlong
+}
+
+/**
+ * The look-at height that lands the outline's projected centre on `aim`.
+ *
+ * Solved rather than derived: `targetY` appears in both the numerator and the
+ * denominator of every point's projection, and which point is topmost can
+ * change as the camera moves, so there is no clean closed form. Raising the
+ * look-at moves everything down the screen, which makes the midpoint strictly
+ * decreasing in `targetY` - so bisection is reliable and needs no derivative.
+ *
+ * Forty halvings of a 3-metre bracket resolve to well under a micrometre,
+ * far finer than a pixel at any window size.
+ */
+function solveTargetY(
+  points: readonly ProfilePoint[],
+  elevation: number,
+  distance: number,
+  halfFovTan: number,
+  aim: number,
+  seed: number,
+): number {
+  let low = seed - 1.5
+  let high = seed + 1.5
+
+  const offBy = (t: number) => {
+    const { lo, hi } = projectedSpan(points, elevation, distance, t, halfFovTan)
+    return (lo + hi) / 2 - aim
+  }
+
+  for (let i = 0; i < 40; i++) {
+    const mid = (low + high) / 2
+    if (offBy(mid) > 0) low = mid
+    else high = mid
+  }
+
+  return (low + high) / 2
+}
+
+/**
+ * One result, cached.
+ *
+ * `fitCamera` runs inside `useFrame`, so it is called up to sixty times a
+ * second with arguments that change only on a resize or a lid toggle. The
+ * solver is cheap but not free, and recomputing an identical answer every
+ * frame is waste.
+ */
+let lastKey = ''
+let lastValue: Framing | null = null
+
 export function fitCamera(viewport: Viewport): Framing {
   const pose = viewport.pose ?? 'top'
-  const elevationDeg = elevationFor(pose)
-  const elevation = elevationDeg * DEG
-  const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
-  const extent = profile(elevationDeg, pose)
 
-  // A minimised window reports 0 × 0. Every ratio below would become Infinity
+  // A minimised window reports 0 x 0. Every ratio below would become Infinity
   // or NaN and poison the camera's matrix, so fall back to something sane and
   // let the next real resize fix it.
   const width = Number.isFinite(viewport.width) && viewport.width > 0 ? viewport.width : 1
   const height = Number.isFinite(viewport.height) && viewport.height > 0 ? viewport.height : 1
-  const aspect = width / height
 
   // Never let either reserve claim so much that there is no room left to fit
   // into. The caps differ because the panel is a column and the bar a strip:
@@ -149,42 +282,93 @@ export function fitCamera(viewport: Viewport): Framing {
     0,
     width * 0.6,
   )
-  const reserveBottom = viewport.reserveBottomPx ?? 0
-  const reservedBottom = clamp(Number.isFinite(reserveBottom) ? reserveBottom : 0, 0, height * 0.4)
+  const key = pose + '|' + width + '|' + height + '|' + reserved
+  if (lastValue && key === lastKey) return lastValue
+
+  const elevationDeg = elevationFor(pose)
+  const elevation = elevationDeg * DEG
+  const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
+  const extent = profile(elevationDeg, pose)
+  const points = profilePoints(pose)
+  const aspect = width / height
 
   const freeFraction = (width - reserved) / width
-  const freeVertical = (height - reservedBottom) / height
+  const fill = fillFor(pose)
 
-  // Fit the nearest part of the outline, then push the camera back out to the
-  // point it is looking at.
+  // Start from the old closed form, then correct it. It is a good opening
+  // guess and a poor answer: it measures the outline orthographically and adds
+  // the near distance back, which undershoots the true projected size.
   const near = extent.near
-  const byHeight = extent.vertical / (2 * halfFovTan * FILL_V * freeVertical) + near
-  const byWidth = extent.horizontal / (2 * halfFovTan * aspect * freeFraction * FILL_H) + near
+  const reach = reachTowardLens(points, elevation)
+  let distance = extent.vertical / (2 * halfFovTan * fill.v) + near
+  let targetY = extent.targetY
 
-  const distance = clamp(Math.max(byHeight, byWidth), MIN_DISTANCE, MAX_DISTANCE)
+  // Both constraints have to be solved together, not one after the other.
+  //
+  // Each pass re-centres the look-at for the current distance, then asks what
+  // distance the height and the width each want *given that look-at*, and
+  // takes whichever is further. The coupling is real: moving the look-at
+  // slides the camera along its own axis, which changes how near the closest
+  // part of the machine is, which changes how wide it draws. Solving width
+  // once after the fact left it about half a percent out.
+  //
+  // Six passes settle both to well under a pixel. At the fixed point the
+  // look-at and the distance agree, so the final re-centre below changes
+  // nothing and the measured fills land exactly on their constants.
+  const wantedNear = FIT_BOX.WIDTH / (2 * halfFovTan * aspect * freeFraction * fill.h)
+  const sin = Math.sin(elevation)
 
-  // Slide the look-at point by exactly each reserve's share of the frame. That
-  // is what moves the machine into the free region instead of under the chrome
-  // — and because it is a share rather than a fixed world offset, it stays
-  // correct at every window size. Measured at the near face, for the same
-  // reason the distance is.
-  const visibleHeight = 2 * (distance - near) * halfFovTan
-  const visibleWidth = visibleHeight * aspect
+  for (let pass = 0; pass < 6; pass++) {
+    targetY = solveTargetY(points, elevation, distance, halfFovTan, 0, targetY)
 
+    const { lo, hi } = projectedSpan(points, elevation, distance, targetY, halfFovTan)
+    const measured = (hi - lo) / 2
+    // Projected size falls off with distance from the near face, so correcting
+    // there converges much faster than scaling the whole distance.
+    const byHeight =
+      Number.isFinite(measured) && measured > 0
+        ? near + (distance - near) * (measured / fill.v)
+        : distance
+
+    // Width needs no iteration of its own: the machine is one constant width,
+    // so the wanted distance follows directly from where its nearest point
+    // has to sit.
+    const byWidth = wantedNear + reach - targetY * sin
+
+    distance = clamp(Math.max(byHeight, byWidth), MIN_DISTANCE, MAX_DISTANCE)
+  }
+
+  // Re-centre at the distance finally chosen. A no-op once converged, and the
+  // thing that keeps the view sane when a clamp cut the loop short.
+  targetY = solveTargetY(points, elevation, distance, halfFovTan, 0, targetY)
+
+  // Slide the look-at right by exactly the panel's share of the frame. That is
+  // what moves the machine into the free region instead of under the panel,
+  // and because it is a share rather than a fixed world offset it stays
+  // correct at every window size.
+  const visibleWidth = 2 * (distance - near) * halfFovTan * aspect
   const targetX = FIT_BOX.CENTER_X + (reserved / width) * (visibleWidth / 2)
 
-  // Down, not up. The look-at drops, so the machine rises on screen and clears
-  // the bar. Divided by cos(elevation) because targetY is a world height while
-  // the shift was measured on the screen's vertical axis — the same conversion
-  // profile() does for its own targetY.
-  const targetY =
-    extent.targetY - ((reservedBottom / height) * (visibleHeight / 2)) / Math.cos(elevation)
-
-  return {
+  // Nothing is reserved along the bottom, on purpose. Exact centring leaves a
+  // margin of (1 - FILL_V) / 2 beneath the machine, which at the smallest
+  // window Vuelta opens is already taller than the browser bar - so the bar
+  // sits in empty space without the camera moving for it.
+  //
+  // The alternative was tried and removed. Shifting the look-at up to clear
+  // the bar also moves the camera nearer, which made the machine grow about
+  // 6% whenever the bar faded in and out on its idle timer. Breathing on a
+  // timer is far worse than a strip of chrome over an empty margin, and
+  // keeping the machine centred is what was actually asked for.
+  // `bottomMarginFits` in the tests is what holds this invariant.
+  return (lastKey = key), (lastValue = {
     distance,
     targetX,
     targetY,
     elevationDeg,
-    position: [targetX, targetY + distance * Math.sin(elevation), distance * Math.cos(elevation)],
-  }
+    position: [
+      targetX,
+      targetY + distance * Math.sin(elevation),
+      distance * Math.cos(elevation),
+    ],
+  })
 }

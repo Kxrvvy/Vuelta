@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import { LP_RPM, PLATTER_RPM } from '../../../../core/contract.js'
+import { ARM } from '../../../../core/contract.js'
 import {
+  ARM_BASE_YAW_DEG,
   ARM_SWEEP_DEG,
+  DISPLAY,
+  PLATTER,
   PLATTER_DEG_PER_SEC,
+  PLINTH,
   RECORD,
   TONEARM,
+  TONEARM_PIVOT,
 } from '../dimensions.js'
 
 describe('the platter rate agrees with the contract', () => {
@@ -33,5 +39,81 @@ describe('the arm sweep', () => {
     expect(TONEARM.PIVOT_TO_SPINDLE).toBeCloseTo(TONEARM.EFFECTIVE_LENGTH, 10)
     expect(RECORD.GROOVE_OUTER).toBeGreaterThan(RECORD.GROOVE_INNER)
     expect(RECORD.GROOVE_OUTER).toBeLessThan(RECORD.RADIUS)
+  })
+})
+
+/**
+ * The counter sits in the only clear space on the machine, and it is a tight
+ * fit on two sides. Both clearances are held here because the things that
+ * would eat them - a bigger record, a wider well, a larger panel - live
+ * nowhere near this file.
+ */
+describe('the deck counter fits where it is put', () => {
+  /** Radius of the recessed well the platter sits in, from Cabinet.tsx. */
+  const WELL_RADIUS = PLATTER.RADIUS + 0.008
+
+  const corners = () => {
+    // Spindle-relative, which is the frame the well clearance lives in.
+    const x = DISPLAY.CENTER_X
+    const out: { x: number; z: number }[] = []
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        out.push({ x: x + (sx * DISPLAY.WIDTH) / 2, z: DISPLAY.CENTER_Z + (sz * DISPLAY.DEPTH) / 2 })
+      }
+    }
+    return out
+  }
+
+  it('clears the platter well at every corner', () => {
+    for (const { x, z } of corners()) {
+      expect(Math.hypot(x, z)).toBeGreaterThan(WELL_RADIUS)
+    }
+  })
+
+  it('keeps real daylight from the well, not a rounding error', () => {
+    const nearest = Math.min(...corners().map(({ x, z }) => Math.hypot(x, z)))
+    expect(nearest - WELL_RADIUS).toBeGreaterThan(0.0015)
+  })
+
+  it('stays out of the tonearm, across the whole of its travel', () => {
+    // The closest the arm ever comes is the stylus parked at REST_ANGLE,
+    // which swings furthest forward. Checked over the full sweep rather than
+    // at one angle, because which end is nearest is not obvious.
+    const base = (ARM_BASE_YAW_DEG * Math.PI) / 180
+    for (let angle = ARM.REST_ANGLE; angle <= ARM.END_ANGLE; angle += 0.5) {
+      const bearing = Math.PI - base + (angle * Math.PI) / 180
+      const stylus = {
+        x: TONEARM_PIVOT.x + Math.cos(bearing) * TONEARM.EFFECTIVE_LENGTH,
+        z: TONEARM_PIVOT.z + Math.sin(bearing) * TONEARM.EFFECTIVE_LENGTH,
+      }
+      // The panel sits entirely to the right of everything the arm reaches.
+      expect(stylus.x).toBeLessThan(DISPLAY.CENTER_X - DISPLAY.WIDTH / 2)
+    }
+  })
+
+  it('stays clear of the arm pivot and its counterweight', () => {
+    const nearest = Math.min(
+      ...corners().map(({ x, z }) => Math.hypot(x - TONEARM_PIVOT.x, z - TONEARM_PIVOT.z)),
+    )
+    expect(nearest).toBeGreaterThan(TONEARM.COUNTERWEIGHT_OFFSET + 0.02)
+  })
+
+  it('stays inside the satin deck, not out on the wood border', () => {
+    // The deck inset is 42mm smaller than the plinth on both axes - see the
+    // top deck mesh in Cabinet.tsx.
+    const halfW = (PLINTH.WIDTH - 0.042) / 2
+    const halfD = (PLINTH.DEPTH - 0.042) / 2
+    for (const { x, z } of corners()) {
+      expect(x).toBeGreaterThan(PLINTH.CENTER_X - halfW)
+      expect(x).toBeLessThan(PLINTH.CENTER_X + halfW)
+      expect(Math.abs(z)).toBeLessThan(halfD)
+    }
+  })
+
+  it('sits at the front right, which reads as lower right on screen', () => {
+    // The overhead camera looks down -z, so +z projects toward the bottom of
+    // the frame and +x to the right.
+    expect(DISPLAY.CENTER_X).toBeGreaterThan(0)
+    expect(DISPLAY.CENTER_Z).toBeGreaterThan(0)
   })
 })

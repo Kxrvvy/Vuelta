@@ -15,14 +15,10 @@
 
 import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3 } from 'three'
+import { mmss } from '../../../core/format.js'
 import { ARM_BASE_YAW_DEG, RECORD_SURFACE_Y, TONEARM, TONEARM_PIVOT } from '../geometry/dimensions.js'
 import { DEG, useRenderStateRef } from '../useFrameState.js'
 import { useInteraction } from './context.js'
-
-function mmss(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`
-}
 
 const stylus = new Vector3()
 
