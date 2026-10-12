@@ -21,7 +21,12 @@ import { Turntable } from '../skins/3d/Turntable.js'
 const GUTTER_PX = 18
 
 export function TopView({ sync }: { sync: Sync }) {
-  const awake = usePointerActivity()
+  const pointerAwake = usePointerActivity()
+
+  // A drag keeps the panel up even if the pointer goes still. That is exactly
+  // when the floating timestamp matters most, and it stops the camera moving
+  // under a cursor that is mid-gesture — see the frozen reserve below.
+  const panelShown = (pointerAwake || sync.readout.isDragging) && sync.lidOpen
   const panelRef = useRef<HTMLElement | null>(null)
   const [reserveRightPx, setReserveRightPx] = useState(0)
 
@@ -47,6 +52,13 @@ export function TopView({ sync }: { sync: Sync }) {
     }
   }, [])
 
+  // Held steady for the length of a drag. Re-framing mid-gesture would slide
+  // the tonearm's hit geometry away from the pointer still holding it.
+  const live = panelShown ? reserveRightPx : 0
+  const frozen = useRef(live)
+  if (!sync.readout.isDragging) frozen.current = live
+  const reserve = sync.readout.isDragging ? frozen.current : live
+
   return (
     <div className="stage">
       <Turntable
@@ -55,11 +67,10 @@ export function TopView({ sync }: { sync: Sync }) {
         albumArtUrl={sync.track?.albumArtUrl ?? null}
         volumePercent={sync.readout.volumePercent}
         active={sync.active}
-        // Zeroed when the lid is shut so the front elevation centres in the
-        // whole window. Keyed off the lid, NOT off the panel's fade: the rect
-        // is measured whatever its opacity, which is what stops the camera
-        // drifting every time the panel idles out after a few seconds.
-        reserveRightPx={sync.lidOpen ? reserveRightPx : 0}
+        // Only reserve room while the panel is actually drawn, so the machine
+        // sits centred the moment it fades. The rect is still measured
+        // whatever the opacity; it is the gating that is conditional.
+        reserveRightPx={reserve}
         lidOpen={sync.lidOpen}
         onOpenLid={sync.openLid}
         onCloseLid={sync.closeLid}
@@ -77,9 +88,7 @@ export function TopView({ sync }: { sync: Sync }) {
         volumePercent={sync.readout.volumePercent}
         deviceName={sync.readout.deviceName}
         actions={sync.actions}
-        // Lid shut is spec §7's IDLE and closing already paused, so there is
-        // nothing playing to report.
-        visible={awake && sync.lidOpen}
+        visible={panelShown}
       />
     </div>
   )

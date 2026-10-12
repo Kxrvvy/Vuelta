@@ -213,13 +213,55 @@ export const FIT_BOX = {
   /** Feet to the top of the closed lid. */
   HEIGHT: PLINTH.HEIGHT + FOOT.HEIGHT + LID.WALL_HEIGHT,
   CENTER_X: PLINTH.CENTER_X,
-  /**
-   * Vertical midpoint of the machine. The fit used to look at y = 0, which is
-   * deck level — near enough looking down, clearly wrong looking head-on,
-   * where it would park the machine low in the frame.
-   */
-  CENTER_Y: (LID.WALL_HEIGHT - (PLINTH.HEIGHT + FOOT.HEIGHT)) / 2,
 } as const
+
+/** Lowest point of the machine: the underside of the feet. */
+const BOTTOM_Y = -(PLINTH.HEIGHT + FOOT.HEIGHT)
+
+/**
+ * The far edge of the lid's top panel once it has swung open.
+ *
+ * Derived by rotating that edge about the hinge rather than measured off a
+ * screenshot, so it stays correct if the lid's travel or its dimensions ever
+ * change. This point matters more than it looks: open, it is both the highest
+ * part of the machine and — because the camera is above — the part nearest the
+ * lens, which is not true of anything on the cabinet.
+ */
+function raisedLidTip(): { y: number; z: number } {
+  const angle = LID.OPEN_ANGLE_DEG * (Math.PI / 180)
+  // Position of that edge relative to the hinge, with the lid shut.
+  const dy = LID.WALL_HEIGHT
+  const dz = LID.DEPTH
+  return {
+    y: LID.HINGE_Y + dy * Math.cos(angle) + dz * Math.sin(angle),
+    z: LID.HINGE_Z - dy * Math.sin(angle) + dz * Math.cos(angle),
+  }
+}
+
+export type ProfilePoint = { y: number; z: number }
+
+/**
+ * The extreme points of the machine's outline, in the y/z plane.
+ *
+ * The camera fits against these rather than against a bounding box. A box is
+ * the wrong shape once the lid is up — it overstates the silhouette by about
+ * 18%, which would cost a far bigger shrink than the view actually needs, and
+ * it cannot tell which point is closest to the lens.
+ */
+export function profilePoints(pose: CameraPose): ProfilePoint[] {
+  const front = PLINTH.CENTER_Z + LID.DEPTH / 2
+  const back = PLINTH.CENTER_Z - LID.DEPTH / 2
+  const closedTop = LID.WALL_HEIGHT
+
+  const cabinet: ProfilePoint[] = [
+    { y: BOTTOM_Y, z: front },
+    { y: BOTTOM_Y, z: back },
+    { y: closedTop, z: front },
+    { y: closedTop, z: back },
+  ]
+
+  return pose === 'front' ? cabinet : [...cabinet, raisedLidTip()]
+}
 
 /** 33⅓ rpm in degrees per second — 200°/s exactly. */
 export const PLATTER_DEG_PER_SEC = (100 / 3) * 6
