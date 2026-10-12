@@ -96,6 +96,11 @@ export default tseslint.config(
           patterns: [
             { group: ['node:*'], message: SKIN_MESSAGE },
             { group: ['**/main/**'], message: SKIN_MESSAGE },
+            // app/ and views/ hold the bridge callers. Blocking main/ alone
+            // left the back door open: a skin could reach window.vuelta by
+            // importing a hook that already had. The skin may read core/ and
+            // nothing else above it.
+            { group: ['**/app/**', '**/views/**'], message: SKIN_MESSAGE },
           ],
         },
       ],

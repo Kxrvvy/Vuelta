@@ -59,6 +59,7 @@ function snapshot(over: Partial<PlaybackSnapshot> = {}): PlaybackSnapshot {
     progressMs: 0,
     volumePercent: 50,
     deviceName: 'Desktop',
+    contextUri: null,
     fetchedAt: 0,
     ...over,
   }

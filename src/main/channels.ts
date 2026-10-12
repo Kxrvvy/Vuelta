@@ -18,4 +18,11 @@ export const CHANNELS = {
   next: 'vuelta:next',
   previous: 'vuelta:previous',
   setVolume: 'vuelta:set-volume',
+
+  // Playlists and the queue. User-triggered reads, cached in the renderer.
+  getPlaylists: 'vuelta:get-playlists',
+  getPlaylistTracks: 'vuelta:get-playlist-tracks',
+  getQueue: 'vuelta:get-queue',
+  playContext: 'vuelta:play-context',
+  addToQueue: 'vuelta:add-to-queue',
 } as const

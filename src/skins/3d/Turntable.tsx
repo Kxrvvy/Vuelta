@@ -45,6 +45,8 @@ export type TurntableProps = {
   onArmDragEnd: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
+  /** CSS pixels the browser bar occupies along the bottom, measured live. */
+  reserveBottomPx: number
 }
 
 /** How long to keep rendering after things stop, so spin-down can finish. */
@@ -63,6 +65,7 @@ export function Turntable({
   onArmDragTo,
   onArmDragEnd,
   reserveRightPx,
+  reserveBottomPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
   // frames a second at a motionless record would burn GPU and battery for
@@ -110,7 +113,11 @@ export function Turntable({
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
-            <CameraRig reserveRightPx={reserveRightPx} lidOpen={lidOpen} />
+            <CameraRig
+              reserveRightPx={reserveRightPx}
+              reserveBottomPx={reserveBottomPx}
+              lidOpen={lidOpen}
+            />
             <Staging />
             <Cabinet />
             <Knob volumePercent={volumePercent} />

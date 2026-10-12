@@ -12,9 +12,13 @@ import type {
   AuthOutcome,
   CommandResult,
   PlayerPoll,
+  PlaylistsResult,
+  PlaylistTracksResult,
+  QueueResult,
   SaveClientIdResult,
   SetupInfo,
 } from '../core/contract.js'
+import { scopesSatisfied } from '../core/contract.js'
 import { runAuthFlow } from './auth/flow.js'
 import { CHANNELS } from './channels.js'
 import {
@@ -26,11 +30,16 @@ import {
 } from './config.js'
 import { toVueltaError } from './errors.js'
 import {
+  addToQueue,
   forgetAccessToken,
   getPlayer,
+  getPlaylists,
+  getPlaylistTracks,
+  getQueue,
   next,
   pause,
   play,
+  playContext,
   previous,
   seek,
   setVolume,
@@ -45,6 +54,9 @@ function currentSetup(): SetupInfo {
     redirectPort: config.redirectPort,
     portIsFallback: config.redirectPort !== DEFAULT_REDIRECT_PORT,
     hasStoredSession: hasStoredSession(),
+    // Only meaningful when there is a session to be stale. A fresh connect
+    // always grants the current list, so first-run must not be flagged.
+    scopesStale: hasStoredSession() && !scopesSatisfied(config.grantedScopes),
     secureStorageAvailable: isSecureStorageAvailable(),
   }
 }
@@ -141,5 +153,54 @@ export function registerIpcHandlers(): void {
       return { ok: false, code: 'unknown', message: 'Volume must be a number.' }
     }
     return withClientId((clientId) => setVolume(clientId, percent))()
+  })
+
+  // --- playlists and the queue ---------------------------------------------
+  // Each read already maps its own failures onto a result union, so these
+  // handlers only supply the Client ID and validate their arguments.
+
+  const noClientId = { ok: false, code: 'no-client-id', message: 'No Client ID has been set yet.' } as const
+
+  ipcMain.handle(CHANNELS.getPlaylists, async (): Promise<PlaylistsResult> => {
+    const { clientId } = readConfig()
+    if (!clientId) return noClientId
+    return getPlaylists(clientId)
+  })
+
+  ipcMain.handle(
+    CHANNELS.getPlaylistTracks,
+    async (_event, playlistId: unknown): Promise<PlaylistTracksResult> => {
+      if (typeof playlistId !== 'string' || playlistId.length === 0) {
+        return { ok: false, code: 'unknown', message: 'A playlist id is required.' }
+      }
+      const { clientId } = readConfig()
+      if (!clientId) return noClientId
+      return getPlaylistTracks(clientId, playlistId)
+    },
+  )
+
+  ipcMain.handle(CHANNELS.getQueue, async (): Promise<QueueResult> => {
+    const { clientId } = readConfig()
+    if (!clientId) return noClientId
+    return getQueue(clientId)
+  })
+
+  ipcMain.handle(
+    CHANNELS.playContext,
+    async (_event, contextUri: unknown, offsetUri: unknown): Promise<CommandResult> => {
+      if (typeof contextUri !== 'string' || !contextUri.startsWith('spotify:')) {
+        return { ok: false, code: 'unknown', message: 'A Spotify context URI is required.' }
+      }
+      const offset =
+        typeof offsetUri === 'string' && offsetUri.startsWith('spotify:') ? offsetUri : undefined
+      return withClientId((clientId) => playContext(clientId, contextUri, offset))()
+    },
+  )
+
+  ipcMain.handle(CHANNELS.addToQueue, async (_event, trackUri: unknown): Promise<CommandResult> => {
+    if (typeof trackUri !== 'string' || !trackUri.startsWith('spotify:')) {
+      return { ok: false, code: 'unknown', message: 'A Spotify track URI is required.' }
+    }
+    return withClientId((clientId) => addToQueue(clientId, trackUri))()
   })
 }

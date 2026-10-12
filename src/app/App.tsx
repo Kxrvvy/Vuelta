@@ -93,6 +93,20 @@ export function App() {
     setSetup(await window.vuelta.getSetup())
   }, [])
 
+  /**
+   * Sign out and straight back in, to widen the granted scopes.
+   *
+   * A refresh token carries the scopes it was issued with and a refresh never
+   * adds to them, so a session from before the playlist scopes existed has to
+   * be replaced rather than renewed. Doing both halves here keeps it one click
+   * from the browser bar instead of a trip through the idle screen.
+   */
+  const reconnect = useCallback(async () => {
+    await window.vuelta.signOut()
+    store.getState().dispatch({ type: 'SIGNED_OUT' })
+    await connect()
+  }, [connect])
+
   const retry = useCallback(() => {
     store.getState().dispatch({ type: 'RETRY' })
   }, [])
@@ -135,7 +149,13 @@ export function App() {
         return <NoDeviceScreen busy={busy} onRetry={() => void checkAgain()} />
       case 'playing':
       case 'paused':
-        return <TopView sync={sync} />
+        return (
+          <TopView
+            sync={sync}
+            scopesStale={setup.scopesStale}
+            onReconnect={() => void reconnect()}
+          />
+        )
       case 'not-allowlisted':
         return (
           <NotAllowlistedScreen

@@ -11,11 +11,18 @@
 
 import type {
   CommandResult,
+  VueltaErrorCode,
   PlaybackSnapshot,
   PlayerPoll,
+  PlaylistsResult,
+  PlaylistSummary,
+  PlaylistTrack,
+  PlaylistTracksResult,
+  QueueResult,
   TrackSummary,
 } from '../../core/contract.js'
 import { SPOTIFY_SCOPES } from '../../core/contract.js'
+import { writeConfig } from '../config.js'
 import { VueltaError, toVueltaError } from '../errors.js'
 import { clearSession, loadRefreshToken, saveRefreshToken } from '../tokens.js'
 
@@ -60,6 +67,8 @@ type TokenResponse = {
   access_token: string
   refresh_token?: string
   expires_in: number
+  /** Space-separated. What was actually granted, which can differ from the ask. */
+  scope?: string
 }
 
 async function postToken(body: URLSearchParams): Promise<TokenResponse> {
@@ -111,6 +120,12 @@ function storeTokens(tokens: TokenResponse): void {
   // Spotify may rotate the refresh token on any refresh. Persisting the new
   // one is what keeps "never log in again" true.
   if (tokens.refresh_token) saveRefreshToken(tokens.refresh_token)
+  // Record what was granted rather than what was asked for. A refresh never
+  // widens scope, so this is how a session issued before a scope was added
+  // stays distinguishable from a current one.
+  if (typeof tokens.scope === 'string') {
+    writeConfig({ grantedScopes: tokens.scope.split(' ').filter((part) => part.length > 0) })
+  }
 }
 
 export async function exchangeCodeForTokens(options: {
@@ -239,6 +254,7 @@ type SpotifyPlayerResponse = {
   progress_ms: number | null
   is_playing: boolean
   device: { name: string; volume_percent: number | null } | null
+  context: { uri: string } | null
   item: {
     id: string | null
     name: string
@@ -275,6 +291,7 @@ export async function getPlayer(clientId: string): Promise<PlayerPoll> {
       progressMs: data.progress_ms ?? 0,
       volumePercent: data.device?.volume_percent ?? null,
       deviceName: data.device?.name ?? null,
+      contextUri: data.context?.uri ?? null,
       fetchedAt: Date.now(),
     }
     return { kind: 'ok', snapshot }
@@ -338,4 +355,169 @@ export function previous(clientId: string): Promise<CommandResult> {
 export function setVolume(clientId: string, percent: number): Promise<CommandResult> {
   const volume = Math.max(0, Math.min(100, Math.round(percent)))
   return command(clientId, 'PUT', `/me/player/volume?volume_percent=${volume}`)
+}
+
+// ---------------------------------------------------------------------------
+// Playlists and the queue
+//
+// Reads here are user-triggered, not polled. The browser bar fetches on open
+// and caches; nothing below joins the 3-5s player poll.
+// ---------------------------------------------------------------------------
+
+type SpotifyPlaylistItem = {
+  id: string
+  uri: string
+  name: string
+  images: SpotifyImage[] | null
+  tracks: { total: number } | null
+}
+
+/** Spotify's own playlist pages can contain nulls. This is not defensive padding. */
+type SpotifyPlaylistsResponse = { items: (SpotifyPlaylistItem | null)[] | null }
+
+type SpotifyTrackItem = {
+  uri: string
+  id: string | null
+  name: string
+  duration_ms: number | null
+  artists: { name: string }[] | null
+}
+
+type SpotifyPlaylistTracksResponse = {
+  items: ({ track: SpotifyTrackItem | null } | null)[] | null
+}
+
+type SpotifyQueueResponse = {
+  currently_playing: SpotifyTrackItem | null
+  queue: (SpotifyTrackItem | null)[] | null
+}
+
+function toPlaylistTrack(item: SpotifyTrackItem): PlaylistTrack {
+  return {
+    uri: item.uri,
+    trackId: item.id ?? '',
+    title: item.name,
+    // Episodes come back through these same endpoints and carry no artists.
+    artist: (item.artists ?? []).map((a) => a.name).join(', '),
+    durationMs: item.duration_ms ?? 0,
+  }
+}
+
+/**
+ * Re-label a 403 on a playlist read.
+ *
+ * `request` maps every 403 to `not-allowlisted`, whose message sends the user
+ * to the developer dashboard. That is right for a playback call and wrong here:
+ * on a playlist read the overwhelmingly likely cause is a session granted
+ * before the playlist scopes were asked for, and the fix is a reconnect. The
+ * stale-scope check should catch this first; this is the backstop for when it
+ * does not.
+ */
+function asLibraryFailure(cause: unknown): { code: VueltaErrorCode; message: string } {
+  const error = toVueltaError(cause)
+  if (error.code === 'not-allowlisted') {
+    return {
+      code: 'scope-missing',
+      message:
+        'Spotify would not share your playlists with this session. Reconnect to grant playlist access.',
+    }
+  }
+  return { code: error.code, message: error.message }
+}
+
+export async function getPlaylists(clientId: string): Promise<PlaylistsResult> {
+  try {
+    const data = await request<SpotifyPlaylistsResponse>(clientId, '/me/playlists?limit=50')
+    const playlists: PlaylistSummary[] = (data?.items ?? [])
+      .filter((item): item is SpotifyPlaylistItem => item !== null)
+      .map((item) => ({
+        playlistId: item.id,
+        uri: item.uri,
+        name: item.name,
+        trackCount: item.tracks?.total ?? 0,
+        coverUrl: largestImage(item.images ?? []),
+      }))
+    return { ok: true, playlists }
+  } catch (cause) {
+    return { ok: false, ...asLibraryFailure(cause) }
+  }
+}
+
+export async function getPlaylistTracks(
+  clientId: string,
+  playlistId: string,
+): Promise<PlaylistTracksResult> {
+  // `fields` is not an optimisation. Without it a 100-track page arrives with a
+  // full album object per track, which is megabytes for a list of names.
+  const fields = 'items(track(uri,id,name,duration_ms,artists(name)))'
+  try {
+    const data = await request<SpotifyPlaylistTracksResponse>(
+      clientId,
+      `/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&fields=${encodeURIComponent(fields)}`,
+    )
+    const tracks = (data?.items ?? [])
+      .map((row) => row?.track ?? null)
+      .filter((track): track is SpotifyTrackItem => track !== null)
+      .map(toPlaylistTrack)
+    return { ok: true, tracks }
+  } catch (cause) {
+    return { ok: false, ...asLibraryFailure(cause) }
+  }
+}
+
+export async function getQueue(clientId: string): Promise<QueueResult> {
+  try {
+    const data = await request<SpotifyQueueResponse>(clientId, '/me/player/queue')
+    // 204, same as the player: no active device rather than a failure.
+    if (data === null) {
+      return { ok: true, queue: { currentUri: null, items: [] } }
+    }
+    return {
+      ok: true,
+      queue: {
+        currentUri: data.currently_playing?.uri ?? null,
+        items: (data.queue ?? [])
+          .filter((item): item is SpotifyTrackItem => item !== null)
+          .map(toPlaylistTrack),
+      },
+    }
+  } catch (cause) {
+    const error = toVueltaError(cause)
+    return { ok: false, code: error.code, message: error.message }
+  }
+}
+
+/**
+ * Start a context, optionally at one track inside it.
+ *
+ * Deliberately not routed through `command`: every other caller of that
+ * depends on sending no body at all, because a bodiless play is what resumes
+ * the user's last context (spec section 7). Widening it would put a body on
+ * the disc click.
+ */
+export async function playContext(
+  clientId: string,
+  contextUri: string,
+  offsetUri?: string,
+): Promise<CommandResult> {
+  const body: { context_uri: string; offset?: { uri: string } } = { context_uri: contextUri }
+  if (offsetUri) body.offset = { uri: offsetUri }
+
+  try {
+    await request(clientId, '/me/player/play', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return { ok: true }
+  } catch (cause) {
+    const error = toVueltaError(cause)
+    return error.retryAfterMs === undefined
+      ? { ok: false, code: error.code, message: error.message }
+      : { ok: false, code: error.code, message: error.message, retryAfterMs: error.retryAfterMs }
+  }
+}
+
+export function addToQueue(clientId: string, trackUri: string): Promise<CommandResult> {
+  return command(clientId, 'POST', `/me/player/queue?uri=${encodeURIComponent(trackUri)}`)
 }

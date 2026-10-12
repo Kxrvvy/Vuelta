@@ -12,13 +12,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Actions, TrackSummary } from '../../core/contract.js'
+import { mmss } from '../format.js'
 
 const IDLE_HIDE_MS = 2800
-
-function mmss(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`
-}
 
 /** Shows the panel while the pointer is moving, hides it once it settles. */
 export function usePointerActivity(): boolean {

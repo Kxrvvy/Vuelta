@@ -106,7 +106,10 @@ artist, album, art URL, progress, device name. Raw Spotify response bodies are n
   navigated away from its own renderer.
 - A Content-Security-Policy is applied in packaged builds: `default-src 'self'`, `connect-src
   'self'`, `form-action 'none'`, `frame-ancestors 'none'`, with `img-src` allowing only Spotify's
-  CDN for album art.
+  image CDNs: `i.scdn.co` for album art, `mosaic.scdn.co` for generated playlist covers, and
+  `image-cdn-ak`/`image-cdn-fa.spotifycdn.com` for uploaded ones. No other remote host is
+  reachable from the renderer, and the renderer makes no requests to Spotify itself — every API
+  call is made by the main process.
 
 ---
 
