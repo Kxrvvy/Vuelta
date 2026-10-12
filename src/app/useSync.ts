@@ -66,7 +66,8 @@ export type Sync = {
   /** True while anything is moving, so the scene can drop to on-demand. */
   active: boolean
   lidOpen: boolean
-  toggleLid: () => void
+  openLid: () => void
+  closeLid: () => void
   beginArmDrag: () => void
   dragToProgress: (ms: number) => void
   endArmDrag: () => void
@@ -227,16 +228,24 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
   }, [enabled, engine, store])
 
   // ---- the lid -------------------------------------------------------------
-  const toggleLid = useCallback(() => {
-    const opening = !lidOpenRef.current
-    lidOpenRef.current = opening
-    setLidOpen(opening)
+  // Two one-way controls rather than a toggle. The Open button releases the
+  // latch; clicking the acrylic shuts it. Each is a no-op in the state where
+  // it has nothing to do, so neither can undo the other by accident.
+  const setLid = useCallback(
+    (open: boolean) => {
+      if (lidOpenRef.current === open) return
+      lidOpenRef.current = open
+      setLidOpen(open)
+      // Spec §7: opening the lid resumes the user's last context. Spec §11:
+      // closing it is the stop gesture, so it pauses.
+      if (open) engine.actions.play()
+      else engine.actions.pause()
+    },
+    [engine],
+  )
 
-    // Spec §7: opening the lid resumes the user's last context. Spec §11:
-    // closing it is the stop gesture, so it pauses.
-    if (opening) engine.actions.play()
-    else engine.actions.pause()
-  }, [engine])
+  const openLid = useCallback(() => setLid(true), [setLid])
+  const closeLid = useCallback(() => setLid(false), [setLid])
 
   const pollNow = useCallback(async () => {
     const poll = await window.vuelta.getPlayer()
@@ -255,7 +264,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     readout,
     active,
     lidOpen,
-    toggleLid,
+    openLid,
+    closeLid,
     beginArmDrag,
     dragToProgress,
     endArmDrag,

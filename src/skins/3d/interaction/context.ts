@@ -12,7 +12,10 @@ import type { Actions } from '../../../core/contract.js'
 
 export type SkinInteraction = {
   actions: Actions
-  toggleLid(): void
+  /** The Open button. A latch release: no-op when the lid is already open. */
+  openLid(): void
+  /** Clicking the acrylic. No-op when it is already shut. */
+  closeLid(): void
   beginArmDrag(): void
   dragToProgress(progressMs: number): void
   endArmDrag(): void

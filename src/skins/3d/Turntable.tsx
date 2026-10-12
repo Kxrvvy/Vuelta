@@ -20,6 +20,7 @@ import { NeedleReadout } from './interaction/NeedleReadout.js'
 import { Cabinet } from './scene/Cabinet.js'
 import { Knob } from './scene/Knob.js'
 import { Lid } from './scene/Lid.js'
+import { OpenButton } from './scene/OpenButton.js'
 import { Record } from './scene/Record.js'
 import { Staging } from './scene/Staging.js'
 import { Tonearm } from './scene/Tonearm.js'
@@ -35,7 +36,10 @@ export type TurntableProps = {
   volumePercent: number | null
   /** True while something is moving. Drives the render loop. */
   active: boolean
-  onToggleLid: () => void
+  onOpenLid: () => void
+  onCloseLid: () => void
+  /** Drives the camera pose, so it has to be a React-visible value. */
+  lidOpen: boolean
   onArmDragStart: () => void
   onArmDragTo: (progressMs: number) => void
   onArmDragEnd: () => void
@@ -52,7 +56,9 @@ export function Turntable({
   albumArtUrl,
   volumePercent,
   active,
-  onToggleLid,
+  onOpenLid,
+  onCloseLid,
+  lidOpen,
   onArmDragStart,
   onArmDragTo,
   onArmDragEnd,
@@ -80,13 +86,14 @@ export function Turntable({
   const interaction = useMemo<SkinInteraction>(
     () => ({
       actions,
-      toggleLid: onToggleLid,
+      openLid: onOpenLid,
+      closeLid: onCloseLid,
       beginArmDrag: onArmDragStart,
       dragToProgress: onArmDragTo,
       endArmDrag: onArmDragEnd,
       readoutRef,
     }),
-    [actions, onToggleLid, onArmDragStart, onArmDragTo, onArmDragEnd],
+    [actions, onOpenLid, onCloseLid, onArmDragStart, onArmDragTo, onArmDragEnd],
   )
 
   return (
@@ -103,13 +110,14 @@ export function Turntable({
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
-            <CameraRig reserveRightPx={reserveRightPx} />
+            <CameraRig reserveRightPx={reserveRightPx} lidOpen={lidOpen} />
             <Staging />
             <Cabinet />
             <Knob volumePercent={volumePercent} />
             <Record albumArtUrl={albumArtUrl} />
             <Tonearm />
             <Lid />
+            <OpenButton lidOpen={lidOpen} />
             <NeedleReadout />
           </InteractionProvider>
         </RenderStateProvider>
