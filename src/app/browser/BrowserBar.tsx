@@ -8,14 +8,14 @@
  * lets you choose which record goes on.
  *
  * Shape: a thin strip of chrome at the bottom centre, and a sheet that rises
- * from it when a pane is open. The strip fades with the same pointer-idle rule
- * as the now-playing panel; the sheet is an overlay and may cover the machine,
- * which is why the camera reserves room for the strip only.
+ * from it when a pane is open. The strip is summoned and dismissed with the
+ * now-playing panel, by a click on the empty field around the machine; the
+ * sheet is an overlay and may cover the machine, which is why the camera
+ * reserves room for the strip only.
  */
 
-import { useEffect } from 'react'
 import type { Actions, PlaylistSummary, PlaylistTrack } from '../../core/contract.js'
-import { mmss } from '../format.js'
+import { mmss } from '../../core/format.js'
 import type { Library, Load } from '../useLibrary.js'
 
 export function BrowserBar({
@@ -38,21 +38,12 @@ export function BrowserBar({
   /** What is playing from, so a queue row can jump inside it. */
   contextUri: string | null
 }) {
-  const { pane, toggle, close } = library
+  const { pane, toggle } = library
 
-  // Escape closes the sheet. The bar has no close button of its own: clicking
-  // the button that is already lit is the other way out.
-  useEffect(() => {
-    if (pane === 'none') return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [pane, close])
-
-  // The sheet is kept up while it is open even if the pointer goes still —
-  // reading a list is exactly the case where you stop moving the mouse.
+  // The bar has no close button of its own. Clicking the button that is
+  // already lit dismisses the sheet, and so does Escape or a click on the
+  // empty field, both of which TopView owns — it has to drop the chrome in
+  // the same gesture, which this component cannot see.
   const barVisible = visible || pane !== 'none'
 
   return (

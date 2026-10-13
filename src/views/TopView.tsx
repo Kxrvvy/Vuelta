@@ -13,25 +13,28 @@
  * either side changed.
  */
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
-import { NowPlayingPanel, usePointerActivity } from '../app/panel/NowPlayingPanel.js'
+import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
 import type { Sync } from '../app/useSync.js'
 import { useLibrary } from '../app/useLibrary.js'
+import { toggleChrome } from '../core/chrome.js'
 import { Turntable } from '../skins/3d/Turntable.js'
 
 /** Gap between the machine and the chrome, matching the chrome's own inset. */
 const GUTTER_PX = 18
 
 /**
- * Measures how much of an edge an element is occupying, live.
+ * Measures how much of the right-hand edge an element is occupying, live.
  *
- * Shared by the panel and the bar because they ask the same question of
- * different axes: how far in from the edge does this thing start? Measured
- * from the window edge rather than from the element's own width, so its margin
- * is included without being counted twice.
+ * Measured from the window edge rather than from the element's own width, so
+ * its margin is included without being counted twice.
+ *
+ * Only the panel needs this. The browser bar sits in the margin that exact
+ * vertical centring already leaves beneath the machine, so the camera makes
+ * no allowance for it — see the note at the end of fitCamera.
  */
-function useEdgeReserve<T extends HTMLElement>(axis: 'right' | 'bottom') {
+function useEdgeReserve<T extends HTMLElement>(axis: 'right') {
   // A callback ref rather than useRef, so the measurement restarts when the
   // element itself comes or goes. The bar is only mounted while the lid is
   // open, and a useRef would have been null on the pass that set up the
@@ -73,7 +76,14 @@ export function TopView({
   scopesStale: boolean
   onReconnect: () => void
 }) {
-  const pointerAwake = usePointerActivity()
+  // Both pieces of chrome are summoned by a click on the empty field around
+  // the machine, and dismissed by another one. See core/chrome.ts for why that
+  // decision is not a plain negation of this flag.
+  //
+  // It starts shown every time the lid opens. Nothing advertises the gesture
+  // now that pointer movement does not reveal anything, so the chrome shows
+  // itself once and is taught by being clicked away.
+  const [chromeShown, setChromeShown] = useState(true)
 
   const library = useLibrary({
     playlistsEnabled: !scopesStale,
@@ -81,19 +91,44 @@ export function TopView({
     pollNow: sync.pollNow,
   })
 
-  // A drag keeps the panel up even if the pointer goes still. That is exactly
-  // when the floating timestamp matters most, and it stops the camera moving
-  // under a cursor that is mid-gesture — see the frozen reserve below.
-  const panelShown = (pointerAwake || sync.readout.isDragging) && sync.lidOpen
+  useEffect(() => {
+    if (sync.lidOpen) setChromeShown(true)
+  }, [sync.lidOpen])
+
+  const paneOpen = library.pane !== 'none'
+  const closePane = library.close
+
+  const dismiss = useCallback(() => {
+    // Nothing to summon in the closed-lid front view, which is bare by design.
+    if (!sync.lidOpen) return
+    const next = toggleChrome({ chromeShown, paneOpen })
+    setChromeShown(next.chromeShown)
+    if (next.closePane) closePane()
+  }, [sync.lidOpen, chromeShown, paneOpen, closePane])
+
+  // The same gesture from the keyboard. Escape used to live in BrowserBar and
+  // close only the sheet; one key doing one thing is worth more than the sheet
+  // owning its own dismissal.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') dismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dismiss])
+
+  const panelShown = chromeShown && sync.lidOpen
+  // The sheet holds the bar up on its own, so dismissing has to close it too.
+  const barShown = (chromeShown || paneOpen) && sync.lidOpen
+
   const [panelRef, panelReserve] = useEdgeReserve<HTMLElement>('right')
-  const [barRef, barReserve] = useEdgeReserve<HTMLDivElement>('bottom')
 
   // Held steady for the length of a drag. Re-framing mid-gesture would slide
   // the tonearm's hit geometry away from the pointer still holding it.
   const live = panelShown ? panelReserve : 0
   const frozen = useRef(live)
   if (!sync.readout.isDragging) frozen.current = live
-  const reserve = sync.readout.isDragging ? frozen.current : live
+  const reserveRight = sync.readout.isDragging ? frozen.current : live
 
   return (
     <div className="stage">
@@ -106,19 +141,14 @@ export function TopView({
         // Only reserve room while the panel is actually drawn, so the machine
         // sits centred the moment it fades. The rect is still measured
         // whatever the opacity; it is the gating that is conditional.
-        reserveRightPx={reserve}
-        // Gated on the lid alone, deliberately unlike the panel. `targetY`
-        // rides the slow pose rate because it carries the lid arc, so a reserve
-        // that came and went on the idle timer would read as a vertical drift.
-        // The strip is thin, so holding it costs little; the bar fades within
-        // the room already set aside for it.
-        reserveBottomPx={sync.lidOpen ? barReserve : 0}
+        reserveRightPx={reserveRight}
         lidOpen={sync.lidOpen}
         onOpenLid={sync.openLid}
         onCloseLid={sync.closeLid}
         onArmDragStart={sync.beginArmDrag}
         onArmDragTo={sync.dragToProgress}
         onArmDragEnd={sync.endArmDrag}
+        onBackgroundClick={dismiss}
       />
 
       <NowPlayingPanel
@@ -137,10 +167,9 @@ export function TopView({
           all until the machine is open. */}
       {sync.lidOpen ? (
         <BrowserBar
-          ref={barRef}
           library={library}
           actions={sync.actions}
-          visible={pointerAwake}
+          visible={barShown}
           playlistsEnabled={!scopesStale}
           onReconnect={onReconnect}
           contextUri={sync.readout.contextUri}

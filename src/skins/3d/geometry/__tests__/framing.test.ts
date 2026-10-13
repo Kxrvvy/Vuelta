@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { CAMERA, FIT_BOX, type ProfilePoint, profilePoints } from '../dimensions.js'
 import {
   FILL_H,
+  FILL_H_FRONT,
   FILL_V,
+  FILL_V_FRONT,
   type Framing,
   fitCamera,
   MAX_DISTANCE,
@@ -18,11 +20,6 @@ const at = (width: number, height: number, reserveRightPx = PANEL) =>
 
 const front = (width: number, height: number, reserveRightPx = 0) =>
   fitCamera({ width, height, reserveRightPx, pose: 'front' })
-
-const BAR = 74
-
-const bottom = (width: number, height: number, reserveBottomPx = BAR, reserveRightPx = 0) =>
-  fitCamera({ width, height, reserveRightPx, reserveBottomPx })
 
 describe('which constraint binds', () => {
   it('is limited by height on a wide window', () => {
@@ -182,15 +179,32 @@ describe('where the camera looks', () => {
     expect(front(1100, 700).targetY).toBeLessThan(0)
   })
 
-  it('puts the centre of the outline exactly at the look-at', () => {
-    for (const [pose, framing] of [
-      ['top', at(1100, 700, 0)],
-      ['front', front(1100, 700)],
-    ] as const) {
-      const extent = profile(framing.elevationDeg, pose)
-      const lookAtHeight = framing.targetY * Math.cos(framing.elevationDeg * DEG)
-      expect(lookAtHeight).toBeCloseTo(extent.center, 10)
-    }
+  it('looks above the orthographic centre of the outline, not at it', () => {
+    // It used to look exactly at profile()'s centre, and that was the bug. A
+    // perspective camera magnifies by depth, and with the lid up the tip is
+    // both the highest point and the nearest, so it projects further than its
+    // flat height suggests. Balancing the picture means looking higher, which
+    // pushes the machine down into the space it was leaving empty.
+    const framing = at(1100, 700, 0)
+    const extent = profile(framing.elevationDeg, 'top')
+    const lookAtHeight = framing.targetY * Math.cos(framing.elevationDeg * DEG)
+    expect(lookAtHeight).toBeGreaterThan(extent.center)
+  })
+
+  it('corrects the front pose too, by more than the top one', () => {
+    // Worth pinning because the obvious guess is wrong. The raised lid makes
+    // the top pose look like the lopsided one, but head-on at 10 degrees the
+    // cabinet's whole depth is spread along the view axis, so the near and
+    // far edges differ by more there than they do from overhead. Neither pose
+    // was ever well served by the flat estimate.
+    const headOn = front(1100, 700)
+    const overhead = at(1100, 700, 0)
+    const correction = (f: Framing, pose: 'top' | 'front') =>
+      Math.abs(
+        f.targetY * Math.cos(f.elevationDeg * DEG) - profile(f.elevationDeg, pose).center,
+      )
+    expect(correction(headOn, 'front')).toBeGreaterThan(correction(overhead, 'top'))
+    expect(correction(overhead, 'top')).toBeGreaterThan(0.01)
   })
 })
 
@@ -248,24 +262,65 @@ describe('the front pose', () => {
 })
 
 describe('how much of the frame the machine fills', () => {
-  it('fills exactly FILL_V of the height when height is what binds', () => {
-    // Asserted against the constant rather than a copy of its value, so
-    // retuning the size cannot silently leave this test lying.
+  it('is understated by the orthographic estimate, which is why it is solved', () => {
+    // Measures the gap the solver closes. Feeding FILL_V into the flat
+    // estimate drew a machine noticeably smaller than FILL_V of the frame,
+    // because the estimate overstates the outline it is dividing by. The real
+    // fill is asserted against FILL_V in 'vertical centring' below; this pins
+    // that the two genuinely disagree, so nobody reverts to the cheap version
+    // thinking it was equivalent.
     const framing = at(1920, 1040, 0)
     const extent = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
     const visibleHeight = 2 * (framing.distance - extent.near) * HALF_FOV_TAN
-    expect(extent.vertical / visibleHeight).toBeCloseTo(FILL_V, 6)
+    expect(extent.vertical / visibleHeight).toBeGreaterThan(FILL_V)
   })
 
   it('fills FILL_H of the free width when width is what binds', () => {
+    // Measured through the camera the framing describes, the same way FILL_V
+    // is. The flat version of this used the orthographic near distance and
+    // ignored the look-at entirely, so it drifted the moment the look-at was
+    // solved rather than assumed.
     const w = 700
     const h = 900
     const reserve = 150
     const framing = at(w, h, reserve)
-    const extent = profile(CAMERA.TOP_ELEVATION_DEG, 'top')
-    const visibleWidth = 2 * (framing.distance - extent.near) * HALF_FOV_TAN * (w / h)
-    const freeWidth = visibleWidth * ((w - reserve) / w)
-    expect(extent.horizontal / freeWidth).toBeCloseTo(FILL_H, 6)
+    const freeFraction = (w - reserve) / w
+    expect(widthFraction(framing, 'top', w, h) / freeFraction).toBeCloseTo(FILL_H, 6)
+  })
+
+  it('fills FILL_H_FRONT head-on, which is the size the closed lid has always had', () => {
+    // The two poses are sized apart. Only the open view was raised 11%; this
+    // pins that the closed one did not come along with it.
+    for (const [w, h] of [
+      [980, 680],
+      [1100, 700],
+      [640, 520],
+    ] as const) {
+      expect(widthFraction(front(w, h), 'front', w, h)).toBeCloseTo(FILL_H_FRONT, 6)
+    }
+  })
+
+  it('caps the closed lid by height once the window is wider than about 16:9', () => {
+    // Past that aspect a width-bound fit would keep growing the machine with
+    // the window. FILL_V_FRONT takes over and holds it. Both constants were
+    // calibrated together so the closed view reproduces its previous size at
+    // every shape, not only the ones where width happens to bind.
+    for (const [w, h] of [
+      [1920, 1040],
+      [2560, 1040],
+    ] as const) {
+      const framing = front(w, h)
+      expect(widthFraction(framing, 'front', w, h)).toBeLessThan(FILL_H_FRONT)
+      const { lo, hi } = span(framing, 'front')
+      expect((hi - lo) / 2).toBeCloseTo(FILL_V_FRONT, 4)
+    }
+  })
+
+  it('sizes the two poses independently', () => {
+    // The open view fills more of the frame than the closed one, which is the
+    // whole point of them having separate constants.
+    expect(FILL_H).toBeGreaterThan(FILL_H_FRONT)
+    expect(FILL_V).toBeGreaterThan(FILL_V_FRONT)
   })
 
   it('leaves margin on every side — neither fraction reaches 1', () => {
@@ -279,8 +334,8 @@ describe('how much of the frame the machine fills', () => {
  * frame: -1 is the bottom edge, +1 the top.
  *
  * Derived from the camera the framing actually describes, rather than from the
- * same arithmetic the framing used, so a sign error in the look-at shift
- * cannot pass by agreeing with itself.
+ * same arithmetic the framing used, so an error in the look-at cannot pass by
+ * agreeing with itself.
  */
 function screenY(framing: Framing, point: ProfilePoint): number {
   const elevation = framing.elevationDeg * DEG
@@ -294,98 +349,112 @@ function screenY(framing: Framing, point: ProfilePoint): number {
   return up / (depth * HALF_FOV_TAN)
 }
 
-describe('the bar along the bottom', () => {
-  it('leaves the machine exactly where it was when nothing is reserved', () => {
-    // The default. Every call site predating the bar must be unaffected.
-    const without = at(1100, 700, 0)
-    const zero = bottom(1100, 700, 0)
-    expect(zero.targetY).toBeCloseTo(without.targetY, 10)
-    expect(zero.distance).toBeCloseTo(without.distance, 10)
-  })
+/**
+ * How much of the frame's width the machine occupies.
+ *
+ * The machine is one constant width, so this is decided entirely by whichever
+ * part of it is nearest the lens: the raised lid from overhead, the front
+ * edge head-on.
+ */
+function widthFraction(framing: Framing, pose: 'top' | 'front', w: number, h: number): number {
+  const elevation = framing.elevationDeg * DEG
+  const sin = Math.sin(elevation)
+  const cos = Math.cos(elevation)
 
-  it('lowers the look-at, which is what raises the machine on screen', () => {
-    // The direction is the whole point, and it is the easy thing to get
-    // backwards: dropping the target lifts the subject.
-    expect(bottom(1100, 700).targetY).toBeLessThan(at(1100, 700, 0).targetY)
-    // Not asserting the camera's own height: reserving room also pushes it
-    // back along its elevation ray, and that lifts it by more than the
-    // look-at drops. Only the look-at carries the meaning here.
-  })
+  let maxAlong = -Infinity
+  for (const { y, z } of profilePoints(pose)) {
+    const along = y * sin + z * cos
+    if (along > maxAlong) maxAlong = along
+  }
 
-  it('raises it by exactly the share of the frame the bar occupies', () => {
-    // Derived rather than asserted as a magic number, so retuning the fill or
-    // the bar height cannot leave this quietly wrong.
-    const h = 700
-    const framing = bottom(1100, h)
-    const extent = profile(framing.elevationDeg, 'top')
-    const visibleHeight = 2 * (framing.distance - extent.near) * HALF_FOV_TAN
-    const shiftOnScreen =
-      (extent.targetY - framing.targetY) * Math.cos(framing.elevationDeg * DEG)
-    expect(shiftOnScreen).toBeCloseTo((BAR / h) * (visibleHeight / 2), 10)
-  })
+  const minDepth = framing.distance + framing.targetY * sin - maxAlong
+  return FIT_BOX.WIDTH / (2 * minDepth * HALF_FOV_TAN * (w / h))
+}
 
-  it('pulls the camera back, because height is what binds on a wide window', () => {
-    expect(bottom(1600, 800).distance).toBeGreaterThan(at(1600, 800, 0).distance)
-  })
+/** The outline's lowest and highest points on screen, in the same units. */
+function span(framing: Framing, pose: 'top' | 'front') {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const point of profilePoints(pose)) {
+    const n = screenY(framing, point)
+    if (n < lo) lo = n
+    if (n > hi) hi = n
+  }
+  return { lo, hi }
+}
 
-  it('ignores the bar when width is what binds', () => {
-    // A tall narrow window: the machine is already as small as the width
-    // demands, so there is nothing for the bar to take.
-    const slim = fitCamera({ width: 620, height: 1000, reserveRightPx: 0, reserveBottomPx: 0 })
-    const barred = fitCamera({ width: 620, height: 1000, reserveRightPx: 0, reserveBottomPx: BAR })
-    expect(barred.distance).toBeCloseTo(slim.distance, 10)
-  })
+/**
+ * The browser bar's footprint, measured from the bottom of the window:
+ * its 0.85rem inset plus its own 38px height.
+ *
+ * Copied from styles.css because CSS cannot be imported here. It is checked
+ * rather than assumed: `.browser` sets the inset and `.browser__bar` the
+ * padding, and if either grows past the margin the machine leaves, the bar
+ * starts overlapping the cabinet.
+ */
+const BAR_FOOTPRINT_PX = 52
 
-  it('still centres horizontally, so the two reserves do not interfere', () => {
-    expect(bottom(1280, 800).targetX).toBeCloseTo(FIT_BOX.CENTER_X, 10)
-    expect(bottom(1280, 800, BAR, 240).targetX).toBeGreaterThan(FIT_BOX.CENTER_X)
-  })
-
-  it('refuses to let the bar claim the entire window', () => {
-    const framing = bottom(600, 500, 9000)
-    expect(Number.isFinite(framing.distance)).toBe(true)
-    expect(Number.isFinite(framing.targetY)).toBe(true)
-    expect(framing.distance).toBeLessThanOrEqual(MAX_DISTANCE)
-  })
-
-  it('survives degenerate viewports, like the other reserve', () => {
-    for (const framing of [
-      bottom(0, 0),
-      bottom(Number.NaN, 600),
-      bottom(800, Number.NaN),
-      bottom(800, 600, Number.NaN),
-      bottom(-100, -100),
-    ]) {
-      expect(Number.isFinite(framing.distance)).toBe(true)
-      expect(Number.isFinite(framing.targetY)).toBe(true)
-      expect(framing.position.every(Number.isFinite)).toBe(true)
-    }
-  })
-
-  it('puts no part of the machine behind the bar', () => {
-    // The assertion the whole change exists for. Checked by projecting every
-    // extreme point through the resulting camera, at several window shapes and
-    // in both poses, against the top edge of the reserved strip.
-    for (const [pose, w, h, bar] of [
-      ['top', 1100, 700, BAR],
-      ['top', 1600, 900, BAR],
-      ['top', 640, 520, BAR],
-      ['top', 900, 600, 140],
-      ['front', 1100, 700, BAR],
+describe('vertical centring', () => {
+  it('leaves exactly equal margins above and below', () => {
+    // The assertion this whole solver exists for. The orthographic fit it
+    // replaced came out 81px above and 124px below at 1100x700, because a
+    // perspective camera magnifies the near lid tip more than the far bottom
+    // edge and the old maths measured neither.
+    for (const [w, h] of [
+      [1100, 700],
+      [1600, 900],
+      [980, 680],
+      [640, 520],
+      [2560, 1040],
     ] as const) {
-      const framing = fitCamera({
-        width: w,
-        height: h,
-        reserveRightPx: 0,
-        reserveBottomPx: bar,
-        pose,
-      })
-      const barTop = -1 + 2 * (bar / h)
-      for (const point of profilePoints(pose)) {
-        expect(screenY(framing, point)).toBeGreaterThanOrEqual(barTop)
-        // And still inside the top of the frame.
-        expect(screenY(framing, point)).toBeLessThanOrEqual(1)
-      }
+      const framing = at(w, h, 0)
+      const { lo, hi } = span(framing, 'top')
+      const topGapPx = ((1 - hi) / 2) * h
+      const bottomGapPx = ((lo + 1) / 2) * h
+      expect(topGapPx).toBeCloseTo(bottomGapPx, 4)
     }
+  })
+
+  it('centres the front pose too', () => {
+    const framing = front(1100, 700)
+    const { lo, hi } = span(framing, 'front')
+    expect(hi + lo).toBeCloseTo(0, 6)
+  })
+
+  it('fills FILL_V of the frame as a measured fact, not a nominal one', () => {
+    // Asserted against the constant rather than a copy of its value, so
+    // retuning the size cannot silently leave this test lying.
+    for (const [w, h] of [
+      [1100, 700],
+      [1920, 1040],
+    ] as const) {
+      const { lo, hi } = span(at(w, h, 0), 'top')
+      expect((hi - lo) / 2).toBeCloseTo(FILL_V, 4)
+    }
+  })
+})
+
+describe('room for the browser bar', () => {
+  it('leaves a bottom margin the bar fits inside, down to the smallest window', () => {
+    // No camera reserve is made for the bar. Instead the margin that exact
+    // centring already leaves has to be deep enough to hold it. 520px is the
+    // minimum window height main/index.ts allows, and is the binding case.
+    for (const [w, h] of [
+      [640, 520],
+      [980, 680],
+      [1100, 700],
+      [1920, 1040],
+    ] as const) {
+      const { lo } = span(at(w, h, 0), 'top')
+      const bottomGapPx = ((lo + 1) / 2) * h
+      expect(bottomGapPx).toBeGreaterThan(BAR_FOOTPRINT_PX)
+    }
+  })
+
+  it('still clears the bar with the panel showing', () => {
+    // The panel pushes the machine sideways and can make width the binding
+    // constraint, which only ever leaves more vertical room, never less.
+    const { lo } = span(at(640, 520), 'top')
+    expect(((lo + 1) / 2) * 520).toBeGreaterThan(BAR_FOOTPRINT_PX)
   })
 })

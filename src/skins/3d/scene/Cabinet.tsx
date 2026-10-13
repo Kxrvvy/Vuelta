@@ -21,7 +21,13 @@ export function Cabinet() {
   ]
 
   return (
-    <group>
+    // The whole cabinet absorbs clicks without acting on them. Nothing here is
+    // a control, but it is all machine: the view treats a click that reaches
+    // the empty field as a request for the chrome, and without a handler the
+    // raycaster cannot see these meshes at all -- so clicking the wood would
+    // count as clicking past the machine. One handler covers every child,
+    // because R3F raycasts each registered object recursively.
+    <group onClick={(event) => event.stopPropagation()}>
       {/* Wood body. */}
       <mesh
         position={[PLINTH.CENTER_X, -PLINTH.HEIGHT / 2, PLINTH.CENTER_Z]}

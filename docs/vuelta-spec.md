@@ -274,17 +274,53 @@ Beyond that, the only single-call route is a context offset, which works for ite
 the playlist — nearly all of them — and is refused for one queued by hand. That refusal surfaces as
 an inline message, in preference to firing `next` repeatedly against the rate limit.
 
-The bar fades with the same pointer-idle rule as the side panel, but the camera reserves room for it
-whenever the lid is open rather than only while it is drawn. The look-at height rides the slow pose
-rate because it carries the lid arc, so a reserve that came and went on the idle timer would read as
-a vertical drift. The sheet is an overlay and may cover the machine; reserving room for a list that
-tall would shrink the turntable to nothing.
+The bar is summoned and dismissed with the side panel, by the gesture below. Unlike the panel, **the camera
+makes no allowance for it**: the bar sits inside the margin that exact vertical centring already
+leaves beneath the machine, which at the 520px minimum window height is about 68px against the
+bar's 52px footprint. The sheet is an overlay and may cover the machine, because reserving room for
+a list that tall would shrink the turntable to nothing.
+
+Two alternatives were built and removed. Shrinking the machine to fit above the bar made it 12%
+smaller for a 38px strip. Shifting the look-at up instead keeps the size nominally fixed but moves
+the camera nearer, which made the machine grow about 6% every time the bar faded in or out —
+breathing every time the chrome came or went, which is worse than either. What the bar costs is therefore a constraint
+on `FILL_V` rather than anything dynamic: the bar must fit the margin, and a test holds that.
+
+### The deck counter
+
+A small amber seven-segment panel set into the deck at its front-right corner,
+reading elapsed and total time over a thin progress track. It is **part of the
+machine, not chrome over it** — the side panel and the needle readout already
+show the same number, but both float above the scene.
+
+It is not interactive. The bar reports position, it does not set it; dragging
+the arm is the seek gesture and a second one would compete with it.
+
+The colon blinks once a second while paused, which is what distinguishes
+paused from stopped once the platter has spun down. **Closing the lid puts the
+counter out**, consistent with the lid being the stop gesture — the machine
+reads as powered down rather than merely quiet.
+
+Front-right reads as lower-right on screen, since the overhead camera looks
+down the -z axis. The front face could not take it — the grille leaves 25mm
+beside it and 17mm beneath — and of the two deck corners the right has far
+more room: 161mm of clear deck against 58mm, because the platter well cuts the
+left wedge down while the right opens out toward the arm pivot.
+
+Three clearances hold it, and all three are pinned by tests because every one
+of them is set in a different file: 4mm from the deck border, 71mm from the
+tonearm at its furthest-forward reach (the stylus parked at `REST_ANGLE`), and
+74mm from the platter well.
 
 ### The side panel
 
 Transport and now-playing live in a panel at the right edge: album art, title, artist, elapsed and total, previous / play-pause / next, and the mirrored volume knob.
 
-It fades in on pointer activity and fades out after a few seconds of stillness, as an overlay rather than a column, so the turntable never shifts position when it appears. This keeps §13's rule — any always-visible chrome fights the illusion — while still giving skip a home, since skipping a track has no natural gesture on a turntable.
+It is an overlay rather than a column, so the turntable never shifts position when it appears. This keeps §13's rule — any always-visible chrome fights the illusion — while still giving skip a home, since skipping a track has no natural gesture on a turntable.
+
+**The chrome is summoned by a click, not by hover.** A click that lands on the empty field around the machine raises the panel and the browser bar together; another one there, or Escape, dismisses them, closing an open sheet in the same gesture. Pointer movement does nothing. The machine absorbs its own clicks — the disc, arm, knob, lid and Open button act, and the wooden body, the deck and the counter panel do nothing at all — so play/pause never disturbs the chrome and the wood is not a way to summon it.
+
+This replaces an earlier rule where both faded in on pointer activity and out after a few seconds of stillness. Merely crossing the window summoned them, which made the chrome always-visible in practice and so broke the very rule it was written to keep; and a timer dismissed them rather than the user. The cost is discoverability, since nothing advertises a gesture on empty space: the chrome therefore starts shown each time the lid opens, and teaches itself by being clicked away.
 
 
 ## 12. The two views

@@ -158,6 +158,49 @@ export const OPEN_BUTTON = {
   TRAVEL: 0.0018,
 } as const
 
+/**
+ * The digital counter, set into the deck at its front-right corner.
+ *
+ * Front-right reads as lower-right on screen: the overhead camera looks down
+ * the -z axis, so +z projects toward the bottom of the frame and +x to the
+ * right.
+ *
+ * There is far more room on this side than the left — 161mm of clear deck
+ * against 58mm — because the platter well cuts the left wedge down while the
+ * right opens out toward the arm pivot. Some of that room is taken: the panel
+ * is about a third larger than the left wedge allowed, which it needs — it
+ * renders barely 100 pixels across, and at the size the left side permitted
+ * the colons disappeared entirely.
+ *
+ * Three things it has to stay clear of, in order of how close they come:
+ *
+ *   · the deck border, 4mm to the right and 6mm to the front
+ *   · the tonearm, whose furthest-forward reach is the stylus at REST_ANGLE,
+ *     at x = 0.121 — 71mm short of the panel. The tube itself runs back
+ *     toward the pivot, so within the panel's span it sits around z = -0.05
+ *   · the platter well, a distant 74mm away
+ *
+ * `dimensions.test.ts` holds all three, because every one of them is set in a
+ * different file.
+ */
+export const DISPLAY = {
+  WIDTH: 0.076,
+  DEPTH: 0.0285,
+  /**
+   * Measured from the spindle, not from the plinth centre — unlike GRILLE,
+   * KNOB and OPEN_BUTTON, which are offsets on the cabinet face.
+   *
+   * Deliberate: what constrains this panel is the deck and the arm, both of
+   * which are placed from the spindle. Expressing it against the cabinet
+   * would hide those relationships behind an addition.
+   */
+  CENTER_X: 0.2125,
+  CENTER_Z: 0.1375,
+  /** How far the lit face sits above the deck, and how deep the bezel sinks. */
+  FACE_Y: 0.0019,
+  BEZEL_MARGIN: 0.0035,
+} as const
+
 export const LED = {
   RADIUS: 0.0022,
   OFFSET_X: 0.062,

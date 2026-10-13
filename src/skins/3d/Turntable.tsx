@@ -23,6 +23,7 @@ import { Lid } from './scene/Lid.js'
 import { OpenButton } from './scene/OpenButton.js'
 import { Record } from './scene/Record.js'
 import { Staging } from './scene/Staging.js'
+import { TimeDisplay } from './scene/TimeDisplay.js'
 import { Tonearm } from './scene/Tonearm.js'
 import { RenderStateProvider, setCursor, type RenderStateRef } from './useFrameState.js'
 
@@ -43,10 +44,10 @@ export type TurntableProps = {
   onArmDragStart: () => void
   onArmDragTo: (progressMs: number) => void
   onArmDragEnd: () => void
+  /** A click that landed on the empty field, not on the machine. */
+  onBackgroundClick: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
-  /** CSS pixels the browser bar occupies along the bottom, measured live. */
-  reserveBottomPx: number
 }
 
 /** How long to keep rendering after things stop, so spin-down can finish. */
@@ -64,8 +65,8 @@ export function Turntable({
   onArmDragStart,
   onArmDragTo,
   onArmDragEnd,
+  onBackgroundClick,
   reserveRightPx,
-  reserveBottomPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
   // frames a second at a motionless record would burn GPU and battery for
@@ -102,6 +103,14 @@ export function Turntable({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
+        // A click that hits nothing in the scene. R3F raises this only when
+        // the pointer moved two pixels or less, so a drag that ends over the
+        // background is not one -- but it also counts a right-click and a
+        // double-click as clicks, which would toggle the chrome from a context
+        // menu and flip it three times from a double. Hence the guard.
+        onPointerMissed={(event) => {
+          if (event.type === 'click' && event.button === 0) onBackgroundClick()
+        }}
         frameloop={loop}
         shadows
         dpr={[1, 2]}
@@ -113,13 +122,10 @@ export function Turntable({
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
-            <CameraRig
-              reserveRightPx={reserveRightPx}
-              reserveBottomPx={reserveBottomPx}
-              lidOpen={lidOpen}
-            />
+            <CameraRig reserveRightPx={reserveRightPx} lidOpen={lidOpen} />
             <Staging />
             <Cabinet />
+            <TimeDisplay lidOpen={lidOpen} />
             <Knob volumePercent={volumePercent} />
             <Record albumArtUrl={albumArtUrl} />
             <Tonearm />

@@ -448,7 +448,11 @@ input[type='text']:focus {
 .browser {
   position: absolute;
   left: 50%;
-  bottom: 1.1rem;
+  /* The bar has to live inside the margin that exact vertical centring leaves
+     beneath the machine, because the camera makes no allowance for it. At the
+     smallest window Vuelta opens (520px tall) that margin is about 68px, so
+     the inset plus the bar's own height must stay comfortably under it. */
+  bottom: 0.85rem;
   transform: translateX(-50%);
   /* Narrower than the window so the panel on the right stays reachable. */
   width: min(30rem, 62vw);
@@ -461,8 +465,8 @@ input[type='text']:focus {
 
 .browser__bar {
   display: flex;
-  gap: 0.4rem;
-  padding: 0.4rem;
+  gap: 0.35rem;
+  padding: 0.3rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(22, 19, 17, 0.82);
@@ -486,7 +490,8 @@ input[type='text']:focus {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
+  padding: 0.3rem 0.8rem;
+  line-height: 1.25;
   border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
