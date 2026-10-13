@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createVueltaStore } from '../core/store.js'
-import { TopView } from '../views/TopView.js'
+import { Stage } from '../views/Stage.js'
 import { AuthFailedScreen } from './screens/AuthFailedScreen.js'
 import { ConnectingScreen } from './screens/ConnectingScreen.js'
 import { IdleScreen } from './screens/IdleScreen.js'
@@ -150,7 +150,7 @@ export function App() {
       case 'playing':
       case 'paused':
         return (
-          <TopView
+          <Stage
             sync={sync}
             scopesStale={setup.scopesStale}
             onReconnect={() => void reconnect()}

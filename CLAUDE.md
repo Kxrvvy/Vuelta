@@ -80,6 +80,61 @@ the read fail with a 403.
   goes on. This retires the original "no playlist UI" rule; do not read it as licence to widen
   further.
 
+## The three looks
+
+The machine wears one of three compositions, switched from the browser bar or with keys 1/2/3.
+Session-only; starts on **Main**.
+
+| | |
+|---|---|
+| **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
+| **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
+| **Close-up** | A flat-lay: sleeve, record and arm seen from almost overhead, **no machine at all**. The machine survives in an inset at the top left. |
+
+- The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
+  reserves the right edge so the camera frames the machine beside it.
+- The close-up draws **one scene through two cameras** into two scissored regions of one canvas.
+  Giving any `useFrame` a priority hands R3F's render loop to us, so `scene/Viewports.tsx` draws
+  every frame in every look. Do not add a second `<Canvas>`.
+- The inset is not raycast. Its DOM frame is what catches a click on it; without that the click
+  reads as empty field and dismisses the chrome.
+- **Clicking the sleeve slides the record in and out of it** — purely visual, playback untouched.
+  The disc stays the play/pause target, so the two gestures never collide. The *sleeve* moves, not
+  the record, so the arm goes on tracking the groove it is playing.
+
+## Layers
+
+`skins/3d/layers.ts` decides which camera sees what, because the close-up and its inset draw the
+same scene on the same frame and a part cannot be hidden by unmounting it.
+
+| Layer | What | Seen by |
+|---|---|---|
+| `COMMON` | record, tonearm | every camera |
+| `MACHINE` | cabinet, lid, counter, knob, Open button, **and the platter, slipmat and spindle** | main, lyrics, inset |
+| `FLATLAY` | the album sleeve | close-up only |
+
+- Apply one with `<OnLayer value={...}>`, which traverses on every commit — `Object3D.layers` is
+  not inherited, and meshes built after the first render would otherwise keep layer 0.
+- **`Viewports` keeps `raycaster.layers.mask` equal to the main camera's.** `Raycaster.layers`
+  defaults to layer 0 alone, so moving the cabinet off it would make the lid, the knob and the Open
+  button unpickable in every view at once. The rule it states is the right one anyway: what can be
+  clicked is what can be seen.
+
+## Lyrics
+
+**Spotify's Web API has no lyrics endpoint.** The Spotify client's own lyrics come from an internal
+service that is not part of the API and must not be called. Lyrics come from **LRCLIB**
+(lrclib.net) instead: free, keyless, time-synced.
+
+- One lookup per track, **only while the lyrics view is open**, cached for the session including
+  misses. Nothing is sent in the other two looks. See SECURITY.md.
+- Parsing and the which-line-now rule are pure, in `core/lyrics.ts`. The fetch is in
+  `main/lyrics/client.ts` — not in `spotify/client.ts`, which maps every 403 to `not-allowlisted`.
+- Any non-200 means "no lyrics", never an error screen: an unmatched lookup was observed returning
+  503 rather than the documented 404.
+- Read the active line from the **live state ref**, never from `readout` — that updates at
+  `READOUT_HZ` (4), which would make every line up to 250ms late.
+
 ## Track transitions
 
 Anticipated, not reactive. Pre-fetch `GET /me/player/queue` at track start. Begin the swap when the **local clock** reads ~2000ms remaining, not when a poll reports the change. Total animation budget 2–3 seconds.

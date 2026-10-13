@@ -94,6 +94,23 @@ export function labelMaterial(map: Texture | null): MeshStandardMaterial {
   })
 }
 
+/**
+ * The album sleeve: printed card.
+ *
+ * Not cached, for the same reason the label is not -- the art changes whenever
+ * the track does. Rougher than the label because a jacket is uncoated board
+ * rather than the glossy paper of a centre label, and that difference is most
+ * of what keeps the two from reading as the same object at two sizes.
+ */
+export function sleeveMaterial(map: Texture | null): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    map,
+    color: map ? new Color('#ffffff') : new Color('#2a2420'),
+    roughness: 0.82,
+    metalness: 0,
+  })
+}
+
 export function feltMaterial(): MeshStandardMaterial {
   return once('felt', () =>
     new MeshStandardMaterial({

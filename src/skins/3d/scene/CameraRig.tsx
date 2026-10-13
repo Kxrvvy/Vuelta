@@ -28,6 +28,7 @@
 
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import type { CameraPose } from '../geometry/dimensions.js'
 import { fitCamera } from '../geometry/framing.js'
 import { DEG, damp } from '../useFrameState.js'
 
@@ -55,16 +56,17 @@ type Pose = { elevation: number; distance: number; targetX: number; targetY: num
 
 export function CameraRig({
   reserveRightPx,
-  lidOpen,
+  pose,
 }: {
   reserveRightPx: number
   /**
    * A prop rather than a read of the render state, because it has to be a
    * React-visible change: `useFrame` does not run at all in demand mode, so a
-   * lid toggle while the scene is idle would never be noticed. The effect
-   * below forces the one frame that gets the move started.
+   * lid toggle or a view change while the scene is idle would never be
+   * noticed. The effect below forces the one frame that gets the move
+   * started.
    */
-  lidOpen: boolean
+  pose: CameraPose
 }) {
   const camera = useThree((state) => state.camera)
   const size = useThree((state) => state.size)
@@ -80,8 +82,7 @@ export function CameraRig({
       width: size.width,
       height: size.height,
       reserveRightPx,
-      // Lid shut is the resting state, and it gets the front elevation.
-      pose: lidOpen ? 'top' : 'front',
+      pose,
     })
 
     const target: Pose = {
@@ -96,33 +97,36 @@ export function CameraRig({
     if (!current.current) {
       current.current = { ...target }
     } else {
-      const pose = current.current
-      pose.elevation = damp(pose.elevation, target.elevation, POSE_LAMBDA, delta)
-      pose.distance = damp(pose.distance, target.distance, POSE_LAMBDA, delta)
-      pose.targetY = damp(pose.targetY, target.targetY, POSE_LAMBDA, delta)
-      pose.targetX = damp(pose.targetX, target.targetX, PAN_LAMBDA, delta)
+      const moving = current.current
+      moving.elevation = damp(moving.elevation, target.elevation, POSE_LAMBDA, delta)
+      moving.distance = damp(moving.distance, target.distance, POSE_LAMBDA, delta)
+      moving.targetY = damp(moving.targetY, target.targetY, POSE_LAMBDA, delta)
+      moving.targetX = damp(moving.targetX, target.targetX, PAN_LAMBDA, delta)
     }
 
-    const pose = current.current
+    // Where the camera is this frame, as opposed to `pose`, which is which of
+    // the three framings it is heading for.
+    const at = current.current
     camera.position.set(
-      pose.targetX,
-      pose.targetY + pose.distance * Math.sin(pose.elevation),
-      pose.distance * Math.cos(pose.elevation),
+      at.targetX,
+      at.targetY + at.distance * Math.sin(at.elevation),
+      at.distance * Math.cos(at.elevation),
     )
-    camera.lookAt(pose.targetX, pose.targetY, 0)
+    camera.lookAt(at.targetX, at.targetY, 0)
     camera.updateProjectionMatrix()
 
     const moving =
-      Math.abs(pose.elevation - target.elevation) > SETTLED_ANGLE ||
-      Math.abs(pose.distance - target.distance) > SETTLED_DISTANCE ||
-      Math.abs(pose.targetX - target.targetX) > SETTLED_DISTANCE ||
-      Math.abs(pose.targetY - target.targetY) > SETTLED_DISTANCE
+      Math.abs(at.elevation - target.elevation) > SETTLED_ANGLE ||
+      Math.abs(at.distance - target.distance) > SETTLED_DISTANCE ||
+      Math.abs(at.targetX - target.targetX) > SETTLED_DISTANCE ||
+      Math.abs(at.targetY - target.targetY) > SETTLED_DISTANCE
 
     if (moving) invalidate()
   })
 
-  // A resize while idle must still be drawn, and so must a restore.
-  useEffect(() => invalidate(), [invalidate, size.width, size.height, reserveRightPx])
+  // A resize while idle must still be drawn, and so must a restore or a move
+  // to a different pose.
+  useEffect(() => invalidate(), [invalidate, size.width, size.height, reserveRightPx, pose])
 
   useEffect(() => {
     const redraw = () => invalidate()

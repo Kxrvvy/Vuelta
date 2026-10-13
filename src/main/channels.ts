@@ -25,4 +25,8 @@ export const CHANNELS = {
   getQueue: 'vuelta:get-queue',
   playContext: 'vuelta:play-context',
   addToQueue: 'vuelta:add-to-queue',
+
+  // Lyrics, from LRCLIB rather than Spotify. One fetch per track, and only
+  // while the lyrics view is open.
+  getLyrics: 'vuelta:get-lyrics',
 } as const

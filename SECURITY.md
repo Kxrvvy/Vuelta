@@ -111,6 +111,22 @@ artist, album, art URL, progress, device name. Raw Spotify response bodies are n
   reachable from the renderer, and the renderer makes no requests to Spotify itself — every API
   call is made by the main process.
 
+### The one non-Spotify service
+
+The lyrics view reads from **LRCLIB** (`lrclib.net`), a free, keyless, community-run lyrics
+database. Spotify's Web API has no lyrics endpoint at all, so there is no first-party source to
+use instead.
+
+- **What is sent:** the track title, artist, album and duration, as query parameters, plus a
+  User-Agent naming Vuelta and its repository, which is what LRCLIB asks callers for. No account
+  identifier, no token, nothing about you.
+- **When:** only while the lyrics view is open, and once per track — the result is cached for the
+  session, misses included. The other two looks send nothing.
+- **Where from:** the main process, like every other request. The renderer never talks to it, so
+  the CSP needed no new origin.
+- **If you would rather it did not:** stay out of the lyrics view. Nothing else in the app
+  contacts LRCLIB.
+
 ---
 
 ## Authentication
@@ -147,6 +163,9 @@ user-read-currently-playing
   useless.
 - **`%APPDATA%\Vuelta\config.json` is world-readable to your OS user.** It contains only the Client
   ID, which is not confidential.
+- **The lyrics view tells a third party what you are playing.** Title and artist go to lrclib.net
+  while that view is open, as described above. Accepted because synced lyrics cannot be had any
+  other way, and bounded by being the only such request in the app.
 
 ## Reporting
 

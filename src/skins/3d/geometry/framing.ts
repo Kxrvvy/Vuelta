@@ -27,7 +27,7 @@ import {
   CAMERA,
   type CameraPose,
   elevationFor,
-  FIT_BOX,
+  fitBoxFor,
   type ProfilePoint,
   profilePoints,
 } from './dimensions.js'
@@ -79,10 +79,18 @@ export const FILL_H = 0.95
 export const FILL_V_FRONT = 0.5675
 export const FILL_H_FRONT = 0.86
 
+/**
+ * The close-up. Fuller than either, because it has to earn being a separate
+ * look: the subject is a 302mm record rather than a 455mm machine, and
+ * framing it as loosely as the cabinet would barely enlarge it.
+ */
+export const FILL_V_CLOSEUP = 0.84
+export const FILL_H_CLOSEUP = 0.84
+
 function fillFor(pose: CameraPose): { v: number; h: number } {
-  return pose === 'front'
-    ? { v: FILL_V_FRONT, h: FILL_H_FRONT }
-    : { v: FILL_V, h: FILL_H }
+  if (pose === 'front') return { v: FILL_V_FRONT, h: FILL_H_FRONT }
+  if (pose === 'closeup') return { v: FILL_V_CLOSEUP, h: FILL_H_CLOSEUP }
+  return { v: FILL_V, h: FILL_H }
 }
 
 /** Sanity rails. Past these the scene stops looking like a turntable. */
@@ -128,6 +136,7 @@ function clamp(value: number, low: number, high: number): number {
  * surface is the lid's tip, not anything on the cabinet.
  */
 export function profile(elevationDeg: number, pose: CameraPose) {
+  const box = fitBoxFor(pose)
   const elevation = elevationDeg * DEG
   const cos = Math.cos(elevation)
   const sin = Math.sin(elevation)
@@ -146,7 +155,7 @@ export function profile(elevationDeg: number, pose: CameraPose) {
 
   const center = (maxH + minH) / 2
   return {
-    horizontal: FIT_BOX.WIDTH,
+    horizontal: box.WIDTH,
     vertical: maxH - minH,
     /** Height of the outline's centre on the screen axis. */
     center,
@@ -255,15 +264,21 @@ function solveTargetY(
 }
 
 /**
- * One result, cached.
+ * Results, cached by argument.
  *
  * `fitCamera` runs inside `useFrame`, so it is called up to sixty times a
- * second with arguments that change only on a resize or a lid toggle. The
+ * second with arguments that change only on a resize or a pose change. The
  * solver is cheap but not free, and recomputing an identical answer every
  * frame is waste.
+ *
+ * A single slot was enough while there was one camera. The close-up view puts
+ * two on screen -- the record in the main frame, the whole machine in the
+ * inset -- and they ask different questions of this function on the same
+ * frame, so a one-entry cache would miss on every single call and run two
+ * full six-pass solves per frame instead of none.
  */
-let lastKey = ''
-let lastValue: Framing | null = null
+const CACHE_LIMIT = 8
+const cache = new Map<string, Framing>()
 
 export function fitCamera(viewport: Viewport): Framing {
   const pose = viewport.pose ?? 'top'
@@ -283,8 +298,10 @@ export function fitCamera(viewport: Viewport): Framing {
     width * 0.6,
   )
   const key = pose + '|' + width + '|' + height + '|' + reserved
-  if (lastValue && key === lastKey) return lastValue
+  const hit = cache.get(key)
+  if (hit) return hit
 
+  const box = fitBoxFor(pose)
   const elevationDeg = elevationFor(pose)
   const elevation = elevationDeg * DEG
   const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
@@ -315,7 +332,7 @@ export function fitCamera(viewport: Viewport): Framing {
   // Six passes settle both to well under a pixel. At the fixed point the
   // look-at and the distance agree, so the final re-centre below changes
   // nothing and the measured fills land exactly on their constants.
-  const wantedNear = FIT_BOX.WIDTH / (2 * halfFovTan * aspect * freeFraction * fill.h)
+  const wantedNear = box.WIDTH / (2 * halfFovTan * aspect * freeFraction * fill.h)
   const sin = Math.sin(elevation)
 
   for (let pass = 0; pass < 6; pass++) {
@@ -347,7 +364,7 @@ export function fitCamera(viewport: Viewport): Framing {
   // and because it is a share rather than a fixed world offset it stays
   // correct at every window size.
   const visibleWidth = 2 * (distance - near) * halfFovTan * aspect
-  const targetX = FIT_BOX.CENTER_X + (reserved / width) * (visibleWidth / 2)
+  const targetX = box.CENTER_X + (reserved / width) * (visibleWidth / 2)
 
   // Nothing is reserved along the bottom, on purpose. Exact centring leaves a
   // margin of (1 - FILL_V) / 2 beneath the machine, which at the smallest
@@ -360,7 +377,7 @@ export function fitCamera(viewport: Viewport): Framing {
   // timer is far worse than a strip of chrome over an empty margin, and
   // keeping the machine centred is what was actually asked for.
   // `bottomMarginFits` in the tests is what holds this invariant.
-  return (lastKey = key), (lastValue = {
+  const framing: Framing = {
     distance,
     targetX,
     targetY,
@@ -370,5 +387,52 @@ export function fitCamera(viewport: Viewport): Framing {
       targetY + distance * Math.sin(elevation),
       distance * Math.cos(elevation),
     ],
-  })
+  }
+
+  // Bounded, and oldest-first: the keys that keep being asked for are a
+  // handful -- one per pose per viewport -- but a resize drag produces a new
+  // one every frame and an unbounded map would keep every width ever seen.
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value
+    if (oldest !== undefined) cache.delete(oldest)
+  }
+  cache.set(key, framing)
+  return framing
+}
+
+/**
+ * Where the inset sits in the close-up look, in CSS pixels from the top left.
+ *
+ * Shared on purpose: the scissored viewport that draws it and the DOM frame
+ * drawn over it have to agree to the pixel, and they are computed in two
+ * different files. A copy in either would drift the first time this changed.
+ *
+ * Proportional to the window with a floor, because a fixed size is a thumbnail
+ * on a large display and half the screen on a small one.
+ */
+export const INSET = {
+  MARGIN_PX: 18,
+  WIDTH_FRACTION: 0.22,
+  MIN_WIDTH_PX: 150,
+  MAX_WIDTH_PX: 320,
+  /** Close to the machine's own proportions from overhead. */
+  ASPECT: 0.66,
+} as const
+
+export function insetRect(
+  width: number,
+  height: number,
+): { x: number; y: number; width: number; height: number } {
+  const w = clamp(width * INSET.WIDTH_FRACTION, INSET.MIN_WIDTH_PX, INSET.MAX_WIDTH_PX)
+  const h = w * INSET.ASPECT
+  // Never let the inset eat a small window: at the 640 x 520 floor it has to
+  // stay a corner of the screen rather than a second view competing with the
+  // record it is meant to be a reference for.
+  const scale = Math.min(1, (height * 0.42) / h, (width * 0.4) / w)
+  return {
+    x: INSET.MARGIN_PX,
+    y: INSET.MARGIN_PX,
+    width: w * scale,
+    height: h * scale,
+  }
 }
