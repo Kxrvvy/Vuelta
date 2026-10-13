@@ -14,7 +14,13 @@
  * reserves room for the strip only.
  */
 
-import type { Actions, PlaylistSummary, PlaylistTrack } from '../../core/contract.js'
+import {
+  VIEWS,
+  type Actions,
+  type PlaylistSummary,
+  type PlaylistTrack,
+  type VueltaView,
+} from '../../core/contract.js'
 import { mmss } from '../../core/format.js'
 import type { Library, Load } from '../useLibrary.js'
 
@@ -26,6 +32,8 @@ export function BrowserBar({
   playlistsEnabled,
   onReconnect,
   contextUri,
+  view,
+  onView,
 }: {
   /** Measured by TopView so the camera can frame above the bar. */
   ref?: React.Ref<HTMLDivElement>
@@ -37,6 +45,9 @@ export function BrowserBar({
   onReconnect: () => void
   /** What is playing from, so a queue row can jump inside it. */
   contextUri: string | null
+  /** Which of the three looks is on. */
+  view: VueltaView
+  onView: (view: VueltaView) => void
 }) {
   const { pane, toggle } = library
 
@@ -95,6 +106,27 @@ export function BrowserBar({
         >
           <span aria-hidden>⊕</span> Queue
         </button>
+
+        {/* The three looks. Same pill as the panes, because they are the same
+            kind of thing to reach for -- but a rule between them, because one
+            pair opens something and the other changes what you are looking
+            at. Keys 1/2/3 do this without the chrome, in Stage.tsx. */}
+        <span className="browser__divider" aria-hidden />
+        <div className="browser__views" role="group" aria-label="View">
+          {VIEWS.map((option, index) => (
+            <button
+              key={option.id}
+              type="button"
+              className="browser__view"
+              aria-pressed={view === option.id}
+              title={`${option.label} (${index + 1})`}
+              data-active={view === option.id ? 'true' : 'false'}
+              onClick={() => onView(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

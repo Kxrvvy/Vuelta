@@ -323,13 +323,74 @@ It is an overlay rather than a column, so the turntable never shifts position wh
 This replaces an earlier rule where both faded in on pointer activity and out after a few seconds of stillness. Merely crossing the window summoned them, which made the chrome always-visible in practice and so broke the very rule it was written to keep; and a timer dismissed them rather than the user. The cost is discoverability, since nothing advertises a gesture on empty space: the chrome therefore starts shown each time the lid opens, and teaches itself by being clicked away.
 
 
-## 12. The two views
+## 12. The three looks
 
-**View A — Top-down.** Camera overhead. Disc and tonearm fill the window. Nothing else.
+The machine wears one of three compositions, switched from three labels in the browser bar or with
+the keys **1**, **2** and **3**. The choice lasts the session and starts on Main every launch.
 
-**View B — Console.** Split layout. Left: front elevation of the player with speaker grille, power LED, volume knob, and three transport buttons. Right: disc and tonearm top view. The disc and arm behave exactly as in View A.
+**1 — Main.** Camera overhead, the whole machine centred, the now-playing panel down the right. The
+original View A, unchanged, and the default.
 
-**Switching:** a subtle corner toggle that fades in on hover, plus a keyboard shortcut. Any always-visible chrome fights the illusion.
+**2 — Lyrics.** The machine to the left, a column of time-synced lyrics beside it. The column takes
+the right edge *in place of* the panel and keeps a compact title and prev/play/next at its foot,
+because skip has no gesture on a turntable. It reserves its width the same way the panel does, so
+the camera frames the machine into what is left rather than behind it. Unlike the panel it does not
+fade with the click gesture: it is the content of that view, not chrome over it.
+
+**3 — Close-up.** A flat-lay, from almost directly overhead: the album sleeve, the record beside
+it and the tonearm, with **no turntable in the view at all**. The machine is drawn small in an
+inset at the top left, on the same dark field as everything else and with no frame of its own —
+a card behind it read as a panel pasted over the scene. Clicking that inset returns to Main.
+
+**Clicking the sleeve slides the record in and out of it**, between the two states of the reference
+photographs: out, where the disc is whole and turning, and tucked, where the sleeve covers about
+three fifths of it. The gesture is purely visual — playback is untouched, and the disc remains the
+play/pause target so the two never collide. It is the *sleeve* that moves rather than the record,
+which keeps the record under the arm and means nothing has to be re-aimed.
+
+Two consequences worth stating. The view is no longer a close-up in the sense of being nearer: a
+sleeve and a record side by side are wider than the machine, so the camera sits about where the main
+view puts it. What it gains is the angle — at 86 degrees the disc is a circle rather than the thin
+ellipse it is at 52, and it covers over half the frame's height against a third. And the elevation
+is 86 and not 90 because `lookAt` with the default up vector is degenerate looking straight down,
+and produces a NaN matrix rather than a flat-lay.
+
+**How a part is hidden from one camera and not the other.** Not by unmounting it — the inset still
+needs the machine on the same frame the flat-lay refuses it. Three layers: the record and arm on
+one that every camera sees, the machine on one the flat-lay camera does not, the sleeve on one only
+it does. The raycaster follows the main camera's mask, which is both necessary (its layers default
+to layer 0 alone, which would make the lid and the Open button unpickable everywhere) and correct:
+what can be clicked is what can be seen.
+
+**How two framings share one canvas.** Not two `<Canvas>` elements, which would mean two WebGL
+contexts and two copies of every geometry and texture. One scene is rendered through two cameras
+into two scissored regions of the same canvas. The price is that R3F stops rendering by itself the
+moment a `useFrame` takes a priority, so `scene/Viewports.tsx` draws *every* frame in *every* look,
+not only the close-up.
+
+**What the inset costs.** The raycaster knows only the main camera, so the inset is not pickable
+and a click on it would otherwise reach no object at all — which is the gesture that dismisses the
+chrome. A DOM frame sits over it, which both gives it a border and catches that click.
+
+**Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob
+and three transport buttons, disc and tonearm on the right. It becomes a fourth look rather than a
+rewrite.
+
+### Lyrics, and where they come from
+
+**Spotify has no lyrics endpoint.** The lyrics in the Spotify client come from an internal service
+that is not part of the Web API and that Vuelta cannot legitimately call. So the lyrics view reads
+**LRCLIB** (lrclib.net): free, no API key, and genuinely time-synced, returning ordinary LRC with
+`[mm:ss.xx]` stamps.
+
+- One lookup per track, by title, artist, album and duration, and **only while the view is open**.
+  Cached for the session, misses included. SECURITY.md records what is sent.
+- A line lights up `LYRIC_LEAD_MS` before it is sung and goes out as the next one leads in. That
+  rule is pure, in `core/lyrics.ts`, so the fade can be stepped in a test rather than watched.
+- The active line is resolved from the **live clock**, not from `readout`, which refreshes four
+  times a second and would land every line up to 250ms late.
+- Coverage is community-contributed. A track with none says so plainly; a track with unsynced words
+  shows them, greyed, and says they do not follow the song.
 
 ---
 

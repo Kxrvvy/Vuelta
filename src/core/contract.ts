@@ -9,6 +9,10 @@
  * Layer rule: core/ has no DOM and no Node globals. See tsconfig.core.json.
  */
 
+// Type-only, and therefore erased: this file still carries no behaviour and
+// importing it still drags nothing across a boundary.
+import type { LyricLine } from './lyrics.js'
+
 // ---------------------------------------------------------------------------
 // Render contract — spec §6
 // ---------------------------------------------------------------------------
@@ -37,8 +41,25 @@ export type RenderState = {
   /** Drives spin-up / spin-down easing; never an instant stop (M2). */
   platterRpm: number
   transitionPhase: 'idle' | 'lifting' | 'swapping' | 'dropping'
-  view: 'top' | 'console'
 }
+
+/**
+ * Which of the three looks the machine is wearing.
+ *
+ * Not a RenderState field. RenderState is read from a ref sixty times a second
+ * and never through React; the view is the opposite kind of value -- it mounts
+ * a column and moves cameras, so it has to be a prop React can see. The field
+ * that used to sit here, `view: 'top' | 'console'`, was never read by anything
+ * and meant something else entirely, so it is gone rather than overloaded.
+ */
+export type VueltaView = 'main' | 'lyrics' | 'closeup'
+
+/** In switch order, which is also the order of the 1/2/3 keys. */
+export const VIEWS: readonly { id: VueltaView; label: string }[] = [
+  { id: 'main', label: 'Main' },
+  { id: 'lyrics', label: 'Lyrics' },
+  { id: 'closeup', label: 'Close-up' },
+]
 
 /** The only way a skin can affect the world. Every one of these is fire-and-forget. */
 export type Actions = {
@@ -101,7 +122,6 @@ export const INITIAL_RENDER_STATE: RenderState = {
   lidOpen: false,
   platterRpm: 0,
   transitionPhase: 'idle',
-  view: 'top',
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +206,36 @@ export type PlaylistsResult =
 export type PlaylistTracksResult =
   | { ok: true; tracks: PlaylistTrack[] }
   | { ok: false; code: VueltaErrorCode; message: string }
+
+/**
+ * What is known about one track's lyrics.
+ *
+ * `lines` is empty when nothing synced was found, which is also the case for
+ * an instrumental; `plain` then carries the unsynced sheet if there is one, so
+ * the column can show something that does not follow the song rather than
+ * nothing at all.
+ */
+export type Lyrics = {
+  lines: LyricLine[]
+  plain: string | null
+  instrumental: boolean
+}
+
+/**
+ * `lyrics: null` is a miss, and a miss is not a failure -- plenty of tracks
+ * simply have none. `ok: false` is reserved for not being able to ask.
+ */
+export type LyricsResult =
+  | { ok: true; lyrics: Lyrics | null }
+  | { ok: false; code: VueltaErrorCode; message: string }
+
+/** What main needs to find them. Nothing identifying the user. */
+export type LyricsQuery = {
+  title: string
+  artist: string
+  album: string
+  durationMs: number
+}
 
 export type QueueResult =
   | { ok: true; queue: QueueSnapshot }
@@ -314,6 +364,11 @@ export type VueltaBridge = {
   /** Starts a context, optionally at one track within it. */
   playContext(contextUri: string, offsetUri?: string): Promise<CommandResult>
   addToQueue(trackUri: string): Promise<CommandResult>
+
+  // --- lyrics ---------------------------------------------------------------
+  // Not Spotify: Spotify's Web API has no lyrics endpoint. This one goes to
+  // LRCLIB, and only while the lyrics view is open.
+  getLyrics(query: LyricsQuery): Promise<LyricsResult>
 }
 
 /** Spotify Client IDs are 32 hex characters. Shared so both sides validate identically. */

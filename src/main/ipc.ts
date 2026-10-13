@@ -11,6 +11,7 @@ import { clipboard, ipcMain } from 'electron'
 import type {
   AuthOutcome,
   CommandResult,
+  LyricsResult,
   PlayerPoll,
   PlaylistsResult,
   PlaylistTracksResult,
@@ -29,6 +30,7 @@ import {
   writeConfig,
 } from './config.js'
 import { toVueltaError } from './errors.js'
+import { fetchLyrics } from './lyrics/client.js'
 import {
   addToQueue,
   forgetAccessToken,
@@ -202,5 +204,21 @@ export function registerIpcHandlers(): void {
       return { ok: false, code: 'unknown', message: 'A Spotify track URI is required.' }
     }
     return withClientId((clientId) => addToQueue(clientId, trackUri))()
+  })
+
+  // Needs no client ID: LRCLIB is not Spotify and wants no credentials. The
+  // shape is checked here rather than trusted, like every other argument that
+  // crosses this boundary, because what arrives is whatever the renderer sent.
+  ipcMain.handle(CHANNELS.getLyrics, async (_event, query: unknown): Promise<LyricsResult> => {
+    const value = query as Partial<Record<string, unknown>> | null
+    const title = typeof value?.title === 'string' ? value.title.trim() : ''
+    const artist = typeof value?.artist === 'string' ? value.artist.trim() : ''
+    const album = typeof value?.album === 'string' ? value.album.trim() : ''
+    const durationMs = typeof value?.durationMs === 'number' ? value.durationMs : 0
+
+    if (title.length === 0 || artist.length === 0) {
+      return { ok: true, lyrics: null }
+    }
+    return fetchLyrics({ title, artist, album, durationMs })
   })
 }

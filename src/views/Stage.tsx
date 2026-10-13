@@ -1,10 +1,15 @@
 /**
- * View A — spec §12. "Camera overhead. Disc and tonearm fill the window."
+ * The stage: the machine, and whatever is on screen beside it.
  *
- * Composes the 3D skin with the now-playing overlay and the browser bar.
  * `views/` exists for exactly this (spec §15): the skin draws, the view decides
- * what is on screen alongside it. M5's console view becomes a sibling of this
- * file rather than a rewrite of it.
+ * what is around it. There are three looks, and they share this one file
+ * rather than being three sibling components, because the chrome gesture, the
+ * library, the camera reserve and the Turntable itself are common to all
+ * three — triplicating them is how two of the three fall behind.
+ *
+ *   main     spec §12's View A, unchanged: the whole machine, centred.
+ *   lyrics   the machine to the left, a column of synced lyrics beside it.
+ *   closeup  the machine as an inset, the record and arm filling the centre.
  *
  * It also owns the two numbers both halves need: how much of the right-hand
  * side the panel is using, and how much of the bottom the bar is. CSS sizes
@@ -15,10 +20,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
+import { LyricsColumn } from '../app/lyrics/LyricsColumn.js'
+import { useLyrics } from '../app/lyrics/useLyrics.js'
 import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
 import type { Sync } from '../app/useSync.js'
 import { useLibrary } from '../app/useLibrary.js'
 import { toggleChrome } from '../core/chrome.js'
+import { VIEWS, type VueltaView } from '../core/contract.js'
 import { Turntable } from '../skins/3d/Turntable.js'
 
 /** Gap between the machine and the chrome, matching the chrome's own inset. */
@@ -30,9 +38,11 @@ const GUTTER_PX = 18
  * Measured from the window edge rather than from the element's own width, so
  * its margin is included without being counted twice.
  *
- * Only the panel needs this. The browser bar sits in the margin that exact
- * vertical centring already leaves beneath the machine, so the camera makes
- * no allowance for it — see the note at the end of fitCamera.
+ * Used by whichever column holds the right edge: the now-playing panel in the
+ * main and close-up looks, the lyrics column in the lyrics one. The browser
+ * bar sits in the margin that exact vertical centring already leaves beneath
+ * the machine, so the camera makes no allowance for it — see the note at the
+ * end of fitCamera.
  */
 function useEdgeReserve<T extends HTMLElement>(axis: 'right') {
   // A callback ref rather than useRef, so the measurement restarts when the
@@ -66,7 +76,7 @@ function useEdgeReserve<T extends HTMLElement>(axis: 'right') {
   return [setElement, reserve] as const
 }
 
-export function TopView({
+export function Stage({
   sync,
   scopesStale,
   onReconnect,
@@ -85,6 +95,10 @@ export function TopView({
   // itself once and is taught by being clicked away.
   const [chromeShown, setChromeShown] = useState(true)
 
+  // Session-only, and it starts on Main every launch. Persisting a look means
+  // a config field and an IPC round trip for a preference; not worth it yet.
+  const [view, setView] = useState<VueltaView>('main')
+
   const library = useLibrary({
     playlistsEnabled: !scopesStale,
     trackId: sync.track?.trackId ?? null,
@@ -98,6 +112,10 @@ export function TopView({
   const paneOpen = library.pane !== 'none'
   const closePane = library.close
 
+  // Only while the view is actually on: nothing about the track is sent
+  // anywhere in the other two looks.
+  const lyrics = useLyrics({ enabled: view === 'lyrics', track: sync.track })
+
   const dismiss = useCallback(() => {
     // Nothing to summon in the closed-lid front view, which is bare by design.
     if (!sync.lidOpen) return
@@ -106,26 +124,39 @@ export function TopView({
     if (next.closePane) closePane()
   }, [sync.lidOpen, chromeShown, paneOpen, closePane])
 
-  // The same gesture from the keyboard. Escape used to live in BrowserBar and
-  // close only the sheet; one key doing one thing is worth more than the sheet
-  // owning its own dismissal.
+  // The same gesture from the keyboard, plus 1/2/3 for the three looks. The
+  // keys work whether or not the chrome is up, which is the point: the switch
+  // in the bar needs the chrome summoned first.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') dismiss()
+      if (event.key === 'Escape') {
+        dismiss()
+        return
+      }
+      if (event.ctrlKey || event.altKey || event.metaKey) return
+      const picked = VIEWS.find((_, index) => event.key === String(index + 1))
+      if (picked) setView(picked.id)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [dismiss])
 
-  const panelShown = chromeShown && sync.lidOpen
+  // The lyrics column takes the right edge in place of the panel, and keeps
+  // it: it is the content of that view, not chrome over it, so it does not
+  // fade with the pointer gesture. The closed-lid front view stays bare in
+  // every look, which is why the lid gates this too.
+  const lyricsShown = view === 'lyrics' && sync.lidOpen
+  const panelShown = chromeShown && sync.lidOpen && !lyricsShown
   // The sheet holds the bar up on its own, so dismissing has to close it too.
   const barShown = (chromeShown || paneOpen) && sync.lidOpen
 
-  const [panelRef, panelReserve] = useEdgeReserve<HTMLElement>('right')
+  // One measurement for whichever column is mounted. The hook takes a
+  // callback ref precisely so it can follow the swap.
+  const [rightRef, rightReserve] = useEdgeReserve<HTMLElement>('right')
 
   // Held steady for the length of a drag. Re-framing mid-gesture would slide
   // the tonearm's hit geometry away from the pointer still holding it.
-  const live = panelShown ? panelReserve : 0
+  const live = lyricsShown || panelShown ? rightReserve : 0
   const frozen = useRef(live)
   if (!sync.readout.isDragging) frozen.current = live
   const reserveRight = sync.readout.isDragging ? frozen.current : live
@@ -149,19 +180,33 @@ export function TopView({
         onArmDragTo={sync.dragToProgress}
         onArmDragEnd={sync.endArmDrag}
         onBackgroundClick={dismiss}
+        composition={view === 'closeup' ? 'closeup' : 'machine'}
+        // The inset is the whole machine, so clicking it means "show me that".
+        onInsetClick={() => setView('main')}
       />
 
-      <NowPlayingPanel
-        ref={panelRef}
-        track={sync.track}
-        progressMs={sync.readout.progressMs}
-        durationMs={sync.readout.durationMs}
-        isPlaying={sync.readout.isPlaying}
-        volumePercent={sync.readout.volumePercent}
-        deviceName={sync.readout.deviceName}
-        actions={sync.actions}
-        visible={panelShown}
-      />
+      {lyricsShown ? (
+        <LyricsColumn
+          ref={rightRef}
+          load={lyrics}
+          track={sync.track}
+          isPlaying={sync.readout.isPlaying}
+          stateRef={sync.stateRef}
+          actions={sync.actions}
+        />
+      ) : (
+        <NowPlayingPanel
+          ref={rightRef}
+          track={sync.track}
+          progressMs={sync.readout.progressMs}
+          durationMs={sync.readout.durationMs}
+          isPlaying={sync.readout.isPlaying}
+          volumePercent={sync.readout.volumePercent}
+          deviceName={sync.readout.deviceName}
+          actions={sync.actions}
+          visible={panelShown}
+        />
+      )}
 
       {/* Lid shut is the front pose, which is bare by design — no chrome at
           all until the machine is open. */}
@@ -173,6 +218,8 @@ export function TopView({
           playlistsEnabled={!scopesStale}
           onReconnect={onReconnect}
           contextUri={sync.readout.contextUri}
+          view={view}
+          onView={setView}
         />
       ) : null}
     </div>

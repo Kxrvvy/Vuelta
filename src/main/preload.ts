@@ -32,6 +32,8 @@ const bridge: VueltaBridge = {
   playContext: (contextUri, offsetUri) =>
     ipcRenderer.invoke(CHANNELS.playContext, contextUri, offsetUri),
   addToQueue: (trackUri) => ipcRenderer.invoke(CHANNELS.addToQueue, trackUri),
+
+  getLyrics: (query) => ipcRenderer.invoke(CHANNELS.getLyrics, query),
 }
 
 contextBridge.exposeInMainWorld('vuelta', bridge)

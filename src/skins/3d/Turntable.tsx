@@ -11,13 +11,17 @@
  */
 
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Actions } from '../../core/contract.js'
 import { CAMERA } from './geometry/dimensions.js'
+import { insetRect } from './geometry/framing.js'
+import { LAYER } from './layers.js'
 import { CameraRig } from './scene/CameraRig.js'
 import { InteractionProvider, type SkinInteraction } from './interaction/context.js'
 import { NeedleReadout } from './interaction/NeedleReadout.js'
 import { Cabinet } from './scene/Cabinet.js'
+import { OnLayer } from './scene/OnLayer.js'
+import { Sleeve } from './scene/Sleeve.js'
 import { Knob } from './scene/Knob.js'
 import { Lid } from './scene/Lid.js'
 import { OpenButton } from './scene/OpenButton.js'
@@ -25,6 +29,7 @@ import { Record } from './scene/Record.js'
 import { Staging } from './scene/Staging.js'
 import { TimeDisplay } from './scene/TimeDisplay.js'
 import { Tonearm } from './scene/Tonearm.js'
+import { Viewports } from './scene/Viewports.js'
 import { RenderStateProvider, setCursor, type RenderStateRef } from './useFrameState.js'
 
 export type TurntableProps = {
@@ -46,6 +51,14 @@ export type TurntableProps = {
   onArmDragEnd: () => void
   /** A click that landed on the empty field, not on the machine. */
   onBackgroundClick: () => void
+  /**
+   * How the scene is composed. `machine` frames the whole unit; `closeup`
+   * fills the frame with the record and the arm and puts the machine in an
+   * inset at the top left.
+   */
+  composition: 'machine' | 'closeup'
+  /** A click on that inset. The view decides what it means. */
+  onInsetClick: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
 }
@@ -66,6 +79,8 @@ export function Turntable({
   onArmDragTo,
   onArmDragEnd,
   onBackgroundClick,
+  composition,
+  onInsetClick,
   reserveRightPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
@@ -73,6 +88,33 @@ export function Turntable({
   // nothing, so the loop drops to on-demand once everything has settled.
   const [loop, setLoop] = useState<'always' | 'demand'>('always')
   const readoutRef = useRef<HTMLDivElement | null>(null)
+  const wrapper = useRef<HTMLDivElement | null>(null)
+
+  // The close-up only means anything with the lid up: the record is what it
+  // frames, and with the lid shut the camera is round the front looking at a
+  // closed box.
+  const closeup = composition === 'closeup' && lidOpen
+  const pose = !lidOpen ? 'front' : closeup ? 'closeup' : 'top'
+
+  // Whether the record is back inside its sleeve. Skin-local and purely
+  // visual: it moves nothing but the sleeve, and playback is untouched.
+  const [tucked, setTucked] = useState(false)
+
+  // The inset's frame is DOM over the canvas, so it needs the canvas size in
+  // React. Measured rather than assumed: the stage is not the window.
+  const [box, setBox] = useState({ width: 0, height: 0 })
+  useLayoutEffect(() => {
+    const element = wrapper.current
+    if (!element) return
+    const measure = () => {
+      const rect = element.getBoundingClientRect()
+      setBox({ width: rect.width, height: rect.height })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (active) {
@@ -100,8 +142,10 @@ export function Turntable({
     [actions, onOpenLid, onCloseLid, onArmDragStart, onArmDragTo, onArmDragEnd],
   )
 
+  const inset = insetRect(box.width, box.height)
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div ref={wrapper} style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
         // A click that hits nothing in the scene. R3F raises this only when
         // the pointer moved two pixels or less, so a drag that ends over the
@@ -122,19 +166,65 @@ export function Turntable({
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
-            <CameraRig reserveRightPx={reserveRightPx} lidOpen={lidOpen} />
+            <CameraRig reserveRightPx={reserveRightPx} pose={pose} />
+            <Viewports inset={closeup} />
             <Staging />
-            <Cabinet />
-            <TimeDisplay lidOpen={lidOpen} />
-            <Knob volumePercent={volumePercent} />
+
+            {/* The machine. Absent from the flat-lay, which is a record and a
+                sleeve lying on a surface and nothing else -- but still drawn
+                in that view's inset, which is why this is a layer and not a
+                condition on mounting. */}
+            <OnLayer value={LAYER.MACHINE}>
+              <Cabinet />
+              <TimeDisplay lidOpen={lidOpen} />
+              <Knob volumePercent={volumePercent} />
+              <Lid />
+              <OpenButton lidOpen={lidOpen} />
+            </OnLayer>
+
+            {/* The record and the arm, which every view has. */}
             <Record albumArtUrl={albumArtUrl} />
             <Tonearm />
-            <Lid />
-            <OpenButton lidOpen={lidOpen} />
+
+            {/* And the sleeve, which only the flat-lay has. */}
+            <OnLayer value={LAYER.FLATLAY}>
+              <Sleeve
+                albumArtUrl={albumArtUrl}
+                tucked={tucked}
+                onToggle={() => setTucked((was) => !was)}
+              />
+            </OnLayer>
+
             <NeedleReadout />
           </InteractionProvider>
         </RenderStateProvider>
       </Canvas>
+
+      {/* The inset's hit target, and nothing more.
+          The inset is drawn by the renderer into a scissored rectangle, which
+          the raycaster knows nothing about -- so without this, a click on it
+          would reach no object and read as a click on the empty field, which
+          is the gesture that hides the chrome. Invisible on purpose: a frame
+          around it, or a card behind it, reads as a panel pasted over the
+          scene rather than as a small machine sitting on the same field. */}
+      {closeup && box.width > 0 ? (
+        <button
+          type="button"
+          aria-label="Back to the whole machine"
+          onClick={onInsetClick}
+          style={{
+            position: 'absolute',
+            left: `${inset.x}px`,
+            top: `${inset.y}px`,
+            width: `${inset.width}px`,
+            height: `${inset.height}px`,
+            padding: 0,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+          }}
+        />
+      ) : null}
 
       {/* The floating timestamp. Real DOM for real text rendering; positioned
           every frame by NeedleReadout writing straight to this element. */}
