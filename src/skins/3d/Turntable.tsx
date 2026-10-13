@@ -44,6 +44,8 @@ export type TurntableProps = {
   onArmDragStart: () => void
   onArmDragTo: (progressMs: number) => void
   onArmDragEnd: () => void
+  /** A click that landed on the empty field, not on the machine. */
+  onBackgroundClick: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
 }
@@ -63,6 +65,7 @@ export function Turntable({
   onArmDragStart,
   onArmDragTo,
   onArmDragEnd,
+  onBackgroundClick,
   reserveRightPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
@@ -100,6 +103,14 @@ export function Turntable({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
+        // A click that hits nothing in the scene. R3F raises this only when
+        // the pointer moved two pixels or less, so a drag that ends over the
+        // background is not one -- but it also counts a right-click and a
+        // double-click as clicks, which would toggle the chrome from a context
+        // menu and flip it three times from a double. Hence the guard.
+        onPointerMissed={(event) => {
+          if (event.type === 'click' && event.button === 0) onBackgroundClick()
+        }}
         frameloop={loop}
         shadows
         dpr={[1, 2]}

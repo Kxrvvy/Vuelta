@@ -13,11 +13,12 @@
  * either side changed.
  */
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
-import { NowPlayingPanel, usePointerActivity } from '../app/panel/NowPlayingPanel.js'
+import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
 import type { Sync } from '../app/useSync.js'
 import { useLibrary } from '../app/useLibrary.js'
+import { toggleChrome } from '../core/chrome.js'
 import { Turntable } from '../skins/3d/Turntable.js'
 
 /** Gap between the machine and the chrome, matching the chrome's own inset. */
@@ -75,7 +76,14 @@ export function TopView({
   scopesStale: boolean
   onReconnect: () => void
 }) {
-  const pointerAwake = usePointerActivity()
+  // Both pieces of chrome are summoned by a click on the empty field around
+  // the machine, and dismissed by another one. See core/chrome.ts for why that
+  // decision is not a plain negation of this flag.
+  //
+  // It starts shown every time the lid opens. Nothing advertises the gesture
+  // now that pointer movement does not reveal anything, so the chrome shows
+  // itself once and is taught by being clicked away.
+  const [chromeShown, setChromeShown] = useState(true)
 
   const library = useLibrary({
     playlistsEnabled: !scopesStale,
@@ -83,14 +91,35 @@ export function TopView({
     pollNow: sync.pollNow,
   })
 
-  // A drag keeps the panel up even if the pointer goes still. That is exactly
-  // when the floating timestamp matters most, and it stops the camera moving
-  // under a cursor that is mid-gesture — see the frozen reserve below.
-  const awake = pointerAwake || sync.readout.isDragging
-  const panelShown = awake && sync.lidOpen
-  // The sheet holds the bar up on its own: reading a list is exactly when you
-  // stop moving the mouse.
-  const barShown = (awake || library.pane !== 'none') && sync.lidOpen
+  useEffect(() => {
+    if (sync.lidOpen) setChromeShown(true)
+  }, [sync.lidOpen])
+
+  const paneOpen = library.pane !== 'none'
+  const closePane = library.close
+
+  const dismiss = useCallback(() => {
+    // Nothing to summon in the closed-lid front view, which is bare by design.
+    if (!sync.lidOpen) return
+    const next = toggleChrome({ chromeShown, paneOpen })
+    setChromeShown(next.chromeShown)
+    if (next.closePane) closePane()
+  }, [sync.lidOpen, chromeShown, paneOpen, closePane])
+
+  // The same gesture from the keyboard. Escape used to live in BrowserBar and
+  // close only the sheet; one key doing one thing is worth more than the sheet
+  // owning its own dismissal.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') dismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dismiss])
+
+  const panelShown = chromeShown && sync.lidOpen
+  // The sheet holds the bar up on its own, so dismissing has to close it too.
+  const barShown = (chromeShown || paneOpen) && sync.lidOpen
 
   const [panelRef, panelReserve] = useEdgeReserve<HTMLElement>('right')
 
@@ -119,6 +148,7 @@ export function TopView({
         onArmDragStart={sync.beginArmDrag}
         onArmDragTo={sync.dragToProgress}
         onArmDragEnd={sync.endArmDrag}
+        onBackgroundClick={dismiss}
       />
 
       <NowPlayingPanel

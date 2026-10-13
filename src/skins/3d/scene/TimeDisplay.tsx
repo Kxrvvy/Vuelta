@@ -129,7 +129,13 @@ export function TimeDisplay({ lidOpen }: { lidOpen: boolean }) {
   const bezelD = DISPLAY.DEPTH + DISPLAY.BEZEL_MARGIN * 2
 
   return (
-    <group position={[DISPLAY.CENTER_X, 0, DISPLAY.CENTER_Z]}>
+    // Absorbs clicks for the same reason the cabinet does: it is set into the
+    // deck, so a click on it is a click on the machine and must not be taken
+    // for one on the empty field around it.
+    <group
+      position={[DISPLAY.CENTER_X, 0, DISPLAY.CENTER_Z]}
+      onClick={(event) => event.stopPropagation()}
+    >
       {/* Bezel, so the panel reads as set into the deck rather than stuck on. */}
       <mesh position={[0, 0.0008, 0]} receiveShadow>
         <boxGeometry args={[bezelW, 0.0018, bezelD]} />

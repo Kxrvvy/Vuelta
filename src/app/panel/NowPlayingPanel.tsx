@@ -4,45 +4,18 @@
  * Everything the turntable cannot express by itself: what is playing, and
  * skip, which has no natural gesture on a record player.
  *
- * It fades in on pointer activity and out after a few seconds of stillness,
- * because spec §13 is right that always-visible chrome fights the illusion of
- * an object sitting on your desk. It is an overlay rather than a column, so
- * the turntable never shifts position when it appears.
+ * Whether it is on screen is not its own decision: TopView summons it, on a
+ * click that lands anywhere outside the machine, and dismisses it the same
+ * way. Spec §13 is right that always-visible chrome fights the illusion of an
+ * object sitting on your desk, and chrome that appears whenever the cursor
+ * crosses the window, which is what this used to do, is always-visible in
+ * practice. It is an overlay rather than a column, so the turntable never
+ * shifts position when it appears.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import type { Actions, TrackSummary } from '../../core/contract.js'
 import { mmss } from '../../core/format.js'
-
-const IDLE_HIDE_MS = 2800
-
-/** Shows the panel while the pointer is moving, hides it once it settles. */
-export function usePointerActivity(): boolean {
-  const [awake, setAwake] = useState(true)
-  const timer = useRef<number | undefined>(undefined)
-
-  useEffect(() => {
-    const wake = () => {
-      setAwake(true)
-      if (timer.current !== undefined) window.clearTimeout(timer.current)
-      timer.current = window.setTimeout(() => setAwake(false), IDLE_HIDE_MS)
-    }
-    wake()
-    window.addEventListener('pointermove', wake)
-    window.addEventListener('pointerdown', wake)
-    window.addEventListener('wheel', wake, { passive: true })
-    window.addEventListener('keydown', wake)
-    return () => {
-      window.removeEventListener('pointermove', wake)
-      window.removeEventListener('pointerdown', wake)
-      window.removeEventListener('wheel', wake)
-      window.removeEventListener('keydown', wake)
-      if (timer.current !== undefined) window.clearTimeout(timer.current)
-    }
-  }, [])
-
-  return awake
-}
 
 export function NowPlayingPanel({
   ref,

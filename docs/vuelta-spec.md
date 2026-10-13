@@ -274,7 +274,7 @@ Beyond that, the only single-call route is a context offset, which works for ite
 the playlist — nearly all of them — and is refused for one queued by hand. That refusal surfaces as
 an inline message, in preference to firing `next` repeatedly against the rate limit.
 
-The bar fades with the same pointer-idle rule as the side panel. Unlike the panel, **the camera
+The bar is summoned and dismissed with the side panel, by the gesture below. Unlike the panel, **the camera
 makes no allowance for it**: the bar sits inside the margin that exact vertical centring already
 leaves beneath the machine, which at the 520px minimum window height is about 68px against the
 bar's 52px footprint. The sheet is an overlay and may cover the machine, because reserving room for
@@ -283,7 +283,7 @@ a list that tall would shrink the turntable to nothing.
 Two alternatives were built and removed. Shrinking the machine to fit above the bar made it 12%
 smaller for a 38px strip. Shifting the look-at up instead keeps the size nominally fixed but moves
 the camera nearer, which made the machine grow about 6% every time the bar faded in or out —
-breathing on an idle timer, which is worse than either. What the bar costs is therefore a constraint
+breathing every time the chrome came or went, which is worse than either. What the bar costs is therefore a constraint
 on `FILL_V` rather than anything dynamic: the bar must fit the margin, and a test holds that.
 
 ### The deck counter
@@ -316,7 +316,11 @@ tonearm at its furthest-forward reach (the stylus parked at `REST_ANGLE`), and
 
 Transport and now-playing live in a panel at the right edge: album art, title, artist, elapsed and total, previous / play-pause / next, and the mirrored volume knob.
 
-It fades in on pointer activity and fades out after a few seconds of stillness, as an overlay rather than a column, so the turntable never shifts position when it appears. This keeps §13's rule — any always-visible chrome fights the illusion — while still giving skip a home, since skipping a track has no natural gesture on a turntable.
+It is an overlay rather than a column, so the turntable never shifts position when it appears. This keeps §13's rule — any always-visible chrome fights the illusion — while still giving skip a home, since skipping a track has no natural gesture on a turntable.
+
+**The chrome is summoned by a click, not by hover.** A click that lands on the empty field around the machine raises the panel and the browser bar together; another one there, or Escape, dismisses them, closing an open sheet in the same gesture. Pointer movement does nothing. The machine absorbs its own clicks — the disc, arm, knob, lid and Open button act, and the wooden body, the deck and the counter panel do nothing at all — so play/pause never disturbs the chrome and the wood is not a way to summon it.
+
+This replaces an earlier rule where both faded in on pointer activity and out after a few seconds of stillness. Merely crossing the window summoned them, which made the chrome always-visible in practice and so broke the very rule it was written to keep; and a timer dismissed them rather than the user. The cost is discoverability, since nothing advertises a gesture on empty space: the chrome therefore starts shown each time the lid opens, and teaches itself by being clicked away.
 
 
 ## 12. The two views
