@@ -29,7 +29,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import type { CameraPose } from '../geometry/dimensions.js'
-import { fitCamera } from '../geometry/framing.js'
+import { fitCamera, insetBandPx } from '../geometry/framing.js'
 import { DEG, damp } from '../useFrameState.js'
 
 /**
@@ -52,7 +52,13 @@ const PAN_LAMBDA = 10
 const SETTLED_ANGLE = 0.02 * DEG
 const SETTLED_DISTANCE = 0.0004
 
-type Pose = { elevation: number; distance: number; targetX: number; targetY: number }
+type Pose = {
+  elevation: number
+  distance: number
+  targetX: number
+  targetY: number
+  targetZ: number
+}
 
 export function CameraRig({
   reserveRightPx,
@@ -82,6 +88,9 @@ export function CameraRig({
       width: size.width,
       height: size.height,
       reserveRightPx,
+      // Only the flat-lay has an inset, and only it gives up the band. The
+      // other two looks must frame exactly as they always have.
+      reserveTopPx: pose === 'closeup' ? insetBandPx(size.width, size.height) : 0,
       pose,
     })
 
@@ -90,6 +99,7 @@ export function CameraRig({
       distance: framing.distance,
       targetX: framing.targetX,
       targetY: framing.targetY,
+      targetZ: framing.targetZ,
     }
 
     // First frame snaps. Launching with the camera swooping in from nowhere
@@ -102,6 +112,7 @@ export function CameraRig({
       moving.distance = damp(moving.distance, target.distance, POSE_LAMBDA, delta)
       moving.targetY = damp(moving.targetY, target.targetY, POSE_LAMBDA, delta)
       moving.targetX = damp(moving.targetX, target.targetX, PAN_LAMBDA, delta)
+      moving.targetZ = damp(moving.targetZ, target.targetZ, POSE_LAMBDA, delta)
     }
 
     // Where the camera is this frame, as opposed to `pose`, which is which of
@@ -110,16 +121,17 @@ export function CameraRig({
     camera.position.set(
       at.targetX,
       at.targetY + at.distance * Math.sin(at.elevation),
-      at.distance * Math.cos(at.elevation),
+      at.targetZ + at.distance * Math.cos(at.elevation),
     )
-    camera.lookAt(at.targetX, at.targetY, 0)
+    camera.lookAt(at.targetX, at.targetY, at.targetZ)
     camera.updateProjectionMatrix()
 
     const moving =
       Math.abs(at.elevation - target.elevation) > SETTLED_ANGLE ||
       Math.abs(at.distance - target.distance) > SETTLED_DISTANCE ||
       Math.abs(at.targetX - target.targetX) > SETTLED_DISTANCE ||
-      Math.abs(at.targetY - target.targetY) > SETTLED_DISTANCE
+      Math.abs(at.targetY - target.targetY) > SETTLED_DISTANCE ||
+      Math.abs(at.targetZ - target.targetZ) > SETTLED_DISTANCE
 
     if (moving) invalidate()
   })

@@ -50,24 +50,41 @@ export const SLEEVE = {
   GAP: 0.012,
 } as const
 
-/** Centre x of the sleeve with the record fully out of it. */
-export const SLEEVE_OUT_X = -(SLEEVE.SIZE / 2) - RECORD.RADIUS - SLEEVE.GAP
-
 /**
- * Centre x with the record tucked back in.
+ * Where the sleeve lies, and it does not move.
  *
- * Placed by where its right edge lands rather than by the centre: at x = +0.03
- * the sleeve covers the record from its left rim to just past the spindle,
- * which is about 60% of the disc and matches the reference photograph.
+ * Beside the record and clear of it: its right edge stops a finger's width
+ * short of the record's left rim, so neither one ever hides any part of the
+ * other. They overlapped for a while, which is what made "in front" and
+ * "behind" visible at a glance -- but it also meant that whichever was behind
+ * had a bite taken out of it by the other, and the artwork losing a third of
+ * itself was the wrong trade.
+ *
+ * The click still raises and lowers the cover, and still slides it out and
+ * back. With nothing overlapping, the change of depth itself is almost
+ * invisible; the slide is what you see.
  */
-export const SLEEVE_IN_X = 0.03 - SLEEVE.SIZE / 2
+export const SLEEVE_RIGHT_EDGE_X = -RECORD.RADIUS - SLEEVE.GAP
+export const SLEEVE_X = SLEEVE_RIGHT_EDGE_X - SLEEVE.SIZE / 2
 
-/** How much of the disc's diameter the sleeve covers when tucked in. */
+/** How much of the disc's diameter the cover lies over. Nothing, by design. */
 export function sleeveCoverage(centerX: number): number {
   const right = centerX + SLEEVE.SIZE / 2
   const covered = Math.min(right, RECORD.RADIUS) - -RECORD.RADIUS
   return Math.max(0, Math.min(1, covered / (RECORD.RADIUS * 2)))
 }
+
+/**
+ * How far left the cover slides during the move.
+ *
+ * A fixed travel rather than "however far it takes to clear the record",
+ * which is what it used to be: the cover starts clear now, so the distance is
+ * free. Kept inside the margin the frame already leaves beside the
+ * arrangement, because the alternative is to widen the shot to hold the slide
+ * -- and that empty strip is reserved at rest too, which pushed everything
+ * off-centre for the sake of two thirds of a second.
+ */
+export const SLEEVE_CLEAR_X = -0.06
 
 export const PLATTER = {
   RADIUS: 0.1495,
@@ -80,12 +97,17 @@ export const PLATTER = {
 export const RECORD_SURFACE_Y = PLATTER.HEIGHT + PLATTER.MAT_THICKNESS + RECORD.THICKNESS
 
 /**
- * Where the sleeve lies: the record's own plane, a whisker above it.
+ * The two heights the cover sits at: in front of the record, or behind it.
  *
- * Above and not below, because the record comes out from *inside* the sleeve,
- * so where the two overlap it is the sleeve's front panel you see.
+ * Far enough either side of the record's own plane that nothing z-fights at a
+ * glancing 86 degrees, and far enough below, at the back, to clear the
+ * record's underside rather than its face.
  */
-export const SLEEVE_Y = RECORD_SURFACE_Y + 0.003
+export const STACK_FRONT_Y = RECORD_SURFACE_Y + 0.005
+export const STACK_BACK_Y = RECORD_SURFACE_Y - 0.008
+
+/** The higher of the two, which is what the camera has to frame. */
+export const SLEEVE_Y = STACK_FRONT_Y
 
 // ---------------------------------------------------------------------------
 // Tonearm
@@ -326,7 +348,12 @@ export const FIT_BOX = {
  * Including it would cost the record a quarter of its size for a part of the
  * arm that does nothing.
  */
-const FLATLAY_LEFT = SLEEVE_OUT_X - SLEEVE.SIZE / 2
+// Framed where it rests, which is where it is for all but two thirds of a
+// second: the cover's own left edge, with no allowance for the slide. The
+// slide lives in the margin the fill already leaves beside the arrangement,
+// so the shot neither re-frames mid-move nor sits off-centre the rest of the
+// time waiting for one.
+const FLATLAY_LEFT = SLEEVE_X - SLEEVE.SIZE / 2
 const FLATLAY_RIGHT = 0.24
 
 export const CLOSEUP_BOX = {

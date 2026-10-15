@@ -58,7 +58,7 @@ export function Viewports({ inset }: { inset: boolean }) {
     camera.layers.mask = mainMask
     raycaster.layers.mask = mainMask
     insetCamera.layers.mask = maskFor(LAYER.COMMON, LAYER.MACHINE)
-  }, [inset, camera, raycaster, insetCamera])
+  }, [inset, camera, raycaster, insetCamera, gl])
 
   // Appearing and disappearing is a change nothing else asks for a frame for.
   useEffect(() => invalidate(), [inset, invalidate])
@@ -67,14 +67,6 @@ export function Viewports({ inset }: { inset: boolean }) {
     const { width, height } = size
     if (width <= 0 || height <= 0) return
 
-    // Full frame, full clear, every time.
-    //
-    // The scissor rectangle is restored as well as the test, which is not
-    // belt and braces: the inset leaves the rectangle set to its own corner,
-    // and a clear that is still bounded by it leaves the rest of the canvas
-    // holding the previous frame. That showed up as a ghost of the sleeve at
-    // the camera's *old* distance after every switch into this view, sitting
-    // there until something happened to redraw the whole canvas.
     gl.setScissorTest(false)
     gl.setViewport(0, 0, width, height)
     gl.setScissor(0, 0, width, height)
@@ -110,6 +102,16 @@ export function Viewports({ inset }: { inset: boolean }) {
     // had a card of its own for a while and it read as a panel stuck over the
     // scene. The machine sits on the same dark field the record does, and the
     // only thing marking the inset out is the machine itself.
+    // Sealed: this rectangle is cleared and redrawn, so it holds the machine
+    // on the dark field and nothing else, whatever the scene is doing.
+    //
+    // Both halves of that are load-bearing, and each was shipped alone once.
+    // Clearing the rectangle while the composition ran underneath it cut a
+    // notch out of the album artwork. Not clearing it meant the machine
+    // painted over the artwork and the artwork slid about behind the machine.
+    // Neither is fixable from here: what makes clearing right is that
+    // `reserveTopPx` keeps the composition out of this corner entirely. If
+    // that band ever goes, this goes wrong again, quietly.
     gl.render(scene, insetCamera)
 
     gl.setScissorTest(false)

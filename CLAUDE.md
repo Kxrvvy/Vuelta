@@ -89,18 +89,37 @@ Session-only; starts on **Main**.
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
 | **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
-| **Close-up** | A flat-lay: sleeve, record and arm seen from almost overhead, **no machine at all**. The machine survives in an inset at the top left. |
+| **Close-up** | A flat-lay: the album cover and the record overlapped like two cards, with the arm, seen from almost overhead and with **no machine at all**. The machine survives as a small, inert picture at the top left. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
   reserves the right edge so the camera frames the machine beside it.
 - The close-up draws **one scene through two cameras** into two scissored regions of one canvas.
   Giving any `useFrame` a priority hands R3F's render loop to us, so `scene/Viewports.tsx` draws
   every frame in every look. Do not add a second `<Canvas>`.
-- The inset is not raycast. Its DOM frame is what catches a click on it; without that the click
-  reads as empty field and dismisses the chrome.
-- **Clicking the sleeve slides the record in and out of it** — purely visual, playback untouched.
-  The disc stays the play/pause target, so the two gestures never collide. The *sleeve* moves, not
-  the record, so the arm goes on tracking the groove it is playing.
+- **The inset is a picture, not a control.** Nothing on it responds and clicking it does not change
+  view; you leave by the bar or key 1. It is not raycast, so a click there is treated as the empty
+  field and toggles the chrome. It still turns and sweeps with playback, because it is the same
+  scene seen through a second camera.
+- **The inset gets a band to itself, and is sealed.** `fitCamera` takes a `reserveTopPx` and the
+  close-up pose passes the inset's height, so the composition can never run under that corner. The
+  inset pass then clears and redraws its rectangle normally.
+  Both halves are load-bearing, and each shipped alone once: clearing while the composition ran
+  underneath cut a notch out of the artwork; *not* clearing meant the machine painted over the
+  artwork and the artwork slid about behind the machine. Only the band makes the question go away.
+- **The band moves the look-at along `z`, not `y`.** At 86 degrees `cos` is 0.07, so raising the
+  look-at barely moves anything up or down the screen: asking the solver to make room that way sent
+  it three quarters of a metre into the air and collapsed the composition to a third of its size.
+  Depth is the axis that maps to screen-vertical from overhead, which is what `Framing.targetZ` is.
+- **The cover and the record sit side by side and never overlap.** A click on the cover still
+  raises or lowers it and still slides it out and back; with nothing overlapping, the change of
+  depth is almost invisible and the slide is what you see. They did overlap, which made front and
+  back legible at a glance — and meant whichever was behind had a bite taken out of it. Losing a
+  third of the artwork was the wrong trade. The *cover* moves, never the record, so the arm goes on
+  tracking the groove it is playing. Purely visual: playback is untouched, and the disc stays the
+  play/pause target so the two gestures never collide.
+- The move is three ordered phases — out, across, back — in `core/cardSwap.ts`, because `damp`
+  eases toward a target and has no notion of "not yet". The hold in the middle is what guarantees
+  the card is clear of the record before it changes depth.
 
 ## Layers
 

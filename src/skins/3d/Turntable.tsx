@@ -11,10 +11,9 @@
  */
 
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Actions } from '../../core/contract.js'
 import { CAMERA } from './geometry/dimensions.js'
-import { insetRect } from './geometry/framing.js'
 import { LAYER } from './layers.js'
 import { CameraRig } from './scene/CameraRig.js'
 import { InteractionProvider, type SkinInteraction } from './interaction/context.js'
@@ -57,8 +56,6 @@ export type TurntableProps = {
    * inset at the top left.
    */
   composition: 'machine' | 'closeup'
-  /** A click on that inset. The view decides what it means. */
-  onInsetClick: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
 }
@@ -80,7 +77,6 @@ export function Turntable({
   onArmDragEnd,
   onBackgroundClick,
   composition,
-  onInsetClick,
   reserveRightPx,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
@@ -88,7 +84,6 @@ export function Turntable({
   // nothing, so the loop drops to on-demand once everything has settled.
   const [loop, setLoop] = useState<'always' | 'demand'>('always')
   const readoutRef = useRef<HTMLDivElement | null>(null)
-  const wrapper = useRef<HTMLDivElement | null>(null)
 
   // The close-up only means anything with the lid up: the record is what it
   // frames, and with the lid shut the camera is round the front looking at a
@@ -96,25 +91,11 @@ export function Turntable({
   const closeup = composition === 'closeup' && lidOpen
   const pose = !lidOpen ? 'front' : closeup ? 'closeup' : 'top'
 
-  // Whether the record is back inside its sleeve. Skin-local and purely
-  // visual: it moves nothing but the sleeve, and playback is untouched.
-  const [tucked, setTucked] = useState(false)
-
-  // The inset's frame is DOM over the canvas, so it needs the canvas size in
-  // React. Measured rather than assumed: the stage is not the window.
-  const [box, setBox] = useState({ width: 0, height: 0 })
-  useLayoutEffect(() => {
-    const element = wrapper.current
-    if (!element) return
-    const measure = () => {
-      const rect = element.getBoundingClientRect()
-      setBox({ width: rect.width, height: rect.height })
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+  // Which of the two cards is on top. Skin-local and purely visual: it moves
+  // nothing but the cover, and playback is untouched. It outlives a view
+  // change, because Turntable stays mounted in all three looks, so coming back
+  // to the flat-lay leaves the stack as you left it.
+  const [coverInFront, setCoverInFront] = useState(false)
 
   useEffect(() => {
     if (active) {
@@ -142,10 +123,8 @@ export function Turntable({
     [actions, onOpenLid, onCloseLid, onArmDragStart, onArmDragTo, onArmDragEnd],
   )
 
-  const inset = insetRect(box.width, box.height)
-
   return (
-    <div ref={wrapper} style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
         // A click that hits nothing in the scene. R3F raises this only when
         // the pointer moved two pixels or less, so a drag that ends over the
@@ -190,8 +169,8 @@ export function Turntable({
             <OnLayer value={LAYER.FLATLAY}>
               <Sleeve
                 albumArtUrl={albumArtUrl}
-                tucked={tucked}
-                onToggle={() => setTucked((was) => !was)}
+                inFront={coverInFront}
+                onToggle={() => setCoverInFront((was) => !was)}
               />
             </OnLayer>
 
@@ -200,31 +179,14 @@ export function Turntable({
         </RenderStateProvider>
       </Canvas>
 
-      {/* The inset's hit target, and nothing more.
-          The inset is drawn by the renderer into a scissored rectangle, which
-          the raycaster knows nothing about -- so without this, a click on it
-          would reach no object and read as a click on the empty field, which
-          is the gesture that hides the chrome. Invisible on purpose: a frame
-          around it, or a card behind it, reads as a panel pasted over the
-          scene rather than as a small machine sitting on the same field. */}
-      {closeup && box.width > 0 ? (
-        <button
-          type="button"
-          aria-label="Back to the whole machine"
-          onClick={onInsetClick}
-          style={{
-            position: 'absolute',
-            left: `${inset.x}px`,
-            top: `${inset.y}px`,
-            width: `${inset.width}px`,
-            height: `${inset.height}px`,
-            padding: 0,
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-          }}
-        />
-      ) : null}
+      {/* No hit target over the inset, on purpose.
+          The little machine is a picture: none of its controls work and
+          clicking it does not change view. It is on the MACHINE layer, which
+          the flat-lay camera does not see, and the raycaster follows that
+          camera -- so a click there reaches nothing and is treated as the
+          empty field, which is the gesture that summons or dismisses the
+          chrome. That is the right answer for a corner that holds nothing
+          clickable. */}
 
       {/* The floating timestamp. Real DOM for real text rendering; positioned
           every frame by NeedleReadout writing straight to this element. */}

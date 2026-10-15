@@ -337,16 +337,30 @@ because skip has no gesture on a turntable. It reserves its width the same way t
 the camera frames the machine into what is left rather than behind it. Unlike the panel it does not
 fade with the click gesture: it is the content of that view, not chrome over it.
 
-**3 — Close-up.** A flat-lay, from almost directly overhead: the album sleeve, the record beside
-it and the tonearm, with **no turntable in the view at all**. The machine is drawn small in an
-inset at the top left, on the same dark field as everything else and with no frame of its own —
-a card behind it read as a panel pasted over the scene. Clicking that inset returns to Main.
+**3 — Close-up.** A flat-lay, from almost directly overhead: the album cover and the record lying
+overlapped like two cards, the tonearm across the record, and **no turntable in the view at all**.
+The machine is drawn small at the top left, on the same dark field as everything else and with no
+frame of its own. It is a picture and nothing more: none of its controls work, and clicking it does not change view
+— that happens from the bar or with key 1. It still turns and sweeps with the music, because it is
+the same scene through a second camera.
 
-**Clicking the sleeve slides the record in and out of it**, between the two states of the reference
-photographs: out, where the disc is whole and turning, and tucked, where the sleeve covers about
-three fifths of it. The gesture is purely visual — playback is untouched, and the disc remains the
-play/pause target so the two never collide. It is the *sleeve* that moves rather than the record,
-which keeps the record under the arm and means nothing has to be re-aimed.
+**The cover and the record sit side by side, clear of each other.** Neither ever hides any part of
+the other. They overlapped at first, which is what made front and back legible at a glance, and the
+cost was that whichever was behind lost a third of itself to the one in front; for the artwork that
+was the wrong trade. Separating them widened the arrangement, so the camera sits further back and
+the record draws about 1.38x the size it has in the main view rather than 1.6x.
+
+**Clicking the cover still sends it behind the record, or brings it back in front.** Neither one
+changes place; all that changes is which is on top — which, with nothing overlapping, you see in
+the slide rather than in the result. The move is the one you would make with a card: it
+slides clear of the stack, changes depth out there where nothing is in the way, and slides back —
+three ordered phases over about 600ms, in `core/cardSwap.ts` so its shape can be stepped in a test.
+It is always the *cover* that moves, which keeps the record under the arm so nothing has to be
+re-aimed. The gesture is purely visual: playback is untouched, and the record remains the
+play/pause target so the two never collide. The order is remembered for the session.
+
+One number sets the overlap and has to serve both orders — too deep and whichever is behind is
+barely there, too shallow and the two read as objects that happen to touch rather than as a stack.
 
 Two consequences worth stating. The view is no longer a close-up in the sense of being nearer: a
 sleeve and a record side by side are wider than the machine, so the camera sits about where the main
@@ -364,13 +378,29 @@ what can be clicked is what can be seen.
 
 **How two framings share one canvas.** Not two `<Canvas>` elements, which would mean two WebGL
 contexts and two copies of every geometry and texture. One scene is rendered through two cameras
-into two scissored regions of the same canvas. The price is that R3F stops rendering by itself the
+into two scissored regions of the same canvas.
+
+**The inset owns its corner outright.** `fitCamera` reserves a band along the top for it, the way
+it already reserves the right-hand side for the now-playing panel, so the cover and record are
+framed below it and nothing ever passes underneath. That is what lets the second pass clear and
+redraw its rectangle normally.
+
+Both halves of that are load-bearing, and each shipped on its own once. Clearing the rectangle
+while the composition ran under it cut a notch out of the album artwork. Not clearing it meant the
+machine painted over the artwork, and the artwork slid about behind the machine. Neither is fixable
+from inside the pass: only keeping the two apart settles it.
+
+The band slides the look-at along **z**, not y. At 86 degrees `cos` is 0.07, so the look-at's height
+barely moves anything up or down the screen — making room that way sent the solver three quarters
+of a metre into the air and shrank the composition to a third. From overhead it is depth that maps
+to screen-vertical. The price is that R3F stops rendering by itself the
 moment a `useFrame` takes a priority, so `scene/Viewports.tsx` draws *every* frame in *every* look,
 not only the close-up.
 
-**What the inset costs.** The raycaster knows only the main camera, so the inset is not pickable
-and a click on it would otherwise reach no object at all — which is the gesture that dismisses the
-chrome. A DOM frame sits over it, which both gives it a border and catches that click.
+**What the inset costs.** The raycaster knows only the main camera, so the inset is not pickable at
+all. A click on it reaches no object and is therefore treated as the empty field, which summons or
+dismisses the chrome. That is the right answer for a corner holding nothing clickable, and it is
+the one thing someone may try anyway, expecting it to take them back.
 
 **Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob
 and three transport buttons, disc and tonearm on the right. It becomes a fourth look rather than a

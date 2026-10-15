@@ -12,10 +12,11 @@ import {
   RECORD,
   RECORD_SURFACE_Y,
   SLEEVE,
-  SLEEVE_IN_X,
-  SLEEVE_OUT_X,
-  SLEEVE_Y,
+  SLEEVE_CLEAR_X,
+  SLEEVE_X,
   sleeveCoverage,
+  STACK_BACK_Y,
+  STACK_FRONT_Y,
   TONEARM,
   TONEARM_PIVOT,
 } from '../dimensions.js'
@@ -124,7 +125,7 @@ describe('the deck counter fits where it is put', () => {
   })
 })
 
-describe('the sleeve, and the record sliding in and out of it', () => {
+describe('the cover and the record, side by side', () => {
   it('is a real jacket: square, and larger than the record it holds', () => {
     expect(SLEEVE.SIZE).toBeGreaterThan(RECORD.RADIUS * 2)
     // A 12 inch jacket is 315mm and a 12 inch record 302mm. Much more than
@@ -132,27 +133,33 @@ describe('the sleeve, and the record sliding in and out of it', () => {
     expect(SLEEVE.SIZE - RECORD.RADIUS * 2).toBeLessThan(0.02)
   })
 
-  it('clears the record completely when the record is out', () => {
-    // The resting state, and the whole point of it: the disc is whole and
-    // turning, with nothing lying across it.
-    expect(sleeveCoverage(SLEEVE_OUT_X)).toBe(0)
-    expect(SLEEVE_OUT_X + SLEEVE.SIZE / 2).toBeLessThan(-RECORD.RADIUS)
+  it('never lies over the record at all', () => {
+    // They overlapped for a while, and that is what made front and back
+    // visible at a glance -- but it also meant whichever was behind had a bite
+    // taken out of it, and the artwork losing a third of itself was the wrong
+    // trade. Nothing hides anything now.
+    expect(sleeveCoverage(SLEEVE_X)).toBe(0)
+    expect(SLEEVE_X + SLEEVE.SIZE / 2).toBeLessThan(-RECORD.RADIUS)
   })
 
-  it('covers about three fifths of the disc when the record is tucked in', () => {
-    // This ratio is the look. It is also what a later change to SLEEVE.SIZE
-    // would move without anything else noticing.
-    expect(sleeveCoverage(SLEEVE_IN_X)).toBeCloseTo(0.6, 1)
+  it('leaves a visible gap rather than touching', () => {
+    const gap = -RECORD.RADIUS - (SLEEVE_X + SLEEVE.SIZE / 2)
+    expect(gap).toBeGreaterThan(0.005)
+    expect(gap).toBeLessThan(0.05)
   })
 
-  it('slides right to tuck, so the record never leaves the arm', () => {
-    expect(SLEEVE_IN_X).toBeGreaterThan(SLEEVE_OUT_X)
+  it('sits either side of the record in depth, far enough not to z-fight', () => {
+    expect(STACK_FRONT_Y).toBeGreaterThan(RECORD_SURFACE_Y)
+    // Behind means behind the record's underside, not just its face.
+    expect(STACK_BACK_Y).toBeLessThan(RECORD_SURFACE_Y - RECORD.THICKNESS)
+    expect(STACK_FRONT_Y - STACK_BACK_Y).toBeGreaterThan(0.004)
+    // And still in the same plane to look at, not floating above the scene.
+    expect(STACK_FRONT_Y - RECORD_SURFACE_Y).toBeLessThan(0.02)
   })
 
-  it('lies in the record plane, just above it', () => {
-    // Above, because the record comes out from inside the sleeve: where they
-    // overlap it is the sleeve's front panel you see.
-    expect(SLEEVE_Y).toBeGreaterThan(RECORD_SURFACE_Y)
-    expect(SLEEVE_Y - RECORD_SURFACE_Y).toBeLessThan(0.01)
+  it('slides far enough to be wholly clear of the record', () => {
+    // The depth change happens out here, where the two cannot intersect.
+    expect(SLEEVE_CLEAR_X).toBeLessThan(0)
+    expect(sleeveCoverage(SLEEVE_X + SLEEVE_CLEAR_X)).toBe(0)
   })
 })

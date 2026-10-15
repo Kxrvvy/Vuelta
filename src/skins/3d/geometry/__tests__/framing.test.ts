@@ -5,10 +5,12 @@ import {
   FIT_BOX,
   type ProfilePoint,
   profilePoints,
+  CLOSEUP_BOX,
   RECORD,
   RECORD_SURFACE_Y,
   SLEEVE,
-  SLEEVE_OUT_X,
+  SLEEVE_CLEAR_X,
+  SLEEVE_X,
 } from '../dimensions.js'
 import {
   FILL_H,
@@ -17,6 +19,7 @@ import {
   FILL_V_FRONT,
   type Framing,
   fitCamera,
+  insetBandPx,
   insetRect,
   MAX_DISTANCE,
   MIN_DISTANCE,
@@ -352,10 +355,13 @@ function screenY(framing: Framing, point: ProfilePoint): number {
   const cos = Math.cos(elevation)
   const sin = Math.sin(elevation)
 
-  // Height on the screen axis, relative to the point being looked at.
-  const up = point.y * cos - point.z * sin - framing.targetY * cos
+  // Height on the screen axis, relative to the point being looked at. The
+  // look-at slides along z as well as y once the flat-lay reserves its band.
+  const up = (point.y - framing.targetY) * cos - (point.z - framing.targetZ) * sin
   // Distance along the view direction.
-  const depth = framing.distance + framing.targetY * sin - (point.y * sin + point.z * cos)
+  const depth =
+    framing.distance -
+    ((point.y - framing.targetY) * sin + (point.z - framing.targetZ) * cos)
   return up / (depth * HALF_FOV_TAN)
 }
 
@@ -485,9 +491,11 @@ describe('the close-up pose', () => {
     // record, so it sits about as far back as the main view. What it gains is
     // the angle: from almost overhead the disc is a circle rather than the
     // thin ellipse it is at 52 degrees, and that is the whole difference.
-    // Measured at 1.6x. Held at 1.5 so a tweak to either fill has room to
-    // move without a false failure, but a lost flat-lay cannot hide.
-    expect(discHeight(close(1100, 700))).toBeGreaterThan(discHeight(at(1100, 700)) * 1.5)
+    // Measured at 1.38x. It was 1.6 while the cover overlapped the record;
+    // separating them widened the arrangement, so the camera sits further back
+    // and the disc gives some of that up. Held at 1.25 so a tweak to either
+    // fill has room to move, but a lost flat-lay cannot hide.
+    expect(discHeight(close(1100, 700))).toBeGreaterThan(discHeight(at(1100, 700)) * 1.25)
   })
 
   it('looks down far more steeply than the main view, and never straight down', () => {
@@ -514,10 +522,11 @@ describe('the close-up pose', () => {
     expect(close(1100, 700, 240).targetX).toBeGreaterThan(close(1100, 700, 0).targetX)
   })
 
-  it('leaves room across the frame for the sleeve beside the record', () => {
-    // The vertical fit is the record and the sleeve lying flat; the horizontal
-    // one is what has to hold them side by side. Checked as a span in world
-    // units against the visible width at the sleeve's own depth.
+  it('keeps the slid cover inside the frame, with no room reserved for it', () => {
+    // The frame is fitted to where the arrangement *rests*, so that it is
+    // centred for all but the two thirds of a second the card is moving. What
+    // that costs is this: the slide has to fit in the margin the fill already
+    // leaves, or the cover runs off the edge halfway through its move.
     for (const [w, h] of [
       [640, 520],
       [1100, 700],
@@ -525,10 +534,22 @@ describe('the close-up pose', () => {
     ] as const) {
       const framing = close(w, h)
       const halfFov = Math.tan((CAMERA.FOV * DEG) / 2)
-      const visibleWidth = 2 * framing.distance * halfFov * (w / h)
-      const needed = RECORD.RADIUS - (SLEEVE_OUT_X - SLEEVE.SIZE / 2)
-      expect(visibleWidth).toBeGreaterThan(needed)
+      const extent = profile(framing.elevationDeg, 'closeup')
+      const halfVisible = (framing.distance - extent.near) * halfFov * (w / h)
+      const frameLeft = framing.targetX - halfVisible
+      const slidCoverLeft = SLEEVE_X + SLEEVE_CLEAR_X - SLEEVE.SIZE / 2
+      expect(slidCoverLeft).toBeGreaterThan(frameLeft)
     }
+  })
+
+  it('rests centred, rather than off to one side', () => {
+    // The frame used to be widened on the left to hold the slide, and that
+    // strip was reserved at rest too -- so the cover and record sat right of
+    // centre the whole time, waiting for a move that was not happening.
+    const framing = close(1100, 700, 0)
+    // Centred on the fit box, which runs from the cover's left edge to far
+    // enough right to keep the arm over the disc.
+    expect(framing.targetX).toBeCloseTo(CLOSEUP_BOX.CENTER_X, 6)
   })
 })
 
@@ -590,5 +611,116 @@ describe('the inset', () => {
   it('grows with the window, up to a limit', () => {
     expect(insetRect(1920, 1040).width).toBeGreaterThan(insetRect(1100, 700).width)
     expect(insetRect(5000, 3000).width).toBe(insetRect(4000, 3000).width)
+  })
+})
+
+describe('the band the inset gets to itself', () => {
+  const SIZES = [
+    [640, 520],
+    [1100, 700],
+    [1920, 1040],
+  ] as const
+
+  /** The band's lower edge, in the same half-frame units as screenY. */
+  const bandEdge = (w: number, h: number) => 1 - (2 * insetBandPx(w, h)) / h
+
+  it('keeps the whole flat-lay below the inset, at every size', () => {
+    // This is the invariant that two shipped bugs were. With the composition
+    // running under the inset's rectangle there is no good answer: paint that
+    // rectangle and it cuts a notch out of the artwork; leave it unpainted and
+    // the machine draws over the artwork while the artwork shows through
+    // behind the machine. Keeping them apart is the whole fix.
+    for (const [w, h] of SIZES) {
+      const framing = fitCamera({
+        width: w,
+        height: h,
+        reserveRightPx: 0,
+        reserveTopPx: insetBandPx(w, h),
+        pose: 'closeup',
+      })
+      for (const point of profilePoints('closeup')) {
+        expect(screenY(framing, point)).toBeLessThan(bandEdge(w, h))
+      }
+    }
+  })
+
+  it('still fits everything inside the frame', () => {
+    // Making room at the top must not push the bottom out of shot.
+    for (const [w, h] of SIZES) {
+      const framing = fitCamera({
+        width: w,
+        height: h,
+        reserveRightPx: 0,
+        reserveTopPx: insetBandPx(w, h),
+        pose: 'closeup',
+      })
+      for (const point of profilePoints('closeup')) {
+        expect(Math.abs(screenY(framing, point))).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('makes its room along the deck, not by raising the look-at', () => {
+    const without = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
+    const banded = fitCamera({
+      width: 1100,
+      height: 700,
+      reserveRightPx: 0,
+      reserveTopPx: insetBandPx(1100, 700),
+      pose: 'closeup',
+    })
+    // Back along z puts the composition lower on screen. Raising the look-at
+    // instead is what collapsed it: at 86 degrees cos is 0.07, so the solver
+    // had to climb three quarters of a metre and the machine shrank to a third.
+    expect(banded.targetZ).toBeLessThan(0)
+    expect(without.targetZ).toBe(0)
+    expect(Math.abs(banded.targetY - without.targetY)).toBeLessThan(0.05)
+  })
+
+  it('changes nothing at all when the band is zero', () => {
+    const bare = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
+    const zero = fitCamera({
+      width: 1100,
+      height: 700,
+      reserveRightPx: 0,
+      reserveTopPx: 0,
+      pose: 'closeup',
+    })
+    expect(zero.distance).toBeCloseTo(bare.distance, 12)
+    expect(zero.targetY).toBeCloseTo(bare.targetY, 12)
+    expect(zero.targetZ).toBe(0)
+  })
+
+  it('leaves the other two looks exactly where they were', () => {
+    // Only the flat-lay has an inset. If the band leaked into the main or
+    // front poses they would re-frame for no reason, and it would still look
+    // plausible enough to miss.
+    for (const [w, h] of SIZES) {
+      const band = insetBandPx(w, h)
+      for (const pose of ['top', 'front'] as const) {
+        const plain = fitCamera({ width: w, height: h, reserveRightPx: 0, pose })
+        const asked = fitCamera({ width: w, height: h, reserveRightPx: 0, reserveTopPx: 0, pose })
+        expect(asked.distance).toBeCloseTo(plain.distance, 12)
+        expect(asked.targetY).toBeCloseTo(plain.targetY, 12)
+        expect(asked.targetZ).toBe(0)
+        expect(band).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('is keyed in the cache, so a band is never answered from a cached miss', () => {
+    // A reserve left out of the memo key returns a stale framing, and the
+    // symptom is a band that is simply ignored.
+    const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
+    const b = fitCamera({
+      width: 1100,
+      height: 700,
+      reserveRightPx: 0,
+      reserveTopPx: insetBandPx(1100, 700),
+      pose: 'closeup',
+    })
+    const again = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
+    expect(b.targetZ).not.toBeCloseTo(a.targetZ, 4)
+    expect(again.targetZ).toBeCloseTo(a.targetZ, 12)
   })
 })

@@ -181,8 +181,6 @@ export function Stage({
         onArmDragEnd={sync.endArmDrag}
         onBackgroundClick={dismiss}
         composition={view === 'closeup' ? 'closeup' : 'machine'}
-        // The inset is the whole machine, so clicking it means "show me that".
-        onInsetClick={() => setView('main')}
       />
 
       {lyricsShown ? (
