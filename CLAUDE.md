@@ -117,8 +117,11 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   clear of each other, so it is never seen as a pop inside the overlap band.
 - **Both objects move, and the arm travels with the record.** The cover alone cannot do it: 154px
   of it is behind the record and there are only 70px of frame to its left. The record takes the
-  larger share because it has the room, and the arm and cue go with it — which is what keeps the
-  stylus on the groove it is playing, the reason the old rule said the record must never move.
+  larger share because it has the room, and the arm goes with it — which is what keeps the stylus
+  on the groove it is playing, the reason the old rule said the record must never move.
+- **The cover lies askew when it is behind**, tilted four degrees anticlockwise so its upper right
+  corner rides higher than its upper left. Only the back of the stack gets it; the front sits
+  square. The tilt eases on with the depth rather than snapping once the move lands.
 - **The arm sits above both cards** (`z-index: 4`). The card move raises the record to 2, and
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is
@@ -127,9 +130,15 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   summoned and dismissed by the same click on the empty field. It had a transport pill of its own
   for a while, with a gear and a `···` view switcher in the corners; two pieces of chrome doing one
   job is one too many, and the pill is gone.
-- **Everything lying on the paper absorbs its own click** — the disc, the cover, the arm and the
-  cue. Without that the click reaches the field underneath and toggles the chrome too, so
-  play/pause would summon or dismiss the bar every time.
+- **Everything lying on the paper absorbs its own click** — the disc, the cover and the arm.
+  Without that the click reaches the field underneath and toggles the chrome too, so play/pause
+  would summon or dismiss the bar every time.
+- **The top of the arm is the play/pause control**, and there is no cue button. The gesture belongs
+  on the arm, where a cue lever is. The housing takes the click; the tube below it is the drag
+  handle, and the two targets are kept apart so they cannot fight.
+- **Putting the needle down starts the record.** A drag that ends on the groove commits its seek
+  and then plays, the way it does on a real deck — which is also what stops a scrub-while-paused
+  from sending the arm straight back to its park the moment you let go.
 - **The flat-lay still needs the lid open**, like the close-up before it. A closed lid is the front
   pose in every look, which is what keeps "closing the lid is the stop gesture" true here too.
 

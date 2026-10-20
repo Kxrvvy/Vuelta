@@ -1267,27 +1267,10 @@ input[type='text']:focus {
   cursor: grabbing;
 }
 
-/* §6: the cue control. A real button, not decoration — it is the cue lever.
-   It belongs to the arm, so it travels with the record during a card move. */
-.flatlay__cue {
-  position: absolute;
-  z-index: 3;
-  border: 0;
-  padding: 0;
-  border-radius: 12px;
-  background: #8b8884;
-  display: grid;
-  place-items: center;
+/* The top of the arm — housing and counterweight — starts and stops the
+   record. It replaces the cue button that sat beside the bearing: the gesture
+   belongs on the arm itself, which is where a cue lever is. */
+.flatlay__arm-cue {
+  pointer-events: all;
   cursor: pointer;
-  box-shadow: 2px 4px 10px rgba(var(--cast), 0.2);
-  transition: background 140ms ease-out;
-}
-
-.flatlay__cue:hover {
-  background: #7d7a76;
-}
-
-.flatlay__cue-ring {
-  border-radius: 50%;
-  border: 7px solid #fff;
 }

@@ -392,6 +392,22 @@ headshell angled 20° off the tube axis with the stylus at its tip. The bend is 
 well as the drawing — a headshell rotated only for looks puts its tip 16px off the arm's axis,
 which at this scale is most of the run-out band.
 
+**The arm is the transport.** Its top — the housing and counterweight — is the play/pause control,
+and there is no separate cue button; one sat beside the bearing for a while and the gesture belongs
+on the arm, which is where a cue lever is. The tube below it is the drag handle, and the two
+targets start clear of one another so a grab never lands on the button or the other way round.
+
+**Putting the needle down starts the record.** A drag that ends on the groove commits its seek and
+then plays. That is what a real deck does, and it also settles something pause introduced: with the
+arm parking on pause, a scrub while paused used to end with the arm travelling straight back to its
+rest position the moment you let go. Now it stays where you put it, and the record starts.
+
+**The cover lies askew when it is behind.** Four degrees anticlockwise, so its upper right corner
+rides higher than its upper left — a sleeve pushed under something and left where it fell, rather
+than one squared up to the frame. Only the back of the stack is tilted; whichever card is in front
+sits straight, and the tilt eases on with the change of depth rather than snapping once the move
+has landed.
+
 **Clicking the cover sends it behind the record, or brings it back in front.** Neither one changes
 place: positions are identical before and after, and all that changes is which is on top. The move
 is the one you would make with a card — the two slide apart, trade places in the stack out where
@@ -400,8 +416,8 @@ nothing is overlapping, and slide home — three ordered phases over about 600ms
 
 **Both of them move, and the arm goes with the record.** The cover cannot do it alone: 154px of it
 is behind the record and there are only 70px of frame to its left, so it can never get clear. The
-record takes the larger share because it has the room to its right, and the tonearm and the cue
-control travel with it — which is what keeps the stylus on the groove it is playing, and was the
+record takes the larger share because it has the room to its right, and the tonearm travels with
+it — which is what keeps the stylus on the groove it is playing, and was the
 whole reason the earlier rule said the record must never move. They end up 16px clear of each
 other, which is what lets the stacking flip during the hold rather than as a pop inside the
 overlap.
@@ -423,8 +439,8 @@ it was still wrong: two pieces of chrome doing one job means two places to chang
 changes, and the view switcher ended up somewhere it was not in either of the other looks. One bar.
 
 The one thing that had to come with it: **everything lying on the paper absorbs its own click**.
-The chrome gesture is a click that reaches the field, so the disc, the cover, the arm and the cue
-all stop propagation — otherwise play/pause would summon or dismiss the bar every time, and the
+The chrome gesture is a click that reaches the field, so the disc, the cover and the arm all stop
+propagation — otherwise play/pause would summon or dismiss the bar every time, and the
 cover could not be turned over without the chrome flickering.
 
 **Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob

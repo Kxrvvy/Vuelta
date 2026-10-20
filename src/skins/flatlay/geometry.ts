@@ -332,40 +332,26 @@ export const ARM_LOCAL = {
 export const SWAP = {
   /** Left, as far as the frame allows. */
   COVER_SHIFT: -62,
-  /** Right, with the tonearm and the cue control. */
+  /** Right, with the tonearm. */
   RECORD_SHIFT: 108,
+  /**
+   * How far the cover lies over once it is behind the record, in degrees.
+   *
+   * Negative is anticlockwise on screen, which lifts the upper *right* corner
+   * and drops the upper left — a sleeve pushed under something and left askew,
+   * rather than one squared up to the frame. Only the back of the stack gets
+   * it; the front sits straight.
+   *
+   * Small on purpose. At 440px square even four degrees moves a corner 16px,
+   * which is plenty to read as "put down carelessly" and little enough that
+   * the cover stays inside the design box.
+   */
+  BACK_TILT_DEG: -4,
 } as const
 
 /** Gap between the two at full travel. Must be positive, or the flip shows. */
 export const SWAP_CLEARANCE =
   SWAP.RECORD_SHIFT - SWAP.COVER_SHIFT - TUCK_FRACTION * RECORD.RADIUS * 2
-
-/** §6: the cue control, just right of the bearing base and level with it. */
-export const CUE = {
-  SIZE: 52,
-  CORNER_RADIUS: 12,
-  get CENTER_X() {
-    return PIVOT.x + ARM.BEARING_DIAMETER / 2 + 18 + this.SIZE / 2
-  },
-  get CENTER_Y() {
-    return PIVOT.y
-  },
-  RING_DIAMETER: 26,
-  RING_STROKE: 7,
-} as const
-
-/** §8: the transport pill, floating at bottom centre. */
-export const PILL = {
-  HEIGHT: 56,
-  CENTER_Y: 735,
-  get CENTER_X() {
-    return BOX.WIDTH / 2
-  },
-} as const
-
-/** §8: the standalone round button at the far bottom right, and the gear. */
-export const CORNER_BUTTON = { SIZE: 44, MARGIN: 28 } as const
-export const GEAR = { SIZE: 22, MARGIN: 26 } as const
 
 /**
  * How much to scale the design box to fill a window, and where to put it.

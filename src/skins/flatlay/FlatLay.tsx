@@ -30,7 +30,6 @@ import {
   ARM_REACH,
   armBearingDeg,
   BOX,
-  CUE,
   fitBox,
   GROOVE,
   PIVOT,
@@ -107,7 +106,6 @@ export function FlatLay({
   /** The whole arm assembly, which travels with the record during a card move. */
   const armShift = useRef<SVGGElement | null>(null)
   const sleeve = useRef<HTMLDivElement | null>(null)
-  const cue = useRef<HTMLButtonElement | null>(null)
 
   // Which of the two cards is on top. Skin-local and purely visual: it moves
   // nothing but the stacking, and playback is untouched.
@@ -166,6 +164,19 @@ export function FlatLay({
     }
   }, [])
 
+  /**
+   * Putting the needle down starts the record.
+   *
+   * A drag that ends on the groove is the gesture for "play from here", the
+   * same as it is on a real deck — so a scrub while paused no longer leaves
+   * the arm travelling back to its park the moment you let go. The seek is
+   * committed first, by the handler this wraps; the play follows it.
+   */
+  const endDrag = useCallback(() => {
+    onArmDragEnd()
+    if (!state.current?.isPlaying) actions.play()
+  }, [actions, onArmDragEnd, state])
+
   const drag = useArmDrag({
     stateRef: state,
     hostRef: host,
@@ -173,7 +184,7 @@ export function FlatLay({
     shiftRef,
     onDragStart: onArmDragStart,
     onDragTo: onArmDragTo,
-    onDragEnd: onArmDragEnd,
+    onDragEnd: endDrag,
   })
 
   const toggle = useCallback(
@@ -243,13 +254,19 @@ export function FlatLay({
           const hidden = 1 - live.transitionOut
           record.current.style.transform = `translateX(${shift - hidden * RECORD_TRAVEL}px)`
         }
+        // How far through to the back of the stack the cover is, 0 at the
+        // front and 1 behind. At rest `crossed` is 1, so this is simply which
+        // side it is on; mid-move it eases, and the tilt goes on with the
+        // depth rather than snapping once it arrives.
+        const behind = coverInFrontRef.current ? 1 - crossed : crossed
         if (sleeve.current) {
-          sleeve.current.style.transform = `translateX(${out * SWAP.COVER_SHIFT}px)`
+          sleeve.current.style.transform =
+            `translateX(${out * SWAP.COVER_SHIFT}px) ` +
+            `rotate(${(behind * SWAP.BACK_TILT_DEG).toFixed(3)}deg)`
         }
         // The arm goes with the record, which is what keeps the stylus on the
         // groove it is playing while the two cards are apart.
         armShift.current?.setAttribute('transform', `translate(${shift.toFixed(2)} 0)`)
-        if (cue.current) cue.current.style.transform = `translateX(${shift}px)`
 
         // The stacking flips in the middle of the hold, where nothing
         // overlaps, so the change is never seen as a pop.
@@ -524,11 +541,12 @@ export function FlatLay({
                 />
 
                 {/* The grab target. Invisible, and far fatter than the tube it
-                    wraps, because nine pixels is not a drag handle. */}
+                    wraps, because nine pixels is not a drag handle. It starts
+                    clear of the housing so the two targets do not fight. */}
                 <line
                   className="flatlay__arm-grab"
                   onClick={(event) => event.stopPropagation()}
-                  x1={14}
+                  x1={34}
                   y1={0}
                   x2={ARM_REACH}
                   y2={0}
@@ -537,31 +555,26 @@ export function FlatLay({
                   strokeLinecap="round"
                   {...drag}
                 />
+
+                {/* The top of the arm — housing and counterweight — is the
+                    play/pause control. It replaces the cue button that used
+                    to sit beside the bearing: the gesture belongs on the arm
+                    itself, where a cue lever is. Last in paint order, so it
+                    takes the click before the drag target does. */}
+                <circle
+                  className="flatlay__arm-cue"
+                  cx={0}
+                  cy={0}
+                  r={30}
+                  fill="rgba(0,0,0,0)"
+                  onClick={toggle}
+                />
                 </g>
               </g>
             </g>
           </g>
         </svg>
 
-        {/* §6: the cue control. Wired to play/pause — it is the cue lever. */}
-        <button
-          ref={cue}
-          type="button"
-          className="flatlay__cue"
-          onClick={toggle}
-          title="Cue"
-          style={{
-            left: `${CUE.CENTER_X - CUE.SIZE / 2}px`,
-            top: `${CUE.CENTER_Y - CUE.SIZE / 2}px`,
-            width: `${CUE.SIZE}px`,
-            height: `${CUE.SIZE}px`,
-          }}
-        >
-          <span
-            className="flatlay__cue-ring"
-            style={{ width: `${CUE.RING_DIAMETER}px`, height: `${CUE.RING_DIAMETER}px` }}
-          />
-        </button>
       </div>
     </div>
   )
