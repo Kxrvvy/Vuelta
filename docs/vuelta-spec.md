@@ -390,10 +390,25 @@ headshell angled 20° off the tube axis with the stylus at its tip. The bend is 
 well as the drawing — a headshell rotated only for looks puts its tip 16px off the arm's axis,
 which at this scale is most of the run-out band.
 
-**Clicking the cover does nothing now.** The card move that sent it behind the record and back
-belonged to the overlapping two-card arrangement and is gone with it; `core/cardSwap.ts` has been
-deleted. The record moves instead, and only on a track change (§13). The disc remains the
-play/pause target, and the cue control beside the bearing is wired to the same pair.
+**Clicking the cover sends it behind the record, or brings it back in front.** Neither one changes
+place: positions are identical before and after, and all that changes is which is on top. The move
+is the one you would make with a card — the two slide apart, trade places in the stack out where
+nothing is overlapping, and slide home — three ordered phases over about 600ms, in
+`core/cardSwap.ts` so its shape can be stepped in a test.
+
+**Both of them move, and the arm goes with the record.** The cover cannot do it alone: 154px of it
+is behind the record and there are only 70px of frame to its left, so it can never get clear. The
+record takes the larger share because it has the room to its right, and the tonearm and the cue
+control travel with it — which is what keeps the stylus on the groove it is playing, and was the
+whole reason the earlier rule said the record must never move. They end up 16px clear of each
+other, which is what lets the stacking flip during the hold rather than as a pop inside the
+overlap.
+
+The arm is drawn above both cards. The move raises the record above the cover, and anything at a
+lower layer than that is painted over by it — the arm included, which is a thing to get wrong once.
+
+The gesture is purely visual: playback is untouched, and the record remains the play/pause target
+so the two never collide. The order is remembered for the session.
 
 **Its chrome is permanent.** A transport pill floats at the bottom centre — library, the current
 track, play/pause, queue — with a gear at the top right and a round button at the bottom right that

@@ -1008,9 +1008,11 @@ input[type='text']:focus {
 
 /* ---- the record ---------------------------------------------------------- */
 
-/* The sliding group. §9 moves this, and only this. */
+/* The sliding group. §9's swap moves this, and so does the card move.
+   The two offsets add; the frame loop writes one transform for both. */
 .flatlay__record {
   position: absolute;
+  z-index: 1;
   will-change: transform;
 }
 
@@ -1162,9 +1164,14 @@ input[type='text']:focus {
 
 .flatlay__sleeve {
   position: absolute;
+  /* Above the record by default: the cover starts in front. The frame loop
+     swaps these two during a card move, in the middle of its hold. */
+  z-index: 2;
   border-radius: 2px;
   overflow: hidden;
   background: #dcd6d0;
+  cursor: pointer;
+  will-change: transform;
   /* §3: a soft directional shadow from the upper left, plus a tight contact
      shadow along the bottom and right so it sits *on* the paper. And a 1px
      inner highlight on the top and left edges, for a printed card edge
@@ -1219,6 +1226,10 @@ input[type='text']:focus {
   inset: 0;
   overflow: visible;
   pointer-events: none;
+  /* Above both cards, always. The arm rests *on* the record, and the card
+     move raises the record to z-index 2 — without this the record paints over
+     the arm for as long as the cover is behind it. */
+  z-index: 4;
 }
 
 /* §7: the lift. The whole group shifts up-left and its shadow grows; the
@@ -1257,9 +1268,11 @@ input[type='text']:focus {
   cursor: grabbing;
 }
 
-/* §6: the cue control. A real button, not decoration — it is the cue lever. */
+/* §6: the cue control. A real button, not decoration — it is the cue lever.
+   It belongs to the arm, so it travels with the record during a card move. */
 .flatlay__cue {
   position: absolute;
+  z-index: 3;
   border: 0;
   padding: 0;
   border-radius: 12px;

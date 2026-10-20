@@ -316,6 +316,30 @@ export const ARM_LOCAL = {
   counterweightX: -(ARM.HOUSING_WIDTH / 2 + ARM.COUNTERWEIGHT / 2),
 } as const
 
+/**
+ * The card move: how far each object travels while the cover changes places in
+ * the stack.
+ *
+ * Both move, in opposite directions, and they have to clear each other -- the
+ * stacking order flips while they are apart, so it is never seen as a pop
+ * inside the overlap band. The cover alone cannot do it: 154px of it is behind
+ * the record and there are only 70px of frame to its left.
+ *
+ * The record takes the larger share because it has the room, and **the arm
+ * travels with it**. That keeps the stylus on the groove it is playing, which
+ * was the whole reason the old rule said the record must never move.
+ */
+export const SWAP = {
+  /** Left, as far as the frame allows. */
+  COVER_SHIFT: -62,
+  /** Right, with the tonearm and the cue control. */
+  RECORD_SHIFT: 108,
+} as const
+
+/** Gap between the two at full travel. Must be positive, or the flip shows. */
+export const SWAP_CLEARANCE =
+  SWAP.RECORD_SHIFT - SWAP.COVER_SHIFT - TUCK_FRACTION * RECORD.RADIUS * 2
+
 /** §6: the cue control, just right of the bearing base and level with it. */
 export const CUE = {
   SIZE: 52,

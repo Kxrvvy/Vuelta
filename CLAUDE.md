@@ -110,9 +110,18 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where
   whichever card sat behind had a bite taken out of it by the other. In DOM, paint order settles it
   and nothing is lost.
-- **The record moves, and only on a track change.** The cover no longer has a click gesture of its
-  own; `core/cardSwap.ts` is gone and `core/transition.ts` replaces it. The disc stays the
-  play/pause target.
+- **Clicking the cover trades it with the record in the stack.** Positions are identical before and
+  after; only which one is on top changes. The move is the three ordered phases of
+  `core/cardSwap.ts` — apart, flip, home — and the flip happens during the hold, where the two are
+  clear of each other, so it is never seen as a pop inside the overlap band.
+- **Both objects move, and the arm travels with the record.** The cover alone cannot do it: 154px
+  of it is behind the record and there are only 70px of frame to its left. The record takes the
+  larger share because it has the room, and the arm and cue go with it — which is what keeps the
+  stylus on the groove it is playing, the reason the old rule said the record must never move.
+- **The arm sits above both cards** (`z-index: 4`). The card move raises the record to 2, and
+  without it the record paints over the arm for as long as the cover is behind.
+- The disc stays the play/pause target, so the two gestures never collide, and the card move is
+  purely visual — playback is untouched.
 - **The chrome is permanent in this look.** The transport pill is the only transport in a scene
   with no machine to click, so it does not fade with the click gesture — the lyrics column set that
   precedent. It lives in `app/flatlay/`, not in the skin, because it reads `useLibrary`.

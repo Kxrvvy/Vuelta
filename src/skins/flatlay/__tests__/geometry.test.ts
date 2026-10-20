@@ -18,6 +18,8 @@ import {
   RECORD_TRAVEL,
   SLEEVE,
   solveArm,
+  SWAP,
+  SWAP_CLEARANCE,
   STYLUS_OFFSET_DEG,
   stylusAt,
   TUCK_FRACTION,
@@ -191,6 +193,46 @@ describe('the park', () => {
   it('is well away from the playing band, so the lift reads as a move', () => {
     const atEnd = armBearingDeg(CORE_ARM.END_ANGLE)
     expect(Math.abs(atEnd - ARM.PARK_BEARING_DEG)).toBeGreaterThan(20)
+  })
+})
+
+describe('the card move', () => {
+  it('takes the two objects fully clear of each other', () => {
+    // The whole point of the hold in the middle: the stacking order changes
+    // while nothing overlaps, so it is never seen as a pop inside the overlap
+    // band. If this goes negative the flip becomes visible.
+    expect(SWAP_CLEARANCE).toBeGreaterThan(0)
+
+    const coverRight = SLEEVE.RIGHT_EDGE_X + SWAP.COVER_SHIFT
+    const recordLeft = RECORD_CENTER_X + SWAP.RECORD_SHIFT - RECORD.RADIUS
+    expect(recordLeft).toBeGreaterThan(coverRight)
+  })
+
+  it('cannot be done by moving the cover alone', () => {
+    // 154px of the cover is behind the record and there are only 70px of frame
+    // to its left, which is why the record takes the larger share.
+    const overlap = TUCK_FRACTION * RECORD.RADIUS * 2
+    expect(SLEEVE.LEFT).toBeLessThan(overlap)
+    expect(Math.abs(SWAP.COVER_SHIFT)).toBeLessThanOrEqual(SLEEVE.LEFT)
+  })
+
+  it('keeps everything inside the design box at full travel', () => {
+    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThanOrEqual(0)
+    expect(RECORD_CENTER_X + SWAP.RECORD_SHIFT + RECORD.RADIUS).toBeLessThan(BOX.WIDTH)
+    // The arm and its cue travel with the record.
+    expect(PIVOT.x + ARM.BEARING_DIAMETER / 2 + SWAP.RECORD_SHIFT).toBeLessThan(BOX.WIDTH)
+  })
+
+  it('keeps the arm on the groove, because it travels with the record', () => {
+    // A rigid translation of both preserves every radius, so the solve still
+    // holds at full travel.
+    for (const angle of [0, 11, 22]) {
+      const moved = distanceToRecordCentre(
+        { x: stylusAt(angle).x + SWAP.RECORD_SHIFT, y: stylusAt(angle).y },
+        RECORD_CENTER_X + SWAP.RECORD_SHIFT,
+      )
+      expect(moved).toBeCloseTo(distanceToRecordCentre(stylusAt(angle)), 9)
+    }
   })
 })
 
