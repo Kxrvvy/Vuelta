@@ -52,10 +52,10 @@ export function Tonearm() {
     // honours it visually too. A drag is the user's hand, so it tracks hard.
     yawGroup.rotation.y = damp(yawGroup.rotation.y, targetYaw, state.isDragging ? 26 : 6, delta)
 
-    // Cue-lever pause — spec §11. Pausing lifts the arm a few millimetres and
-    // leaves it hovering at its current angle. It does NOT return to the
-    // cradle; only closing the lid does that, and the lid drives armAngle to
-    // REST directly, so there is nothing to special-case here.
+    // The lift — spec §11. Pausing raises the stylus a few millimetres, and
+    // `armAngleNow` sends the arm back to its cradle at the same time, so the
+    // two read as one gesture: it lifts, then it travels home. There is
+    // nothing to special-case here, because the angle arrives already parked.
     const cued = !state.isPlaying || state.isDragging
     liftGroup.position.y = damp(liftGroup.position.y, cued ? CUE_LIFT : 0, 7, delta)
   })

@@ -31,6 +31,41 @@ export function armAngleFor(progressMs: number, durationMs: number): number {
 }
 
 /**
+ * Where the arm sits, with every rule about resting applied.
+ *
+ * Three states, in order of precedence:
+ *
+ *   dragging  the user's hand is on the arm, and it outranks everything
+ *   parked    lid shut, or paused — the arm goes back to its rest position
+ *   playing   on the groove, at the position the clock reports
+ *
+ * **Pause parks the arm.** It used to hover at its current angle, lifted a
+ * few millimetres, on the reasoning that a cue lever does not return the arm
+ * to its cradle. That is true of the machine and was the wrong call for this
+ * app: a paused turntable that has visibly *stopped* reads better than one
+ * frozen mid-sweep, and the rest position is the only part of the arm's travel
+ * that says "not playing" on its own.
+ *
+ * A drag still works while paused, and the seek still commits on release —
+ * the arm simply returns to rest afterwards, because it is still paused.
+ *
+ * Here rather than in the state layer so the rule can be stepped in a test;
+ * it is the kind of thing that is easy to get subtly wrong and impossible to
+ * notice.
+ */
+export function armAngleNow(input: {
+  lidOpen: boolean
+  isPlaying: boolean
+  isDragging: boolean
+  progressMs: number
+  durationMs: number
+}): number {
+  if (input.isDragging) return armAngleFor(input.progressMs, input.durationMs)
+  if (!input.lidOpen || !input.isPlaying) return ARM.REST_ANGLE
+  return armAngleFor(input.progressMs, input.durationMs)
+}
+
+/**
  * The inverse of `armAngleFor`: where in the track an arm angle lands.
  *
  * This is what dragging the tonearm needs. The pointer sets an angle; this

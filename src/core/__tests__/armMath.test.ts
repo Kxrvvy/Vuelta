@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { armAngleFor, isAtRest, trackProgressRatio } from '../armMath.js'
+import { armAngleFor, armAngleNow, isAtRest, trackProgressRatio } from '../armMath.js'
 import { ARM } from '../contract.js'
 
 const THREE_THIRTY = 210_000 // 3:30, the track length spec §10 reasons about
@@ -77,6 +77,60 @@ describe('trackProgressRatio', () => {
     expect(trackProgressRatio(THREE_THIRTY * 3, THREE_THIRTY)).toBe(1)
     expect(trackProgressRatio(-1, THREE_THIRTY)).toBe(0)
     expect(trackProgressRatio(1000, 0)).toBe(0)
+  })
+})
+
+describe('armAngleNow', () => {
+  const PLAYING = {
+    lidOpen: true,
+    isPlaying: true,
+    isDragging: false,
+    progressMs: THREE_THIRTY / 2,
+    durationMs: THREE_THIRTY,
+  }
+
+  it('tracks the groove while the record plays', () => {
+    expect(armAngleNow(PLAYING)).toBeCloseTo(armAngleFor(THREE_THIRTY / 2, THREE_THIRTY), 10)
+  })
+
+  it('returns the arm to its rest position when paused', () => {
+    expect(armAngleNow({ ...PLAYING, isPlaying: false })).toBe(ARM.REST_ANGLE)
+  })
+
+  it('parks it with the lid shut, playing or not', () => {
+    expect(armAngleNow({ ...PLAYING, lidOpen: false })).toBe(ARM.REST_ANGLE)
+    expect(armAngleNow({ ...PLAYING, lidOpen: false, isPlaying: false })).toBe(ARM.REST_ANGLE)
+  })
+
+  it('parks it when nothing is playing at all', () => {
+    expect(armAngleNow({ ...PLAYING, isPlaying: false, progressMs: 0, durationMs: 0 })).toBe(
+      ARM.REST_ANGLE,
+    )
+  })
+
+  it('lets a drag outrank the park, so scrubbing works while paused', () => {
+    // The hand is on the arm. It goes where the pointer put it, and the seek
+    // still commits on release; it returns to rest afterwards because it is
+    // still paused.
+    const dragged = armAngleNow({ ...PLAYING, isPlaying: false, isDragging: true })
+    expect(dragged).toBeCloseTo(armAngleFor(THREE_THIRTY / 2, THREE_THIRTY), 10)
+    expect(dragged).not.toBe(ARM.REST_ANGLE)
+  })
+
+  it('does not let a drag override a shut lid being dragged shut', () => {
+    // A drag with the lid closed is not reachable -- the arm is not drawn --
+    // but the ordering is stated here so it cannot change by accident.
+    expect(armAngleNow({ ...PLAYING, lidOpen: false, isDragging: true })).toBeCloseTo(
+      armAngleFor(THREE_THIRTY / 2, THREE_THIRTY),
+      10,
+    )
+  })
+
+  it('is the rest angle, not merely below the groove band', () => {
+    // The skins read REST_ANGLE as a sentinel: the 3D arm goes to its cradle
+    // and the flat-lay draws its vertical park. An angle that merely sat below
+    // START would be clamped onto the groove instead.
+    expect(isAtRest(armAngleNow({ ...PLAYING, isPlaying: false }))).toBe(true)
   })
 })
 
