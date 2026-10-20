@@ -359,33 +359,30 @@ export const ARM_LOCAL = {
 } as const
 
 /**
- * The card move: how far each object travels while the cover changes places in
- * the stack.
+ * The card move: how far the cover travels while it changes places in the
+ * stack.
  *
- * Both move, in opposite directions, and they have to clear each other -- the
- * stacking order flips while they are apart, so it is never seen as a pop
- * inside the overlap band.
+ * **Only the cover moves.** It slides clear of the record, trades places with
+ * it out there where nothing is overlapping, and slides home; the record does
+ * not stir, and the tonearm therefore does not either, so the stylus stays on
+ * the groove it is playing without anything having to travel with it.
  *
- * Splitting the travel was forced at first: the sleeve sat at x=70, with less
- * frame to its left than the 154px overlap was wide, so it could not get clear
- * on its own. Centring the arrangement has since given it that room, and the
- * split is kept anyway — neither object has to travel the whole overlap, the
- * move stays symmetrical, and **the arm travels with the record**, so the
- * smaller the record's share the less the arm has to go with it. That is what
- * keeps the stylus on the groove it is playing.
+ * It could not always. With the sleeve at the left edge of the frame there was
+ * less room beside it than the overlap was wide, so the record had to give way
+ * too and take the arm with it. Centring the arrangement gave the cover the
+ * room to do the whole move itself, and a card you push out and tuck under is
+ * one object moving, not two.
  */
 export const SWAP = {
-  /** Left, as far as the frame allows. */
-  COVER_SHIFT: -62,
-  /** Right, with the tonearm. */
-  RECORD_SHIFT: 108,
+  /** Far enough left to be wholly clear of the record, plus a little air. */
+  COVER_SHIFT: -170,
   /**
    * How far the cover lies over once it is behind the record, in degrees.
    *
    * Negative is anticlockwise on screen, which lifts the upper *right* corner
    * and drops the upper left — a sleeve pushed under something and left askew,
    * rather than one squared up to the frame. Only the back of the stack gets
-   * it; the front sits straight.
+   * it; the front sits square.
    *
    * Small on purpose. At 440px square even four degrees moves a corner 16px,
    * which is plenty to read as "put down carelessly" and little enough that
@@ -396,7 +393,7 @@ export const SWAP = {
 
 /** Gap between the two at full travel. Must be positive, or the flip shows. */
 export const SWAP_CLEARANCE =
-  SWAP.RECORD_SHIFT - SWAP.COVER_SHIFT - TUCK_FRACTION * RECORD.RADIUS * 2
+  Math.abs(SWAP.COVER_SHIFT) - TUCK_FRACTION * RECORD.RADIUS * 2
 
 /**
  * How much to scale the design box to fill a window, and where to put it.

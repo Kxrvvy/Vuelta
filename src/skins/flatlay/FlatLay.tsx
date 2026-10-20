@@ -104,7 +104,6 @@ export function FlatLay({
   const armGroup = useRef<SVGGElement | null>(null)
   const armLift = useRef<SVGGElement | null>(null)
   /** The whole arm assembly, which travels with the record during a card move. */
-  const armShift = useRef<SVGGElement | null>(null)
   const sleeve = useRef<HTMLDivElement | null>(null)
 
   // Which of the two cards is on top. Skin-local and purely visual: it moves
@@ -119,8 +118,6 @@ export function FlatLay({
   const fromInFront = useRef(coverInFront)
   /** Arriving is not a move. */
   const settled = useRef(false)
-  /** The record's current shift, shared with the drag. */
-  const shiftRef = useRef(0)
 
   useEffect(() => {
     // Nothing animates on the way in. A move with nothing to travel is worse
@@ -181,7 +178,6 @@ export function FlatLay({
     stateRef: state,
     hostRef: host,
     fitRef,
-    shiftRef,
     onDragStart: onArmDragStart,
     onDragTo: onArmDragTo,
     onDragEnd: endDrag,
@@ -244,15 +240,12 @@ export function FlatLay({
           if (progress >= 1) swapElapsed.current = null
         }
 
-        const shift = out * SWAP.RECORD_SHIFT
-        shiftRef.current = shift
-
-        // §9's slide. `transitionOut` is 1 at rest and 0 fully behind the
-        // sleeve; the record is laid out at rest and moves left to hide. The
-        // two offsets simply add -- a track can change mid-move.
+        // §9's slide, and the only thing that moves the record: `transitionOut`
+        // is 1 at rest and 0 fully behind the sleeve. The card move leaves it
+        // alone entirely.
         if (record.current) {
           const hidden = 1 - live.transitionOut
-          record.current.style.transform = `translateX(${shift - hidden * RECORD_TRAVEL}px)`
+          record.current.style.transform = `translateX(${-hidden * RECORD_TRAVEL}px)`
         }
         // How far through to the back of the stack the cover is, 0 at the
         // front and 1 behind. At rest `crossed` is 1, so this is simply which
@@ -264,9 +257,6 @@ export function FlatLay({
             `translateX(${out * SWAP.COVER_SHIFT}px) ` +
             `rotate(${(behind * SWAP.BACK_TILT_DEG).toFixed(3)}deg)`
         }
-        // The arm goes with the record, which is what keeps the stylus on the
-        // groove it is playing while the two cards are apart.
-        armShift.current?.setAttribute('transform', `translate(${shift.toFixed(2)} 0)`)
 
         // The stacking flips in the middle of the hold, where nothing
         // overlaps, so the change is never seen as a pop.
@@ -462,20 +452,18 @@ export function FlatLay({
             </linearGradient>
           </defs>
 
-          {/* Everything below travels with the record during a card move. */}
-          <g ref={armShift}>
-            {/* §6: the bearing base — a hairline circle, and the only visible
-                mechanism in the scene. It does not turn with the arm. */}
-            <circle
-              cx={PIVOT.x}
-              cy={PIVOT.y}
-              r={ARM.BEARING_DIAMETER / 2}
-              fill="none"
-              stroke="rgba(80,76,70,0.28)"
-              strokeWidth={1}
-            />
+          {/* §6: the bearing base — a hairline circle, and the only visible
+              mechanism in the scene. It does not turn with the arm. */}
+          <circle
+            cx={PIVOT.x}
+            cy={PIVOT.y}
+            r={ARM.BEARING_DIAMETER / 2}
+            fill="none"
+            stroke="rgba(80,76,70,0.28)"
+            strokeWidth={1}
+          />
 
-            <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
+          <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
             <g
               ref={armGroup}
               transform={`rotate(${armBearingDeg(CORE_ARM.START_ANGLE)} ${PIVOT.x} ${PIVOT.y})`}
@@ -569,7 +557,6 @@ export function FlatLay({
                   fill="rgba(0,0,0,0)"
                   onClick={toggle}
                 />
-                </g>
               </g>
             </g>
           </g>

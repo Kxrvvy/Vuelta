@@ -13,6 +13,7 @@ import {
   fitBox,
   GROOVE,
   PIVOT,
+  PIVOT_BEARING_DEG,
   RECORD,
   RECORD_CENTER_X,
   RECORD_HIDDEN_CENTER_X,
@@ -210,47 +211,45 @@ describe('the park', () => {
 })
 
 describe('the card move', () => {
-  it('takes the two objects fully clear of each other', () => {
+  it('takes the cover fully clear of the record', () => {
     // The whole point of the hold in the middle: the stacking order changes
     // while nothing overlaps, so it is never seen as a pop inside the overlap
     // band. If this goes negative the flip becomes visible.
     expect(SWAP_CLEARANCE).toBeGreaterThan(0)
 
     const coverRight = SLEEVE.RIGHT_EDGE_X + SWAP.COVER_SHIFT
-    const recordLeft = RECORD_CENTER_X + SWAP.RECORD_SHIFT - RECORD.RADIUS
+    const recordLeft = RECORD_CENTER_X - RECORD.RADIUS
     expect(recordLeft).toBeGreaterThan(coverRight)
   })
 
-  it('splits the travel between the two, rather than making one do it all', () => {
-    // Both move, so neither has to travel the whole overlap on its own and the
-    // move stays symmetrical about the arrangement. When the sleeve sat at
-    // x=70 this was forced — there was less frame to its left than the overlap
-    // was wide — and centring the arrangement has since given it the room.
-    // Splitting it is still the better move, and it is what keeps the arm's
-    // share small, since the arm travels with the record.
+  it('moves the cover and nothing else', () => {
+    // The record stays where it is, so the arm has nothing to follow and the
+    // stylus never leaves the groove it is playing. Both objects used to move,
+    // because with the sleeve at the frame's left edge there was less room
+    // beside it than the overlap was wide; centring the arrangement gave the
+    // cover room to do the whole move itself.
     const overlap = TUCK_FRACTION * RECORD.RADIUS * 2
-    expect(Math.abs(SWAP.COVER_SHIFT)).toBeLessThan(overlap)
-    expect(SWAP.RECORD_SHIFT).toBeLessThan(overlap)
-    expect(Math.abs(SWAP.COVER_SHIFT) + SWAP.RECORD_SHIFT).toBeGreaterThan(overlap)
+    expect(Math.abs(SWAP.COVER_SHIFT)).toBeGreaterThan(overlap)
+    expect(Object.keys(SWAP)).not.toContain('RECORD_SHIFT')
   })
 
-  it('keeps everything inside the design box at full travel', () => {
+  it('keeps the cover inside the design box at full travel', () => {
     expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThanOrEqual(0)
-    expect(RECORD_CENTER_X + SWAP.RECORD_SHIFT + RECORD.RADIUS).toBeLessThan(BOX.WIDTH)
-    // The arm and its cue travel with the record.
-    expect(PIVOT.x + ARM.BEARING_DIAMETER / 2 + SWAP.RECORD_SHIFT).toBeLessThan(BOX.WIDTH)
+    // And the tilt it wears at the back pushes a corner further out still.
+    const corner = (SLEEVE.SIZE / 2) * Math.SQRT2
+    const overhang = corner * Math.sin((45 + Math.abs(SWAP.BACK_TILT_DEG)) * DEG) - SLEEVE.SIZE / 2
+    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT - overhang).toBeGreaterThan(0)
   })
 
-  it('keeps the arm on the groove, because it travels with the record', () => {
-    // A rigid translation of both preserves every radius, so the solve still
-    // holds at full travel.
-    for (const angle of [0, 11, 22]) {
-      const moved = distanceToRecordCentre(
-        { x: stylusAt(angle).x + SWAP.RECORD_SHIFT, y: stylusAt(angle).y },
-        RECORD_CENTER_X + SWAP.RECORD_SHIFT,
-      )
-      expect(moved).toBeCloseTo(distanceToRecordCentre(stylusAt(angle)), 9)
-    }
+  it('leaves the record and the arm exactly where they were', () => {
+    // Nothing to assert about travel, because there is none -- so assert the
+    // thing that travel used to threaten: the arrangement after a swap is the
+    // arrangement before it.
+    expect(RECORD_CENTER_X).toBe(SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS)
+    expect(PIVOT.x).toBeCloseTo(
+      RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
+      9,
+    )
   })
 })
 

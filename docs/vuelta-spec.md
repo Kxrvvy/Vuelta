@@ -421,14 +421,16 @@ is the one you would make with a card — the two slide apart, trade places in t
 nothing is overlapping, and slide home — three ordered phases over about 600ms, in
 `core/cardSwap.ts` so its shape can be stepped in a test.
 
-**Both of them move, and the arm goes with the record.** Splitting the travel was forced at first:
-the sleeve sat at the left edge of the frame, with less room beside it than the 154px overlap was
-wide, so it could never get clear on its own. Centring the arrangement has since given it that
-room, and the split is kept regardless — neither object travels the whole overlap, the move stays
-symmetrical, and the arm's share stays small. The tonearm travels with the record — which is what keeps the stylus on the groove it is playing, and was the
-whole reason the earlier rule said the record must never move. They end up 16px clear of each
-other, which is what lets the stacking flip during the hold rather than as a pop inside the
-overlap.
+**Only the cover moves.** The record stays exactly where it is, which means the tonearm has nothing
+to follow and the stylus never leaves the groove it is playing. A card you push out and tuck under
+is one object moving, not two.
+
+It could not always. With the sleeve at the left edge of the frame there was less room beside it
+than the 154px overlap was wide, so the cover could never get clear on its own and the record had
+to give way too — taking the arm with it, which is what kept the stylus on its groove then. Centring
+the arrangement gave the cover the room to do the whole move itself, and the record and the arm now
+hold still. The cover ends 16px clear of the record, which is what lets the stacking flip during
+the hold rather than as a pop inside the overlap band.
 
 The arm is drawn above both cards. The move raises the record above the cover, and anything at a
 lower layer than that is painted over by it — the arm included, which is a thing to get wrong once.
