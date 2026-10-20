@@ -21,7 +21,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
-import { TransportPill } from '../app/flatlay/TransportPill.js'
 import { LyricsColumn } from '../app/lyrics/LyricsColumn.js'
 import { useLyrics } from '../app/lyrics/useLyrics.js'
 import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
@@ -83,14 +82,11 @@ export function Stage({
   sync,
   scopesStale,
   onReconnect,
-  onSignOut,
 }: {
   sync: Sync
   /** The stored session was granted fewer scopes than Vuelta now asks for. */
   scopesStale: boolean
   onReconnect: () => void
-  /** For the flat-lay's gear, which is the only settings affordance in that look. */
-  onSignOut: () => void
 }) {
   // Both pieces of chrome are summoned by a click on the empty field around
   // the machine, and dismissed by another one. See core/chrome.ts for why that
@@ -123,17 +119,6 @@ export function Stage({
   // lid shut the front pose is what you get, in every look, which is what
   // keeps "closing the lid is the stop gesture" true here too.
   const flatlayShown = view === 'closeup' && sync.lidOpen
-
-  // The flat-lay draws no browser bar, so its pill sends you to the machine
-  // and opens the pane there, where the sheet already works.
-  const browse = useCallback(
-    (pane: 'playlists' | 'queue') => {
-      setView('main')
-      setChromeShown(true)
-      library.toggle(pane)
-    },
-    [library],
-  )
 
   // Only while the view is actually on: nothing about the track is sent
   // anywhere in the other two looks.
@@ -171,7 +156,10 @@ export function Stage({
   const lyricsShown = view === 'lyrics' && sync.lidOpen
   const panelShown = chromeShown && sync.lidOpen && !lyricsShown && !flatlayShown
   // The sheet holds the bar up on its own, so dismissing has to close it too.
-  const barShown = (chromeShown || paneOpen) && sync.lidOpen && !flatlayShown
+  // One bar for all three looks, summoned and dismissed by the same gesture —
+  // the flat-lay had a transport pill of its own for a while, and two pieces
+  // of chrome doing one job is one too many.
+  const barShown = (chromeShown || paneOpen) && sync.lidOpen
 
   // One measurement for whichever column is mounted. The hook takes a
   // callback ref precisely so it can follow the swap.
@@ -211,29 +199,17 @@ export function Stage({
       </div>
 
       {flatlayShown ? (
-        <>
-          <FlatLay
-            state={sync.stateRef}
-            actions={sync.actions}
-            albumArtUrl={sync.display.albumArtUrl}
-            title={sync.display.title}
-            artist={sync.display.artist}
-            onArmDragStart={sync.beginArmDrag}
-            onArmDragTo={sync.dragToProgress}
-            onArmDragEnd={sync.endArmDrag}
-          />
-          <TransportPill
-            title={sync.display.title}
-            artist={sync.display.artist}
-            albumArtUrl={sync.display.albumArtUrl}
-            isPlaying={sync.readout.isPlaying}
-            actions={sync.actions}
-            view={view}
-            onView={setView}
-            onBrowse={browse}
-            onSignOut={onSignOut}
-          />
-        </>
+        <FlatLay
+          state={sync.stateRef}
+          actions={sync.actions}
+          albumArtUrl={sync.display.albumArtUrl}
+          title={sync.display.title}
+          artist={sync.display.artist}
+          onArmDragStart={sync.beginArmDrag}
+          onArmDragTo={sync.dragToProgress}
+          onArmDragEnd={sync.endArmDrag}
+          onBackgroundClick={dismiss}
+        />
       ) : null}
 
       {lyricsShown && !flatlayShown ? (
@@ -261,7 +237,7 @@ export function Stage({
 
       {/* Lid shut is the front pose, which is bare by design — no chrome at
           all until the machine is open. */}
-      {sync.lidOpen && !flatlayShown ? (
+      {sync.lidOpen ? (
         <BrowserBar
           library={library}
           actions={sync.actions}

@@ -123,9 +123,13 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is
   purely visual — playback is untouched.
-- **The chrome is permanent in this look.** The transport pill is the only transport in a scene
-  with no machine to click, so it does not fade with the click gesture — the lyrics column set that
-  precedent. It lives in `app/flatlay/`, not in the skin, because it reads `useLibrary`.
+- **One bar for all three looks.** The flat-lay uses the same `BrowserBar` as the machine looks,
+  summoned and dismissed by the same click on the empty field. It had a transport pill of its own
+  for a while, with a gear and a `···` view switcher in the corners; two pieces of chrome doing one
+  job is one too many, and the pill is gone.
+- **Everything lying on the paper absorbs its own click** — the disc, the cover, the arm and the
+  cue. Without that the click reaches the field underneath and toggles the chrome too, so
+  play/pause would summon or dismiss the bar every time.
 - **The flat-lay still needs the lid open**, like the close-up before it. A closed lid is the front
   pose in every look, which is what keeps "closing the lid is the stop gesture" true here too.
 
