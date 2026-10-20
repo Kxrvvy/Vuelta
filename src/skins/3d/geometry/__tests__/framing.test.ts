@@ -5,12 +5,6 @@ import {
   FIT_BOX,
   type ProfilePoint,
   profilePoints,
-  CLOSEUP_BOX,
-  RECORD,
-  RECORD_SURFACE_Y,
-  SLEEVE,
-  SLEEVE_CLEAR_X,
-  SLEEVE_X,
 } from '../dimensions.js'
 import {
   FILL_H,
@@ -19,8 +13,6 @@ import {
   FILL_V_FRONT,
   type Framing,
   fitCamera,
-  insetBandPx,
-  insetRect,
   MAX_DISTANCE,
   MIN_DISTANCE,
   profile,
@@ -475,96 +467,20 @@ describe('room for the browser bar', () => {
   })
 })
 
-describe('the close-up pose', () => {
-  const close = (width: number, height: number, reserveRightPx = 0) =>
-    fitCamera({ width, height, reserveRightPx, pose: 'closeup' })
-
-  /** The record's top and bottom rims, as a fraction of the half-frame. */
-  const discHeight = (framing: Framing) =>
-    Math.abs(
-      screenY(framing, { y: RECORD_SURFACE_Y, z: -RECORD.RADIUS }) -
-        screenY(framing, { y: RECORD_SURFACE_Y, z: RECORD.RADIUS }),
-    )
-
-  it('shows the record far larger than the main view does', () => {
-    // Not by coming closer -- the flat-lay has to hold a sleeve as well as the
-    // record, so it sits about as far back as the main view. What it gains is
-    // the angle: from almost overhead the disc is a circle rather than the
-    // thin ellipse it is at 52 degrees, and that is the whole difference.
-    // Measured at 1.38x. It was 1.6 while the cover overlapped the record;
-    // separating them widened the arrangement, so the camera sits further back
-    // and the disc gives some of that up. Held at 1.25 so a tweak to either
-    // fill has room to move, but a lost flat-lay cannot hide.
-    expect(discHeight(close(1100, 700))).toBeGreaterThan(discHeight(at(1100, 700)) * 1.25)
-  })
-
-  it('looks down far more steeply than the main view, and never straight down', () => {
-    expect(close(1100, 700).elevationDeg).toBeGreaterThan(at(1100, 700).elevationDeg)
-    // Exactly 90 is the degenerate case for lookAt with the default up vector,
-    // and it produces a NaN matrix rather than a flat-lay.
-    expect(close(1100, 700).elevationDeg).toBeLessThan(90)
-  })
-
-  it('fits the sleeve and the record inside the frame', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [1920, 1040],
-    ] as const) {
-      const framing = close(w, h)
-      for (const point of profilePoints('closeup')) {
-        expect(Math.abs(screenY(framing, point))).toBeLessThanOrEqual(1)
-      }
-    }
-  })
-
-  it('still slides out from under the panel', () => {
-    expect(close(1100, 700, 240).targetX).toBeGreaterThan(close(1100, 700, 0).targetX)
-  })
-
-  it('keeps the slid cover inside the frame, with no room reserved for it', () => {
-    // The frame is fitted to where the arrangement *rests*, so that it is
-    // centred for all but the two thirds of a second the card is moving. What
-    // that costs is this: the slide has to fit in the margin the fill already
-    // leaves, or the cover runs off the edge halfway through its move.
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [1920, 1040],
-    ] as const) {
-      const framing = close(w, h)
-      const halfFov = Math.tan((CAMERA.FOV * DEG) / 2)
-      const extent = profile(framing.elevationDeg, 'closeup')
-      const halfVisible = (framing.distance - extent.near) * halfFov * (w / h)
-      const frameLeft = framing.targetX - halfVisible
-      const slidCoverLeft = SLEEVE_X + SLEEVE_CLEAR_X - SLEEVE.SIZE / 2
-      expect(slidCoverLeft).toBeGreaterThan(frameLeft)
-    }
-  })
-
-  it('rests centred, rather than off to one side', () => {
-    // The frame used to be widened on the left to hold the slide, and that
-    // strip was reserved at rest too -- so the cover and record sat right of
-    // centre the whole time, waiting for a move that was not happening.
-    const framing = close(1100, 700, 0)
-    // Centred on the fit box, which runs from the cover's left edge to far
-    // enough right to keep the arm over the disc.
-    expect(framing.targetX).toBeCloseTo(CLOSEUP_BOX.CENTER_X, 6)
-  })
-})
-
 describe('the fit cache', () => {
   it('answers two alternating callers correctly', () => {
-    // The close-up view asks twice a frame, once for the record and once for
-    // the inset's whole machine. A single-slot cache would miss on every call
-    // -- which is only a waste -- but a slot that returned the *previous*
-    // answer would put one camera where the other belongs, and nothing else
-    // in these tests would catch it.
-    const a1 = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    const b1 = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'top' })
+    // Written when the close-up asked twice a frame, once for the record and
+    // once for the inset's machine. That view is a separate skin now and the
+    // scene has one camera again, but the hazard the test covers is the cache
+    // itself: a single-slot cache would miss on every call -- only a waste --
+    // while a slot that returned the *previous* answer would frame one
+    // viewport as though it were the other, and nothing else here would catch
+    // it.
+    const a1 = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'top' })
+    const b1 = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'front' })
     for (let i = 0; i < 5; i++) {
-      const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-      const b = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'top' })
+      const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'top' })
+      const b = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'front' })
       expect(a.distance).toBeCloseTo(a1.distance, 12)
       expect(b.distance).toBeCloseTo(b1.distance, 12)
       expect(a.distance).not.toBeCloseTo(b.distance, 3)
@@ -579,148 +495,5 @@ describe('the fit cache', () => {
     const again = fitCamera({ width: 800, height: 700, reserveRightPx: 0 })
     expect(again.distance).toBeGreaterThan(MIN_DISTANCE)
     expect(again.distance).toBeLessThan(MAX_DISTANCE)
-  })
-})
-
-describe('the inset', () => {
-  it('sits inside the window at every size', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [2560, 1440],
-    ] as const) {
-      const rect = insetRect(w, h)
-      expect(rect.x).toBeGreaterThan(0)
-      expect(rect.x + rect.width).toBeLessThan(w)
-      expect(rect.y + rect.height).toBeLessThan(h)
-    }
-  })
-
-  it('never takes more than a corner', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [2560, 1440],
-    ] as const) {
-      const rect = insetRect(w, h)
-      expect(rect.width / w).toBeLessThanOrEqual(0.4)
-      expect(rect.height / h).toBeLessThanOrEqual(0.42)
-    }
-  })
-
-  it('grows with the window, up to a limit', () => {
-    expect(insetRect(1920, 1040).width).toBeGreaterThan(insetRect(1100, 700).width)
-    expect(insetRect(5000, 3000).width).toBe(insetRect(4000, 3000).width)
-  })
-})
-
-describe('the band the inset gets to itself', () => {
-  const SIZES = [
-    [640, 520],
-    [1100, 700],
-    [1920, 1040],
-  ] as const
-
-  /** The band's lower edge, in the same half-frame units as screenY. */
-  const bandEdge = (w: number, h: number) => 1 - (2 * insetBandPx(w, h)) / h
-
-  it('keeps the whole flat-lay below the inset, at every size', () => {
-    // This is the invariant that two shipped bugs were. With the composition
-    // running under the inset's rectangle there is no good answer: paint that
-    // rectangle and it cuts a notch out of the artwork; leave it unpainted and
-    // the machine draws over the artwork while the artwork shows through
-    // behind the machine. Keeping them apart is the whole fix.
-    for (const [w, h] of SIZES) {
-      const framing = fitCamera({
-        width: w,
-        height: h,
-        reserveRightPx: 0,
-        reserveTopPx: insetBandPx(w, h),
-        pose: 'closeup',
-      })
-      for (const point of profilePoints('closeup')) {
-        expect(screenY(framing, point)).toBeLessThan(bandEdge(w, h))
-      }
-    }
-  })
-
-  it('still fits everything inside the frame', () => {
-    // Making room at the top must not push the bottom out of shot.
-    for (const [w, h] of SIZES) {
-      const framing = fitCamera({
-        width: w,
-        height: h,
-        reserveRightPx: 0,
-        reserveTopPx: insetBandPx(w, h),
-        pose: 'closeup',
-      })
-      for (const point of profilePoints('closeup')) {
-        expect(Math.abs(screenY(framing, point))).toBeLessThanOrEqual(1)
-      }
-    }
-  })
-
-  it('makes its room along the deck, not by raising the look-at', () => {
-    const without = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    const banded = fitCamera({
-      width: 1100,
-      height: 700,
-      reserveRightPx: 0,
-      reserveTopPx: insetBandPx(1100, 700),
-      pose: 'closeup',
-    })
-    // Back along z puts the composition lower on screen. Raising the look-at
-    // instead is what collapsed it: at 86 degrees cos is 0.07, so the solver
-    // had to climb three quarters of a metre and the machine shrank to a third.
-    expect(banded.targetZ).toBeLessThan(0)
-    expect(without.targetZ).toBe(0)
-    expect(Math.abs(banded.targetY - without.targetY)).toBeLessThan(0.05)
-  })
-
-  it('changes nothing at all when the band is zero', () => {
-    const bare = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    const zero = fitCamera({
-      width: 1100,
-      height: 700,
-      reserveRightPx: 0,
-      reserveTopPx: 0,
-      pose: 'closeup',
-    })
-    expect(zero.distance).toBeCloseTo(bare.distance, 12)
-    expect(zero.targetY).toBeCloseTo(bare.targetY, 12)
-    expect(zero.targetZ).toBe(0)
-  })
-
-  it('leaves the other two looks exactly where they were', () => {
-    // Only the flat-lay has an inset. If the band leaked into the main or
-    // front poses they would re-frame for no reason, and it would still look
-    // plausible enough to miss.
-    for (const [w, h] of SIZES) {
-      const band = insetBandPx(w, h)
-      for (const pose of ['top', 'front'] as const) {
-        const plain = fitCamera({ width: w, height: h, reserveRightPx: 0, pose })
-        const asked = fitCamera({ width: w, height: h, reserveRightPx: 0, reserveTopPx: 0, pose })
-        expect(asked.distance).toBeCloseTo(plain.distance, 12)
-        expect(asked.targetY).toBeCloseTo(plain.targetY, 12)
-        expect(asked.targetZ).toBe(0)
-        expect(band).toBeGreaterThan(0)
-      }
-    }
-  })
-
-  it('is keyed in the cache, so a band is never answered from a cached miss', () => {
-    // A reserve left out of the memo key returns a stale framing, and the
-    // symptom is a band that is simply ignored.
-    const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    const b = fitCamera({
-      width: 1100,
-      height: 700,
-      reserveRightPx: 0,
-      reserveTopPx: insetBandPx(1100, 700),
-      pose: 'closeup',
-    })
-    const again = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    expect(b.targetZ).not.toBeCloseTo(a.targetZ, 4)
-    expect(again.targetZ).toBeCloseTo(a.targetZ, 12)
   })
 })

@@ -188,7 +188,11 @@ Applies to: play, pause, next, previous, seek, volume.
 
 ## 9. The record model
 
-**One track = one record.** The center label is that track's album art. The arm sweep maps to that one track's duration.
+**One track = one record.** The arm sweep maps to that one track's duration.
+
+**The centre label is a printed record label, not the album art.** Title, artist, a hairline ring, a catalogue number and a punched spindle hole; it counter-rotates so the text stays upright while the disc turns.
+
+This replaces the original rule, which put the album art in the label. The art now lives on the **sleeve** in the flat-lay (§12), where it is large and legible. Duplicating it inside a 165px circle made the scene read as a media player rather than as two objects on a desk, and it meant the same image appeared twice in one frame. In the machine looks, which have no sleeve, the label keeps the art.
 
 Rejected alternatives: one album per record with A/B sides (too restrictive, most listening is playlists), one playlist as a side (arm becomes uselessly imprecise, no single correct label image).
 
@@ -215,6 +219,12 @@ armAngle = START + (progressMs / durationMs) × (END − START)
 - Floating timestamp readout beside the needle while dragging (`1:47`)
 - Hold `Shift` to slow the angle-to-time mapping for fine control
 - **Commit `seek` on drag release only.** Never fire continuously during the drag.
+
+**Rest position.** In the machine looks the arm rests in its cradle at `REST_ANGLE`. In the flat-lay it parks **vertically, straight down from the pivot and entirely clear of the disc**.
+
+The park is a *pose*, not a bearing on the groove band. The skin draws any `armAngle` at or below `START_ANGLE` as the park and eases between the two, which is what lets `REST_ANGLE` keep meaning "parked" in core without being re-tuned per skin.
+
+**The flat-lay's arm geometry is solved, not placed.** Given the stylus reach, the outer and inner groove radii and the 22° sweep, there is exactly one pivot distance that lands `armAngle` 0 on the outer groove and 22 on the inner; `solveArm` in `skins/flatlay/geometry.ts` bisects for it. It has to be solved because the obvious placement does not work: a pivot far enough out to look right leaves the stylus unable to reach the inner groove at all, and forcing it demands an arm half the width of the window. The solved pivot sits about 1.36× the disc radius from the spindle, which is close to a real 12" deck's 1.38.
 
 **Platter:** spins down with easing on pause, spins up on resume. Never an instant stop.
 
@@ -337,70 +347,60 @@ because skip has no gesture on a turntable. It reserves its width the same way t
 the camera frames the machine into what is left rather than behind it. Unlike the panel it does not
 fade with the click gesture: it is the content of that view, not chrome over it.
 
-**3 — Close-up.** A flat-lay, from almost directly overhead: the album cover and the record lying
-overlapped like two cards, the tonearm across the record, and **no turntable in the view at all**.
-The machine is drawn small at the top left, on the same dark field as everything else and with no
-frame of its own. It is a picture and nothing more: none of its controls work, and clicking it does not change view
-— that happens from the bar or with key 1. It still turns and sweeps with the music, because it is
-the same scene through a second camera.
+**3 — Close-up.** A flat-lay, from directly overhead: an album sleeve and a record lying on a sheet
+of warm paper, with a tonearm across the record, and **no turntable in the view at all** — not even
+a picture of one. The record is half pulled out of its jacket: 35% of the disc sits behind the
+sleeve, which is the signature of the layout and the one measurement everything else derives from.
 
-**The cover and the record sit side by side, clear of each other.** Neither ever hides any part of
-the other. They overlapped at first, which is what made front and back legible at a glance, and the
-cost was that whichever was behind lost a third of itself to the one in front; for the artwork that
-was the wrong trade. Separating them widened the arrangement, so the camera sits further back and
-the record draws about 1.38x the size it has in the main view rather than 1.6x.
+**It is a second skin, not a second camera.** `skins/flatlay/` draws it in DOM and SVG;
+`skins/3d/` keeps the other two looks. That is a reversal: it began as one scene rendered through
+two cameras into two scissored regions of a single canvas, with the machine surviving as a small
+inset at the top left.
 
-**Clicking the cover still sends it behind the record, or brings it back in front.** Neither one
-changes place; all that changes is which is on top — which, with nothing overlapping, you see in
-the slide rather than in the result. The move is the one you would make with a card: it
-slides clear of the stack, changes depth out there where nothing is in the way, and slides back —
-three ordered phases over about 600ms, in `core/cardSwap.ts` so its shape can be stepped in a test.
-It is always the *cover* that moves, which keeps the record under the arm so nothing has to be
-re-aimed. The gesture is purely visual: playback is untouched, and the record remains the
-play/pause target so the two never collide. The order is remembered for the session.
+What that cost is worth recording, because it is why the scene left the canvas. A part could not be
+hidden from one camera by unmounting it, so there were three layers and an `OnLayer` that traversed
+on every commit. The raycaster had to be pinned to the main camera's mask or the lid and the Open
+button became unpickable everywhere. The inset needed a reserved band along the top of the camera
+fit, because clearing its rectangle while the composition ran underneath cut a notch out of the
+artwork, while not clearing it let the machine paint over the artwork and the artwork slide about
+behind the machine — each shipped once. The band had to move the look-at along **z** rather than y,
+since at 86 degrees `cos` is 0.07 and making room upward sent the solver three quarters of a metre
+into the air. And handing any `useFrame` a priority stopped R3F rendering by itself, so the
+viewport module drew every frame in every look.
 
-One number sets the overlap and has to serve both orders — too deep and whichever is behind is
-barely there, too shallow and the two read as objects that happen to touch rather than as a stack.
+None of that exists now. The scene the spec describes is flat, lit and specified entirely in CSS
+values — px shadow offsets, 1px hairlines, a 2px groove period — so drawing it in DOM is both more
+faithful and very much smaller. Switching to it hides the canvas rather than unmounting it, so the
+generated environment map and the textures survive the round trip.
 
-Two consequences worth stating. The view is no longer a close-up in the sense of being nearer: a
-sleeve and a record side by side are wider than the machine, so the camera sits about where the main
-view puts it. What it gains is the angle — at 86 degrees the disc is a circle rather than the thin
-ellipse it is at 52, and it covers over half the frame's height against a third. And the elevation
-is 86 and not 90 because `lookAt` with the default up vector is degenerate looking straight down,
-and produces a NaN matrix rather than a flat-lay.
+**It is laid out in a fixed 1280×800 design box**, scaled to the window by one uniform transform.
+Nothing reflows and nothing is stretched, which is what lets every pixel value in the design hold
+exactly and keeps the record a circle at any window size.
 
-**How a part is hidden from one camera and not the other.** Not by unmounting it — the inset still
-needs the machine on the same frame the flat-lay refuses it. Three layers: the record and arm on
-one that every camera sees, the machine on one the flat-lay camera does not, the sleeve on one only
-it does. The raycaster follows the main camera's mask, which is both necessary (its layers default
-to layer 0 alone, which would make the lid and the Open button unpickable everywhere) and correct:
-what can be clicked is what can be seen.
+**The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
+soft vignette; the sleeve with its art bleeding to all four edges, a 2px corner radius, a
+directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
+disc in a dark warm grey, `#42413C`, never black, with low-contrast groove rings, a smooth lead-in
+at the rim and run-out by the label, and a static sheen that stays where the lamp is while the disc
+turns under it. Nothing in the scene is pure black.
 
-**How two framings share one canvas.** Not two `<Canvas>` elements, which would mean two WebGL
-contexts and two copies of every geometry and texture. One scene is rendered through two cameras
-into two scissored regions of the same canvas.
+**The arm.** Slim and machined rather than a bar: a hairline bearing circle, a white pivot housing,
+a counterweight behind it, a brushed aluminium tube with a gradient across its width, and a
+headshell angled 20° off the tube axis with the stylus at its tip. The bend is in the geometry as
+well as the drawing — a headshell rotated only for looks puts its tip 16px off the arm's axis,
+which at this scale is most of the run-out band.
 
-**The inset owns its corner outright.** `fitCamera` reserves a band along the top for it, the way
-it already reserves the right-hand side for the now-playing panel, so the cover and record are
-framed below it and nothing ever passes underneath. That is what lets the second pass clear and
-redraw its rectangle normally.
+**Clicking the cover does nothing now.** The card move that sent it behind the record and back
+belonged to the overlapping two-card arrangement and is gone with it; `core/cardSwap.ts` has been
+deleted. The record moves instead, and only on a track change (§13). The disc remains the
+play/pause target, and the cue control beside the bearing is wired to the same pair.
 
-Both halves of that are load-bearing, and each shipped on its own once. Clearing the rectangle
-while the composition ran under it cut a notch out of the album artwork. Not clearing it meant the
-machine painted over the artwork, and the artwork slid about behind the machine. Neither is fixable
-from inside the pass: only keeping the two apart settles it.
-
-The band slides the look-at along **z**, not y. At 86 degrees `cos` is 0.07, so the look-at's height
-barely moves anything up or down the screen — making room that way sent the solver three quarters
-of a metre into the air and shrank the composition to a third. From overhead it is depth that maps
-to screen-vertical. The price is that R3F stops rendering by itself the
-moment a `useFrame` takes a priority, so `scene/Viewports.tsx` draws *every* frame in *every* look,
-not only the close-up.
-
-**What the inset costs.** The raycaster knows only the main camera, so the inset is not pickable at
-all. A click on it reaches no object and is therefore treated as the empty field, which summons or
-dismisses the chrome. That is the right answer for a corner holding nothing clickable, and it is
-the one thing someone may try anyway, expecting it to take them back.
+**Its chrome is permanent.** A transport pill floats at the bottom centre — library, the current
+track, play/pause, queue — with a gear at the top right and a round button at the bottom right that
+carries the view switcher. The browser bar is not drawn in this look, so without that last one the
+only way out would be the number keys. The pill does not fade with the click gesture: it is the
+only transport in a scene with no machine to click, which is the same reason the lyrics column does
+not fade.
 
 **Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob
 and three transport buttons, disc and tonearm on the right. It becomes a fourth look rather than a
@@ -435,9 +435,19 @@ The trap: polling is 3–5 seconds behind, so by the time a poll reports a track
 1. On track start, call `GET /me/player/queue` and cache `nextAlbumArtUrl`.
 2. When the local clock reads `durationMs − progressMs ≈ 2000ms`, begin the arm lift.
 3. Play the swap across the actual boundary so the new label settles as the first bar hits.
-4. If the user skips manually in Spotify, the next poll surprises us — snap without animation and accept it.
+4. If the user skips manually in Spotify, the next poll surprises us. That is a *load*, not a boundary: the record simply slides out of the sleeve, with no retract and nothing to crossfade.
 
-**Budget: 2–3 seconds total.** Longer and skipping through tracks becomes painful.
+**The shape, as built** (`core/transition.ts`):
+
+| Phase | Duration | What moves |
+|---|---|---|
+| `retracting` | 700ms, ease-in-cubic | the disc slides back behind the sleeve |
+| `swapping` | 220ms | nothing: the disc is hidden, and the art and label change here |
+| `extending` | 900ms, ease-out-cubic | the new disc slides out |
+
+**Budget: 2–3 seconds total**, and the above is 1820ms. Longer and skipping through tracks becomes painful.
+
+**The swap must play once.** The anticipated swap runs about two seconds before Spotify agrees the track has changed, so the confirming poll arrives *after* it has finished and lands on an idle machine — which reads as a fresh load and animates the whole thing a second time. `Transition.expecting` is what absorbs it. This was observed in the running app before it was fixed: a second slide starting 1.3s after the first had settled.
 
 ---
 
@@ -537,7 +547,7 @@ What's actually needed — smaller than a design system:
 
 ## 19. Still open
 
-1. ~~Background treatment for the player~~ — **settled: dark field.** The unit floats on the app background; no desk surface, no ground plane, no contact shadow.
+1. ~~Background treatment for the player~~ — **settled, and it is two answers.** The machine looks (Main, Lyrics) keep the **dark field**: the unit floats on the app background, with no desk surface, no ground plane and no contact shadow. The flat-lay (§12) is lit instead, on a **warm paper field, `#EEEAE7`**, with a faint grain and a very soft vignette — it is a photograph of two objects lying on a desk, so it needs the surface the machine does not. Light mode only for now: a dark variant of that scene needs a different light model and different material values, and is not worth building twice. The tokens (`--paper`, `--ink`, `--disc`, `--metal`) exist so it can be.
 2. ~~The paused-position marker on the disc~~ — **dropped.** The cue-lever pause in §11 leaves the arm hovering at its angle and draggable, so there is nothing for a marker to solve.
 3. Auto-launching the Spotify client via the `spotify:` URI scheme when no device is found, as an M7 stretch goal. Needs a polling loop with a timeout and a graceful fall back to NO_DEVICE.
 4. ~~Whether the SETUP flow gets its own milestone~~ — **settled: folded into M0**, as built.

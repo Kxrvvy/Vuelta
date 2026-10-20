@@ -1,0 +1,472 @@
+/**
+ * The flat-lay skin: a sleeve and a record lying on a sheet of paper, seen
+ * from overhead, with a tonearm.
+ *
+ * A second skin rather than a second camera. The old close-up was drawn by a
+ * camera into a scissored region of the 3D canvas, which is what forced the
+ * layer system, the sealed inset pass and a reserved band in the camera fit.
+ * None of that exists here: the scene is flat, every value in the spec is a
+ * CSS value, and `core/armMath.ts` already owns the angle-to-time mapping that
+ * the drag needs.
+ *
+ * Layer rule, unchanged: this receives `RenderState` and `Actions` and nothing
+ * else. It has no idea Spotify exists. The chrome -- §8's transport pill --
+ * is not here either; it belongs to the view, beside the skin, exactly as the
+ * now-playing panel and the browser bar do for the machine.
+ *
+ * CLAUDE.md: "Never animate through React state." One rAF writes the disc's
+ * rotation, the label's counter-rotation, the record's slide and the arm's
+ * bearing straight to refs. React renders this tree once per track.
+ */
+
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { CSSProperties, RefObject } from 'react'
+
+import { ARM as CORE_ARM, PLATTER_RPM, type Actions, type RenderState } from '../../core/contract.js'
+import {
+  ARM,
+  ARM_LOCAL,
+  ARM_REACH,
+  armBearingDeg,
+  BOX,
+  CUE,
+  fitBox,
+  GROOVE,
+  PIVOT,
+  RECORD,
+  RECORD_CENTER_X,
+  RECORD_TRAVEL,
+  SLEEVE,
+  type BoxFit,
+} from './geometry.js'
+import { useArmDrag } from './useArmDrag.js'
+
+/**
+ * §2's paper grain, generated rather than fetched: the packaged app's
+ * Content-Security-Policy forbids loading an image, and this costs nothing.
+ */
+const GRAIN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")"
+
+/** Frame-rate independent exponential approach. */
+function damp(current: number, target: number, lambda: number, delta: number): number {
+  return current + (target - current) * (1 - Math.exp(-lambda * delta))
+}
+
+/**
+ * §5's catalogue number: texture, not information. Derived from the title so
+ * it is stable for a track and different between tracks, which is all a piece
+ * of texture has to be.
+ */
+function catalogueNumber(title: string | null): string {
+  let hash = 7
+  for (const character of title ?? 'untitled') {
+    hash = (hash * 31 + character.charCodeAt(0)) % 100000
+  }
+  return `VLT-${String(hash).padStart(5, '0')}`
+}
+
+export type FlatLayProps = {
+  /** Live state, mutated in place. Never a prop that changes per frame. */
+  state: RefObject<RenderState>
+  actions: Actions
+  /**
+   * The art to show, already resolved across a swap: during the hidden moment
+   * of a record change the app hands over the incoming track's, so the skin
+   * never has to know which side of the boundary it is on.
+   */
+  albumArtUrl: string | null
+  title: string | null
+  artist: string | null
+  onArmDragStart: () => void
+  onArmDragTo: (progressMs: number) => void
+  onArmDragEnd: () => void
+}
+
+export function FlatLay({
+  state,
+  actions,
+  albumArtUrl,
+  title,
+  artist,
+  onArmDragStart,
+  onArmDragTo,
+  onArmDragEnd,
+}: FlatLayProps) {
+  const host = useRef<HTMLDivElement | null>(null)
+  const record = useRef<HTMLDivElement | null>(null)
+  const spin = useRef<HTMLDivElement | null>(null)
+  const upright = useRef<HTMLDivElement | null>(null)
+  const armGroup = useRef<SVGGElement | null>(null)
+  const armLift = useRef<SVGGElement | null>(null)
+
+  const [fit, setFit] = useState<BoxFit>(() => fitBox(BOX.WIDTH, BOX.HEIGHT))
+  const fitRef = useRef<BoxFit>(fit)
+  fitRef.current = fit
+
+  // Scale the design box to the window. Not per-frame work: it changes when
+  // the window does, which is why it is allowed to be React state.
+  useLayoutEffect(() => {
+    const element = host.current
+    if (!element) return
+
+    const measure = () => {
+      const rect = element.getBoundingClientRect()
+      const next = fitBox(rect.width, rect.height)
+      setFit((previous) =>
+        previous.scale === next.scale && previous.x === next.x && previous.y === next.y
+          ? previous
+          : next,
+      )
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
+  const drag = useArmDrag({
+    stateRef: state,
+    hostRef: host,
+    fitRef,
+    onDragStart: onArmDragStart,
+    onDragTo: onArmDragTo,
+    onDragEnd: onArmDragEnd,
+  })
+
+  const toggle = useCallback(() => {
+    if (state.current?.isPlaying) actions.pause()
+    else actions.play()
+  }, [actions, state])
+
+  // ---- the frame loop ------------------------------------------------------
+  useEffect(() => {
+    let raf = 0
+    let last = performance.now()
+    /** Disc rotation in degrees, and the speed it is approaching. */
+    let angle = 0
+    let degPerSec = 0
+    let bearing = armBearingDeg(CORE_ARM.START_ANGLE)
+    let lifted: boolean | null = null
+
+    const frame = (now: number) => {
+      // Clamped: a backgrounded window hands back one enormous delta, and an
+      // unclamped one would spin the disc through several revolutions at once.
+      const delta = Math.min(0.05, Math.max(0, (now - last) / 1000))
+      last = now
+
+      const live = state.current
+      if (live) {
+        // Spin up and down with weight. Spec §10: "Never an instant stop."
+        const target = live.isPlaying ? (live.platterRpm || PLATTER_RPM) * 6 : 0
+        degPerSec = damp(degPerSec, target, live.isPlaying ? 1.8 : 1.1, delta)
+        if (degPerSec > 0.05) {
+          // Clockwise from above, which is what a positive CSS rotation is.
+          angle = (angle + degPerSec * delta) % 360
+          if (spin.current) spin.current.style.transform = `rotate(${angle}deg)`
+          // §5: the inverse, so the text stays upright. Written in the same
+          // pass as the rotation it undoes, so the two cannot disagree by a
+          // frame.
+          if (upright.current) upright.current.style.transform = `rotate(${-angle}deg)`
+        }
+
+        // §9's slide. `transitionOut` is 1 at rest and 0 fully behind the
+        // sleeve; the record is laid out at rest and moves left to hide.
+        if (record.current) {
+          const hidden = 1 - live.transitionOut
+          record.current.style.transform = `translateX(${-hidden * RECORD_TRAVEL}px)`
+        }
+
+        // The arm. Anything at or below START_ANGLE is parked, which is a
+        // *pose* and not a bearing on the groove band -- that is what lets
+        // core's REST_ANGLE keep meaning "parked" without being re-tuned for
+        // this scene's geometry.
+        const span = CORE_ARM.START_ANGLE - CORE_ARM.REST_ANGLE
+        const park =
+          live.armAngle >= CORE_ARM.START_ANGLE || span <= 0
+            ? 0
+            : Math.min(1, (CORE_ARM.START_ANGLE - live.armAngle) / span)
+        const onBand = armBearingDeg(
+          Math.max(CORE_ARM.START_ANGLE, Math.min(CORE_ARM.END_ANGLE, live.armAngle)),
+        )
+        const want = onBand + (ARM.PARK_BEARING_DEG - onBand) * park
+
+        // Damped rather than snapped: a poll correction should ease the arm
+        // across, never jump it. A drag is the user's hand, so it tracks hard.
+        bearing = damp(bearing, want, live.isDragging ? 26 : 6, delta)
+        armGroup.current?.setAttribute(
+          'transform',
+          `rotate(${bearing.toFixed(3)} ${PIVOT.x.toFixed(2)} ${PIVOT.y.toFixed(2)})`,
+        )
+
+        // §7: lifted while paused, while dragging, and for the whole of a
+        // record swap. An attribute rather than React state, so a pause does
+        // not re-render the scene.
+        const wantLifted = !live.isPlaying || live.isDragging || live.transitionPhase !== 'idle'
+        if (wantLifted !== lifted) {
+          lifted = wantLifted
+          if (armLift.current) armLift.current.dataset.lifted = String(wantLifted)
+        }
+      }
+
+      raf = requestAnimationFrame(frame)
+    }
+
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [state])
+
+  // ---- the sleeve's crossfade ---------------------------------------------
+  // §9 changes the art while the disc is hidden, but the *sleeve* is never
+  // hidden, so its art has to dissolve rather than cut. Two slots: the
+  // outgoing one underneath, the incoming one fading in over it.
+  const [slots, setSlots] = useState<{ front: string | null; back: string | null }>({
+    front: albumArtUrl,
+    back: null,
+  })
+
+  useEffect(() => {
+    setSlots((previous) =>
+      previous.front === albumArtUrl ? previous : { front: albumArtUrl, back: previous.front },
+    )
+  }, [albumArtUrl])
+
+  const recordLeft = RECORD_CENTER_X - RECORD.RADIUS
+  const recordTop = RECORD.CENTER_Y - RECORD.RADIUS
+  const labelInset = RECORD.RADIUS - RECORD.LABEL_RADIUS
+  const holeInset = RECORD.LABEL_RADIUS - RECORD.SPINDLE_RADIUS
+
+  return (
+    <div className="flatlay" ref={host}>
+      <div className="flatlay__grain" style={{ backgroundImage: GRAIN }} />
+      <div className="flatlay__vignette" />
+
+      <div
+        className="flatlay__box"
+        style={{ transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})` }}
+      >
+        {/* The record, below the sleeve in paint order: §2's signature is that
+            the sleeve occludes it, so the disc reads as half-pulled-out of the
+            jacket rather than as a separate object parked beside it. */}
+        <div
+          className="flatlay__record"
+          ref={record}
+          style={{
+            left: `${recordLeft}px`,
+            top: `${recordTop}px`,
+            width: `${RECORD.RADIUS * 2}px`,
+            height: `${RECORD.RADIUS * 2}px`,
+          }}
+        >
+          <div
+            className="flatlay__disc"
+            style={
+              {
+                '--inner': `${GROOVE.INNER}px`,
+                '--outer': `${GROOVE.OUTER}px`,
+              } as CSSProperties
+            }
+            onClick={toggle}
+            role="button"
+            tabIndex={-1}
+            aria-label="Play or pause"
+          />
+
+          <div className="flatlay__spin" ref={spin}>
+            <div
+              className="flatlay__label"
+              style={{
+                left: `${labelInset}px`,
+                top: `${labelInset}px`,
+                width: `${RECORD.LABEL_RADIUS * 2}px`,
+                height: `${RECORD.LABEL_RADIUS * 2}px`,
+              }}
+            >
+              {/* Rides the rotation, so it orbits -- which is what makes the
+                  spin visible at all once the title is held upright. */}
+              <span className="flatlay__label-cat">{catalogueNumber(title)}</span>
+
+              <div className="flatlay__label-upright" ref={upright}>
+                <span className="flatlay__label-title">{title ?? 'No record'}</span>
+                {artist ? <span className="flatlay__label-artist">{artist}</span> : null}
+              </div>
+
+              <div
+                className="flatlay__hole"
+                style={{
+                  left: `${holeInset}px`,
+                  top: `${holeInset}px`,
+                  width: `${RECORD.SPINDLE_RADIUS * 2}px`,
+                  height: `${RECORD.SPINDLE_RADIUS * 2}px`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flatlay__sheen" />
+        </div>
+
+        {/* The sleeve. Paints after the record, and therefore over it. */}
+        <div
+          className={`flatlay__sleeve${slots.front ? '' : ' flatlay__sleeve--empty'}`}
+          style={{
+            left: `${SLEEVE.LEFT}px`,
+            top: `${SLEEVE.TOP}px`,
+            width: `${SLEEVE.SIZE}px`,
+            height: `${SLEEVE.SIZE}px`,
+          }}
+        >
+          {slots.back ? (
+            <img className="flatlay__sleeve-art" src={slots.back} alt="" />
+          ) : null}
+          {slots.front ? (
+            <img
+              key={slots.front}
+              className="flatlay__sleeve-art flatlay__sleeve-art--in"
+              src={slots.front}
+              alt=""
+            />
+          ) : (
+            <span>No record</span>
+          )}
+        </div>
+
+        {/* The arm. Above both objects, because it rests on them. */}
+        <svg
+          className="flatlay__arm"
+          viewBox={`0 0 ${BOX.WIDTH} ${BOX.HEIGHT}`}
+          width={BOX.WIDTH}
+          height={BOX.HEIGHT}
+          aria-hidden
+        >
+          <defs>
+            {/* §6: a vertical gradient across the tube's width, to fake a
+                cylinder. Not flat grey, and not dark. */}
+            <linearGradient id="flatlay-tube" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="var(--metal)" />
+              <stop offset="0.5" stopColor="var(--metal-light)" />
+              <stop offset="1" stopColor="var(--metal-dark)" />
+            </linearGradient>
+          </defs>
+
+          {/* §6: the bearing base — a hairline circle, and the only visible
+              mechanism in the scene. It does not turn with the arm. */}
+          <circle
+            cx={PIVOT.x}
+            cy={PIVOT.y}
+            r={ARM.BEARING_DIAMETER / 2}
+            fill="none"
+            stroke="rgba(80,76,70,0.28)"
+            strokeWidth={1}
+          />
+
+          <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
+            <g
+              ref={armGroup}
+              transform={`rotate(${armBearingDeg(CORE_ARM.START_ANGLE)} ${PIVOT.x} ${PIVOT.y})`}
+            >
+              <g transform={`translate(${PIVOT.x} ${PIVOT.y})`}>
+                {/* The tube. */}
+                <rect
+                  x={0}
+                  y={-ARM.TUBE_WIDTH / 2}
+                  width={ARM.TUBE_LENGTH}
+                  height={ARM.TUBE_WIDTH}
+                  rx={ARM.TUBE_WIDTH / 2}
+                  fill="url(#flatlay-tube)"
+                />
+
+                {/* §6: the headshell, angled off the tube axis. The arm
+                    visibly bends here, and the bend is in the geometry too --
+                    its tip is exactly where the groove maths puts the stylus. */}
+                <g
+                  className="flatlay__arm-headshell"
+                  transform={`rotate(${ARM.HEADSHELL_OFFSET_DEG} ${ARM_LOCAL.bend.x} 0)`}
+                >
+                  <path
+                    d={[
+                      `M ${ARM_LOCAL.bend.x} ${-ARM.HEADSHELL_WIDTH / 2}`,
+                      `H ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 9}`,
+                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${-ARM.HEADSHELL_WIDTH / 2 + 9}`,
+                      `V ${ARM.HEADSHELL_WIDTH / 2}`,
+                      `H ${ARM_LOCAL.bend.x}`,
+                      'Z',
+                    ].join(' ')}
+                    fill="var(--housing)"
+                  />
+                  {/* §6: the stylus — the point that maps to `armAngle`. */}
+                  <circle
+                    cx={ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH}
+                    cy={0}
+                    r={ARM.STYLUS_SIZE / 2 + 0.5}
+                    fill="#2a2724"
+                  />
+                </g>
+
+                {/* §6: the pivot housing, boxy, with a small cylinder on top. */}
+                <rect
+                  x={-ARM.HOUSING_WIDTH / 2}
+                  y={-ARM.HOUSING_HEIGHT / 2}
+                  width={ARM.HOUSING_WIDTH}
+                  height={ARM.HOUSING_HEIGHT}
+                  rx={4}
+                  fill="var(--housing)"
+                />
+                <circle cx={0} cy={0} r={9} fill="#f8f6f2" stroke="rgba(80,76,70,0.18)" />
+
+                {/* §6: the counterweight, slightly proud of the housing and
+                    catching a touch more light. */}
+                <rect
+                  x={ARM_LOCAL.counterweightX - ARM.COUNTERWEIGHT / 2}
+                  y={-ARM.COUNTERWEIGHT / 2}
+                  width={ARM.COUNTERWEIGHT}
+                  height={ARM.COUNTERWEIGHT}
+                  rx={3}
+                  fill="#f7f5f1"
+                />
+
+                {/* The grab target. Invisible, and far fatter than the tube it
+                    wraps, because nine pixels is not a drag handle. */}
+                <line
+                  className="flatlay__arm-grab"
+                  x1={14}
+                  y1={0}
+                  x2={ARM_REACH}
+                  y2={0}
+                  stroke="rgba(0,0,0,0)"
+                  strokeWidth={38}
+                  strokeLinecap="round"
+                  {...drag}
+                />
+              </g>
+            </g>
+          </g>
+        </svg>
+
+        {/* §6: the cue control. Wired to play/pause — it is the cue lever. */}
+        <button
+          type="button"
+          className="flatlay__cue"
+          onClick={toggle}
+          title="Cue"
+          style={{
+            left: `${CUE.CENTER_X - CUE.SIZE / 2}px`,
+            top: `${CUE.CENTER_Y - CUE.SIZE / 2}px`,
+            width: `${CUE.SIZE}px`,
+            height: `${CUE.SIZE}px`,
+          }}
+        >
+          <span
+            className="flatlay__cue-ring"
+            style={{ width: `${CUE.RING_DIAMETER}px`, height: `${CUE.RING_DIAMETER}px` }}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}

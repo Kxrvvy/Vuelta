@@ -12,6 +12,7 @@
 // Type-only, and therefore erased: this file still carries no behaviour and
 // importing it still drags nothing across a boundary.
 import type { LyricLine } from './lyrics.js'
+import type { TransitionPhase } from './transition.js'
 
 // ---------------------------------------------------------------------------
 // Render contract — spec §6
@@ -40,7 +41,13 @@ export type RenderState = {
   lidOpen: boolean
   /** Drives spin-up / spin-down easing; never an instant stop (M2). */
   platterRpm: number
-  transitionPhase: 'idle' | 'lifting' | 'swapping' | 'dropping'
+  transitionPhase: TransitionPhase
+  /**
+   * How far the record is out of its sleeve: 0 completely hidden behind it,
+   * 1 fully out. Only the flat-lay draws it, but it belongs here rather than
+   * in that skin because `core/transition.ts` owns the shape of the move.
+   */
+  transitionOut: number
 }
 
 /**
@@ -122,6 +129,7 @@ export const INITIAL_RENDER_STATE: RenderState = {
   lidOpen: false,
   platterRpm: 0,
   transitionPhase: 'idle',
+  transitionOut: 1,
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +198,12 @@ export type PlaylistTrack = {
   /** Already joined for display; the renderer does no formatting. */
   artist: string
   durationMs: number
+  /**
+   * Cover art, which M6's record swap needs: the next record's sleeve has to
+   * be on screen before the boundary, and the queue is where the next record
+   * comes from.
+   */
+  albumArtUrl: string | null
 }
 
 export type QueueSnapshot = {

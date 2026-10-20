@@ -9,7 +9,8 @@
  *
  *   main     spec §12's View A, unchanged: the whole machine, centred.
  *   lyrics   the machine to the left, a column of synced lyrics beside it.
- *   closeup  the machine as an inset, the record and arm filling the centre.
+ *   closeup  a different skin entirely -- a sleeve and a record lying on
+ *            paper, drawn in DOM. The machine is not in it at all.
  *
  * It also owns the two numbers both halves need: how much of the right-hand
  * side the panel is using, and how much of the bottom the bar is. CSS sizes
@@ -20,6 +21,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
+import { TransportPill } from '../app/flatlay/TransportPill.js'
 import { LyricsColumn } from '../app/lyrics/LyricsColumn.js'
 import { useLyrics } from '../app/lyrics/useLyrics.js'
 import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
@@ -27,6 +29,7 @@ import type { Sync } from '../app/useSync.js'
 import { useLibrary } from '../app/useLibrary.js'
 import { toggleChrome } from '../core/chrome.js'
 import { VIEWS, type VueltaView } from '../core/contract.js'
+import { FlatLay } from '../skins/flatlay/FlatLay.js'
 import { Turntable } from '../skins/3d/Turntable.js'
 
 /** Gap between the machine and the chrome, matching the chrome's own inset. */
@@ -80,11 +83,14 @@ export function Stage({
   sync,
   scopesStale,
   onReconnect,
+  onSignOut,
 }: {
   sync: Sync
   /** The stored session was granted fewer scopes than Vuelta now asks for. */
   scopesStale: boolean
   onReconnect: () => void
+  /** For the flat-lay's gear, which is the only settings affordance in that look. */
+  onSignOut: () => void
 }) {
   // Both pieces of chrome are summoned by a click on the empty field around
   // the machine, and dismissed by another one. See core/chrome.ts for why that
@@ -111,6 +117,23 @@ export function Stage({
 
   const paneOpen = library.pane !== 'none'
   const closePane = library.close
+
+  // The flat-lay is a separate skin, and it has no machine in it -- so, like
+  // the close-up before it, it only means anything with the lid up. With the
+  // lid shut the front pose is what you get, in every look, which is what
+  // keeps "closing the lid is the stop gesture" true here too.
+  const flatlayShown = view === 'closeup' && sync.lidOpen
+
+  // The flat-lay draws no browser bar, so its pill sends you to the machine
+  // and opens the pane there, where the sheet already works.
+  const browse = useCallback(
+    (pane: 'playlists' | 'queue') => {
+      setView('main')
+      setChromeShown(true)
+      library.toggle(pane)
+    },
+    [library],
+  )
 
   // Only while the view is actually on: nothing about the track is sent
   // anywhere in the other two looks.
@@ -146,9 +169,9 @@ export function Stage({
   // fade with the pointer gesture. The closed-lid front view stays bare in
   // every look, which is why the lid gates this too.
   const lyricsShown = view === 'lyrics' && sync.lidOpen
-  const panelShown = chromeShown && sync.lidOpen && !lyricsShown
+  const panelShown = chromeShown && sync.lidOpen && !lyricsShown && !flatlayShown
   // The sheet holds the bar up on its own, so dismissing has to close it too.
-  const barShown = (chromeShown || paneOpen) && sync.lidOpen
+  const barShown = (chromeShown || paneOpen) && sync.lidOpen && !flatlayShown
 
   // One measurement for whichever column is mounted. The hook takes a
   // callback ref precisely so it can follow the swap.
@@ -156,34 +179,64 @@ export function Stage({
 
   // Held steady for the length of a drag. Re-framing mid-gesture would slide
   // the tonearm's hit geometry away from the pointer still holding it.
-  const live = lyricsShown || panelShown ? rightReserve : 0
+  const live = (lyricsShown && !flatlayShown) || panelShown ? rightReserve : 0
   const frozen = useRef(live)
   if (!sync.readout.isDragging) frozen.current = live
   const reserveRight = sync.readout.isDragging ? frozen.current : live
 
   return (
     <div className="stage">
-      <Turntable
-        state={sync.stateRef}
-        actions={sync.actions}
-        albumArtUrl={sync.track?.albumArtUrl ?? null}
-        volumePercent={sync.readout.volumePercent}
-        active={sync.active}
-        // Only reserve room while the panel is actually drawn, so the machine
-        // sits centred the moment it fades. The rect is still measured
-        // whatever the opacity; it is the gating that is conditional.
-        reserveRightPx={reserveRight}
-        lidOpen={sync.lidOpen}
-        onOpenLid={sync.openLid}
-        onCloseLid={sync.closeLid}
-        onArmDragStart={sync.beginArmDrag}
-        onArmDragTo={sync.dragToProgress}
-        onArmDragEnd={sync.endArmDrag}
-        onBackgroundClick={dismiss}
-        composition={view === 'closeup' ? 'closeup' : 'machine'}
-      />
+      {/* Hidden rather than unmounted while the flat-lay is up. Tearing the
+          Canvas down would throw away the generated environment map and every
+          texture, and rebuild both on the way back. */}
+      <div className="stage__machine" style={flatlayShown ? { display: 'none' } : undefined}>
+        <Turntable
+          state={sync.stateRef}
+          actions={sync.actions}
+          albumArtUrl={sync.track?.albumArtUrl ?? null}
+          volumePercent={sync.readout.volumePercent}
+          active={sync.active}
+          // Only reserve room while the panel is actually drawn, so the machine
+          // sits centred the moment it fades. The rect is still measured
+          // whatever the opacity; it is the gating that is conditional.
+          reserveRightPx={reserveRight}
+          lidOpen={sync.lidOpen}
+          onOpenLid={sync.openLid}
+          onCloseLid={sync.closeLid}
+          onArmDragStart={sync.beginArmDrag}
+          onArmDragTo={sync.dragToProgress}
+          onArmDragEnd={sync.endArmDrag}
+          onBackgroundClick={dismiss}
+        />
+      </div>
 
-      {lyricsShown ? (
+      {flatlayShown ? (
+        <>
+          <FlatLay
+            state={sync.stateRef}
+            actions={sync.actions}
+            albumArtUrl={sync.display.albumArtUrl}
+            title={sync.display.title}
+            artist={sync.display.artist}
+            onArmDragStart={sync.beginArmDrag}
+            onArmDragTo={sync.dragToProgress}
+            onArmDragEnd={sync.endArmDrag}
+          />
+          <TransportPill
+            title={sync.display.title}
+            artist={sync.display.artist}
+            albumArtUrl={sync.display.albumArtUrl}
+            isPlaying={sync.readout.isPlaying}
+            actions={sync.actions}
+            view={view}
+            onView={setView}
+            onBrowse={browse}
+            onSignOut={onSignOut}
+          />
+        </>
+      ) : null}
+
+      {lyricsShown && !flatlayShown ? (
         <LyricsColumn
           ref={rightRef}
           load={lyrics}
@@ -192,7 +245,7 @@ export function Stage({
           stateRef={sync.stateRef}
           actions={sync.actions}
         />
-      ) : (
+      ) : flatlayShown ? null : (
         <NowPlayingPanel
           ref={rightRef}
           track={sync.track}
@@ -208,7 +261,7 @@ export function Stage({
 
       {/* Lid shut is the front pose, which is bare by design — no chrome at
           all until the machine is open. */}
-      {sync.lidOpen ? (
+      {sync.lidOpen && !flatlayShown ? (
         <BrowserBar
           library={library}
           actions={sync.actions}

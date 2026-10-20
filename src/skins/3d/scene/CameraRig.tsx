@@ -29,7 +29,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import type { CameraPose } from '../geometry/dimensions.js'
-import { fitCamera, insetBandPx } from '../geometry/framing.js'
+import { fitCamera } from '../geometry/framing.js'
 import { DEG, damp } from '../useFrameState.js'
 
 /**
@@ -88,9 +88,6 @@ export function CameraRig({
       width: size.width,
       height: size.height,
       reserveRightPx,
-      // Only the flat-lay has an inset, and only it gives up the band. The
-      // other two looks must frame exactly as they always have.
-      reserveTopPx: pose === 'closeup' ? insetBandPx(size.width, size.height) : 0,
       pose,
     })
 

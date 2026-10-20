@@ -35,57 +35,6 @@ export const RECORD = {
   HOLE_RADIUS: 0.00362,
 } as const
 
-/**
- * The album sleeve, which exists only in the flat-lay look.
- *
- * A real 12" jacket is 315mm square -- a little larger than the 302mm record,
- * which is what lets the record live inside it. It lies in the record's own
- * plane and slightly *above* it, because a record slides out from inside its
- * sleeve and the front panel has to cover it.
- */
-export const SLEEVE = {
-  SIZE: 0.315,
-  THICKNESS: 0.0032,
-  /** Gap between sleeve and record once the record is out. */
-  GAP: 0.012,
-} as const
-
-/**
- * Where the sleeve lies, and it does not move.
- *
- * Beside the record and clear of it: its right edge stops a finger's width
- * short of the record's left rim, so neither one ever hides any part of the
- * other. They overlapped for a while, which is what made "in front" and
- * "behind" visible at a glance -- but it also meant that whichever was behind
- * had a bite taken out of it by the other, and the artwork losing a third of
- * itself was the wrong trade.
- *
- * The click still raises and lowers the cover, and still slides it out and
- * back. With nothing overlapping, the change of depth itself is almost
- * invisible; the slide is what you see.
- */
-export const SLEEVE_RIGHT_EDGE_X = -RECORD.RADIUS - SLEEVE.GAP
-export const SLEEVE_X = SLEEVE_RIGHT_EDGE_X - SLEEVE.SIZE / 2
-
-/** How much of the disc's diameter the cover lies over. Nothing, by design. */
-export function sleeveCoverage(centerX: number): number {
-  const right = centerX + SLEEVE.SIZE / 2
-  const covered = Math.min(right, RECORD.RADIUS) - -RECORD.RADIUS
-  return Math.max(0, Math.min(1, covered / (RECORD.RADIUS * 2)))
-}
-
-/**
- * How far left the cover slides during the move.
- *
- * A fixed travel rather than "however far it takes to clear the record",
- * which is what it used to be: the cover starts clear now, so the distance is
- * free. Kept inside the margin the frame already leaves beside the
- * arrangement, because the alternative is to widen the shot to hold the slide
- * -- and that empty strip is reserved at rest too, which pushed everything
- * off-centre for the sake of two thirds of a second.
- */
-export const SLEEVE_CLEAR_X = -0.06
-
 export const PLATTER = {
   RADIUS: 0.1495,
   HEIGHT: 0.014,
@@ -95,19 +44,6 @@ export const PLATTER = {
 
 /** Top face of the record, where the stylus rides. */
 export const RECORD_SURFACE_Y = PLATTER.HEIGHT + PLATTER.MAT_THICKNESS + RECORD.THICKNESS
-
-/**
- * The two heights the cover sits at: in front of the record, or behind it.
- *
- * Far enough either side of the record's own plane that nothing z-fights at a
- * glancing 86 degrees, and far enough below, at the back, to clear the
- * record's underside rather than its face.
- */
-export const STACK_FRONT_Y = RECORD_SURFACE_Y + 0.005
-export const STACK_BACK_Y = RECORD_SURFACE_Y - 0.008
-
-/** The higher of the two, which is what the camera has to frame. */
-export const SLEEVE_Y = STACK_FRONT_Y
 
 // ---------------------------------------------------------------------------
 // Tonearm
@@ -301,24 +237,13 @@ export const CAMERA = {
    */
   TOP_ELEVATION_DEG: 52,
   FRONT_ELEVATION_DEG: 10,
-  /**
-   * The flat-lay. Almost straight down, because that is how the reference is
-   * shot: a sleeve and a record laid on a surface and photographed from above.
-   *
-   * Not 90. CameraRig aims the camera with `lookAt` and the default up vector,
-   * and looking exactly along -y with up +y is the degenerate case that
-   * produces a NaN matrix. Four degrees off is flat to the eye and nowhere
-   * near it.
-   */
-  CLOSEUP_ELEVATION_DEG: 86,
   FOV: 32,
 } as const
 
-export type CameraPose = 'top' | 'front' | 'closeup'
+export type CameraPose = 'top' | 'front'
 
 export function elevationFor(pose: CameraPose): number {
   if (pose === 'front') return CAMERA.FRONT_ELEVATION_DEG
-  if (pose === 'closeup') return CAMERA.CLOSEUP_ELEVATION_DEG
   return CAMERA.TOP_ELEVATION_DEG
 }
 
@@ -348,24 +273,6 @@ export const FIT_BOX = {
  * Including it would cost the record a quarter of its size for a part of the
  * arm that does nothing.
  */
-// Framed where it rests, which is where it is for all but two thirds of a
-// second: the cover's own left edge, with no allowance for the slide. The
-// slide lives in the margin the fill already leaves beside the arrangement,
-// so the shot neither re-frames mid-move nor sits off-centre the rest of the
-// time waiting for one.
-const FLATLAY_LEFT = SLEEVE_X - SLEEVE.SIZE / 2
-const FLATLAY_RIGHT = 0.24
-
-export const CLOSEUP_BOX = {
-  WIDTH: FLATLAY_RIGHT - FLATLAY_LEFT,
-  CENTER_X: (FLATLAY_LEFT + FLATLAY_RIGHT) / 2,
-} as const
-
-/** What the camera fits against, per pose. */
-export function fitBoxFor(pose: CameraPose): { WIDTH: number; CENTER_X: number } {
-  return pose === 'closeup' ? CLOSEUP_BOX : FIT_BOX
-}
-
 /** Lowest point of the machine: the underside of the feet. */
 const BOTTOM_Y = -(PLINTH.HEIGHT + FOOT.HEIGHT)
 
@@ -412,18 +319,7 @@ export function profilePoints(pose: CameraPose): ProfilePoint[] {
   ]
 
   if (pose === 'front') return cabinet
-  if (pose === 'top') return [...cabinet, raisedLidTip()]
-
-  // The flat-lay sees none of the machine: a sleeve and a record lying flat,
-  // both of which are deeper than they are tall. The arm's bearing sits well
-  // inside this in depth and contributes almost nothing in height from an
-  // angle this close to vertical, so it does not drive the fit.
-  return [
-    { y: SLEEVE_Y, z: SLEEVE.SIZE / 2 },
-    { y: SLEEVE_Y, z: -SLEEVE.SIZE / 2 },
-    { y: RECORD_SURFACE_Y, z: RECORD.RADIUS },
-    { y: RECORD_SURFACE_Y, z: -RECORD.RADIUS },
-  ]
+  return [...cabinet, raisedLidTip()]
 }
 
 /**

@@ -10,13 +10,6 @@ import {
   PLATTER_DEG_PER_SEC,
   PLINTH,
   RECORD,
-  RECORD_SURFACE_Y,
-  SLEEVE,
-  SLEEVE_CLEAR_X,
-  SLEEVE_X,
-  sleeveCoverage,
-  STACK_BACK_Y,
-  STACK_FRONT_Y,
   TONEARM,
   TONEARM_PIVOT,
 } from '../dimensions.js'
@@ -122,44 +115,5 @@ describe('the deck counter fits where it is put', () => {
     // the frame and +x to the right.
     expect(DISPLAY.CENTER_X).toBeGreaterThan(0)
     expect(DISPLAY.CENTER_Z).toBeGreaterThan(0)
-  })
-})
-
-describe('the cover and the record, side by side', () => {
-  it('is a real jacket: square, and larger than the record it holds', () => {
-    expect(SLEEVE.SIZE).toBeGreaterThan(RECORD.RADIUS * 2)
-    // A 12 inch jacket is 315mm and a 12 inch record 302mm. Much more than
-    // that and it stops reading as a sleeve for this record.
-    expect(SLEEVE.SIZE - RECORD.RADIUS * 2).toBeLessThan(0.02)
-  })
-
-  it('never lies over the record at all', () => {
-    // They overlapped for a while, and that is what made front and back
-    // visible at a glance -- but it also meant whichever was behind had a bite
-    // taken out of it, and the artwork losing a third of itself was the wrong
-    // trade. Nothing hides anything now.
-    expect(sleeveCoverage(SLEEVE_X)).toBe(0)
-    expect(SLEEVE_X + SLEEVE.SIZE / 2).toBeLessThan(-RECORD.RADIUS)
-  })
-
-  it('leaves a visible gap rather than touching', () => {
-    const gap = -RECORD.RADIUS - (SLEEVE_X + SLEEVE.SIZE / 2)
-    expect(gap).toBeGreaterThan(0.005)
-    expect(gap).toBeLessThan(0.05)
-  })
-
-  it('sits either side of the record in depth, far enough not to z-fight', () => {
-    expect(STACK_FRONT_Y).toBeGreaterThan(RECORD_SURFACE_Y)
-    // Behind means behind the record's underside, not just its face.
-    expect(STACK_BACK_Y).toBeLessThan(RECORD_SURFACE_Y - RECORD.THICKNESS)
-    expect(STACK_FRONT_Y - STACK_BACK_Y).toBeGreaterThan(0.004)
-    // And still in the same plane to look at, not floating above the scene.
-    expect(STACK_FRONT_Y - RECORD_SURFACE_Y).toBeLessThan(0.02)
-  })
-
-  it('slides far enough to be wholly clear of the record', () => {
-    // The depth change happens out here, where the two cannot intersect.
-    expect(SLEEVE_CLEAR_X).toBeLessThan(0)
-    expect(sleeveCoverage(SLEEVE_X + SLEEVE_CLEAR_X)).toBe(0)
   })
 })

@@ -63,8 +63,10 @@ the read fail with a 403.
 
 ## Domain model
 
-- **One track = one record.** Center label is that track's album art.
+- **One track = one record.** In the machine looks the centre label is that track's album art. In the flat-lay it is a **printed record label** — title, artist, hairline ring, catalogue number, punched spindle hole — and it counter-rotates so the text stays upright. The album art is on the **sleeve** there, once, never twice in one frame.
 - Arm sweep: `REST_ANGLE` −12°, `START_ANGLE` 0°, `END_ANGLE` 22°.
+- **The park is a pose, not an angle.** The flat-lay parks the arm vertically, clear of the disc, by drawing any `armAngle` at or below `START_ANGLE` as that pose and easing between. `REST_ANGLE` keeps its meaning in core and is never re-tuned per skin.
+- **The flat-lay's arm geometry is solved** (`skins/flatlay/geometry.ts`), because placing it by eye does not close: a pivot far enough out to look right cannot reach the inner groove, and forcing it needs an arm half the width of the window. `solveArm` bisects for the one pivot distance that puts `armAngle` 0 on the outer groove and 22 on the inner.
 - **Disc click** = play/pause. **Arm** = drag only.
 - **Cue-lever pause.** Pause lifts the arm a few millimetres and it *hovers at its current angle*. It does not return to the cradle. The arm stays draggable while paused, and seek still commits on release. The platter still spins down.
 - **Opening the lid plays nothing.** It is mechanical: the lid rises and the machine waits. Playback starts when the **disc** is clicked, which issues the same bodiless `PUT /me/player/play` and resumes the last context.
@@ -82,62 +84,40 @@ the read fail with a 403.
 
 ## The three looks
 
-The machine wears one of three compositions, switched from the browser bar or with keys 1/2/3.
-Session-only; starts on **Main**.
+Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main**.
 
 | | |
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
 | **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
-| **Close-up** | A flat-lay: the album cover and the record overlapped like two cards, with the arm, seen from almost overhead and with **no machine at all**. The machine survives as a small, inert picture at the top left. |
+| **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm. **No machine at all** — not even a picture of one. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
   reserves the right edge so the camera frames the machine beside it.
-- The close-up draws **one scene through two cameras** into two scissored regions of one canvas.
-  Giving any `useFrame` a priority hands R3F's render loop to us, so `scene/Viewports.tsx` draws
-  every frame in every look. Do not add a second `<Canvas>`.
-- **The inset is a picture, not a control.** Nothing on it responds and clicking it does not change
-  view; you leave by the bar or key 1. It is not raycast, so a click there is treated as the empty
-  field and toggles the chrome. It still turns and sweeps with playback, because it is the same
-  scene seen through a second camera.
-- **The inset gets a band to itself, and is sealed.** `fitCamera` takes a `reserveTopPx` and the
-  close-up pose passes the inset's height, so the composition can never run under that corner. The
-  inset pass then clears and redraws its rectangle normally.
-  Both halves are load-bearing, and each shipped alone once: clearing while the composition ran
-  underneath cut a notch out of the artwork; *not* clearing meant the machine painted over the
-  artwork and the artwork slid about behind the machine. Only the band makes the question go away.
-- **The band moves the look-at along `z`, not `y`.** At 86 degrees `cos` is 0.07, so raising the
-  look-at barely moves anything up or down the screen: asking the solver to make room that way sent
-  it three quarters of a metre into the air and collapsed the composition to a third of its size.
-  Depth is the axis that maps to screen-vertical from overhead, which is what `Framing.targetZ` is.
-- **The cover and the record sit side by side and never overlap.** A click on the cover still
-  raises or lowers it and still slides it out and back; with nothing overlapping, the change of
-  depth is almost invisible and the slide is what you see. They did overlap, which made front and
-  back legible at a glance — and meant whichever was behind had a bite taken out of it. Losing a
-  third of the artwork was the wrong trade. The *cover* moves, never the record, so the arm goes on
-  tracking the groove it is playing. Purely visual: playback is untouched, and the disc stays the
-  play/pause target so the two gestures never collide.
-- The move is three ordered phases — out, across, back — in `core/cardSwap.ts`, because `damp`
-  eases toward a target and has no notion of "not yet". The hold in the middle is what guarantees
-  the card is clear of the record before it changes depth.
-
-## Layers
-
-`skins/3d/layers.ts` decides which camera sees what, because the close-up and its inset draw the
-same scene on the same frame and a part cannot be hidden by unmounting it.
-
-| Layer | What | Seen by |
-|---|---|---|
-| `COMMON` | record, tonearm | every camera |
-| `MACHINE` | cabinet, lid, counter, knob, Open button, **and the platter, slipmat and spindle** | main, lyrics, inset |
-| `FLATLAY` | the album sleeve | close-up only |
-
-- Apply one with `<OnLayer value={...}>`, which traverses on every commit — `Object3D.layers` is
-  not inherited, and meshes built after the first render would otherwise keep layer 0.
-- **`Viewports` keeps `raycaster.layers.mask` equal to the main camera's.** `Raycaster.layers`
-  defaults to layer 0 alone, so moving the cabinet off it would make the lid, the knob and the Open
-  button unpickable in every view at once. The rule it states is the right one anyway: what can be
-  clicked is what can be seen.
+- **The close-up is a different skin, not a second camera.** `skins/flatlay/` draws it in DOM and
+  SVG; `skins/3d/` draws the other two in one `<Canvas>` with one camera. The flat-lay scene is
+  flat and lit, every value in its spec is a CSS value, and nothing in it is a three.js object.
+  Keeping it in the canvas is what forced the layer system, a scissored second viewport and a
+  reserved band in the camera fit; all of that is deleted.
+- **Switching to it hides the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
+  away the generated environment map and every texture and rebuilds both on the way back, so
+  `Stage` sets `display: none` on `.stage__machine` instead.
+- **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
+  `transform`. That is what lets the spec's pixel values — shadow offsets, hairlines, a 2px groove
+  period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
+- **The sleeve overlaps the record and occludes it.** 35% of the disc is tucked behind the jacket
+  at rest, and `TUCK_FRACTION` is the one number the whole layout and §9's slide derive from. This
+  replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where
+  whichever card sat behind had a bite taken out of it by the other. In DOM, paint order settles it
+  and nothing is lost.
+- **The record moves, and only on a track change.** The cover no longer has a click gesture of its
+  own; `core/cardSwap.ts` is gone and `core/transition.ts` replaces it. The disc stays the
+  play/pause target.
+- **The chrome is permanent in this look.** The transport pill is the only transport in a scene
+  with no machine to click, so it does not fade with the click gesture — the lyrics column set that
+  precedent. It lives in `app/flatlay/`, not in the skin, because it reads `useLibrary`.
+- **The flat-lay still needs the lid open**, like the close-up before it. A closed lid is the front
+  pose in every look, which is what keeps "closing the lid is the stop gesture" true here too.
 
 ## Lyrics
 

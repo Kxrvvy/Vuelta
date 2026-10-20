@@ -27,7 +27,7 @@ import {
   CAMERA,
   type CameraPose,
   elevationFor,
-  fitBoxFor,
+  FIT_BOX,
   type ProfilePoint,
   profilePoints,
 } from './dimensions.js'
@@ -79,17 +79,8 @@ export const FILL_H = 0.95
 export const FILL_V_FRONT = 0.5675
 export const FILL_H_FRONT = 0.86
 
-/**
- * The close-up. Fuller than either, because it has to earn being a separate
- * look: the subject is a 302mm record rather than a 455mm machine, and
- * framing it as loosely as the cabinet would barely enlarge it.
- */
-export const FILL_V_CLOSEUP = 0.84
-export const FILL_H_CLOSEUP = 0.84
-
 function fillFor(pose: CameraPose): { v: number; h: number } {
   if (pose === 'front') return { v: FILL_V_FRONT, h: FILL_H_FRONT }
-  if (pose === 'closeup') return { v: FILL_V_CLOSEUP, h: FILL_H_CLOSEUP }
   return { v: FILL_V, h: FILL_H }
 }
 
@@ -102,17 +93,6 @@ export type Viewport = {
   height: number
   /** Width in CSS pixels that the overlay panel is taking on the right. */
   reserveRightPx: number
-  /**
-   * Height in CSS pixels kept clear along the top, for the close-up's inset.
-   *
-   * The inset is a second pass painted into a rectangle in that corner. If the
-   * composition runs underneath it there is no good answer: paint the
-   * rectangle and it cuts a notch out of the album artwork, leave it unpainted
-   * and the machine draws over the artwork while the artwork shows through
-   * behind the machine. Both of those shipped. Keeping the composition out of
-   * the corner is what makes the question go away.
-   */
-  reserveTopPx?: number
   /** Which way the machine is being looked at. Defaults to the overhead view. */
   pose?: CameraPose
 }
@@ -158,7 +138,7 @@ function clamp(value: number, low: number, high: number): number {
  * surface is the lid's tip, not anything on the cabinet.
  */
 export function profile(elevationDeg: number, pose: CameraPose) {
-  const box = fitBoxFor(pose)
+  const box = FIT_BOX
   const elevation = elevationDeg * DEG
   const cos = Math.cos(elevation)
   const sin = Math.sin(elevation)
@@ -319,22 +299,15 @@ export function fitCamera(viewport: Viewport): Framing {
     0,
     width * 0.6,
   )
-  // Same cap as the right-hand reserve, for the same reason: a band that
-  // claims the whole window leaves nothing to fit into.
-  const reservedTop = clamp(
-    Number.isFinite(viewport.reserveTopPx) ? (viewport.reserveTopPx ?? 0) : 0,
-    0,
-    height * 0.6,
-  )
 
   // Every argument that changes the answer has to be in the key. A reserve
   // left out of it returns a stale framing, and the symptom is a band that is
   // simply ignored -- which looks exactly like not having implemented it.
-  const key = pose + '|' + width + '|' + height + '|' + reserved + '|' + reservedTop
+  const key = pose + '|' + width + '|' + height + '|' + reserved
   const hit = cache.get(key)
   if (hit) return hit
 
-  const box = fitBoxFor(pose)
+  const box = FIT_BOX
   const elevationDeg = elevationFor(pose)
   const elevation = elevationDeg * DEG
   const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
@@ -343,14 +316,9 @@ export function fitCamera(viewport: Viewport): Framing {
   const aspect = width / height
 
   const freeFraction = (width - reserved) / width
-  const freeHeightFraction = (height - reservedTop) / height
   const fill = fillFor(pose)
 
-  // The outline has to fill its share of what is *left*, not of the whole
-  // frame, and it has to be centred on the free region rather than on the
-  // window. Both mirror what `freeFraction` and `targetX` already do for the
-  // panel down the right-hand side.
-  const fillV = fill.v * freeHeightFraction
+  const fillV = fill.v
 
   // Start from the old closed form, then correct it. It is a good opening
   // guess and a poor answer: it measures the outline orthographically and adds
@@ -406,16 +374,10 @@ export function fitCamera(viewport: Viewport): Framing {
   const visibleWidth = 2 * (distance - near) * halfFovTan * aspect
   const targetX = box.CENTER_X + (reserved / width) * (visibleWidth / 2)
 
-  // And slide it back along the deck by the band's share of the frame, which
-  // is the same move one axis over. Dividing by sin(elevation) converts a
-  // distance up the screen into a distance along z; it is why this belongs to
-  // the overhead pose and would be useless head-on, where sin is small and z
-  // hardly moves anything vertically at all.
-  const halfVisibleHeight = (distance - near) * halfFovTan
-  const targetZ =
-    reservedTop > 0
-      ? -((reservedTop / height) * halfVisibleHeight) / Math.max(Math.sin(elevation), 1e-3)
-      : 0
+  // Nothing is reserved along the top any more. The inset that needed a band
+  // of its own went with the 3D close-up, and the flat-lay that replaced it is
+  // a separate skin with no camera in it at all.
+  const targetZ = 0
 
   // Nothing is reserved along the bottom, on purpose. Exact centring leaves a
   // margin of (1 - FILL_V) / 2 beneath the machine, which at the smallest
@@ -450,59 +412,4 @@ export function fitCamera(viewport: Viewport): Framing {
   }
   cache.set(key, framing)
   return framing
-}
-
-/**
- * Where the inset sits in the close-up look, in CSS pixels from the top left.
- *
- * Shared on purpose: the scissored viewport that draws it and the DOM frame
- * drawn over it have to agree to the pixel, and they are computed in two
- * different files. A copy in either would drift the first time this changed.
- *
- * Proportional to the window with a floor, because a fixed size is a thumbnail
- * on a large display and half the screen on a small one.
- */
-export const INSET = {
-  MARGIN_PX: 18,
-  /**
-   * Small. It is a reference in the corner, not a second subject competing
-   * with the record, and it is not interactive either -- so the less of the
-   * frame it takes, the better it does its one job.
-   */
-  WIDTH_FRACTION: 0.1932,
-  MIN_WIDTH_PX: 166,
-  MAX_WIDTH_PX: 290,
-  /** Close to the machine's own proportions from overhead. */
-  ASPECT: 0.66,
-} as const
-
-/**
- * How much of the top the inset claims: its own height, the margin above it,
- * and the same margin again as a gutter below.
- *
- * Derived from `insetRect` rather than written down beside it, so the band and
- * the rectangle cannot drift apart -- which they would, silently, the first
- * time one of them changed.
- */
-export function insetBandPx(width: number, height: number): number {
-  const rect = insetRect(width, height)
-  return rect.y + rect.height + INSET.MARGIN_PX
-}
-
-export function insetRect(
-  width: number,
-  height: number,
-): { x: number; y: number; width: number; height: number } {
-  const w = clamp(width * INSET.WIDTH_FRACTION, INSET.MIN_WIDTH_PX, INSET.MAX_WIDTH_PX)
-  const h = w * INSET.ASPECT
-  // Never let the inset eat a small window: at the 640 x 520 floor it has to
-  // stay a corner of the screen rather than a second view competing with the
-  // record it is meant to be a reference for.
-  const scale = Math.min(1, (height * 0.42) / h, (width * 0.4) / w)
-  return {
-    x: INSET.MARGIN_PX,
-    y: INSET.MARGIN_PX,
-    width: w * scale,
-    height: h * scale,
-  }
 }
