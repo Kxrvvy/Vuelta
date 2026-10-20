@@ -14,7 +14,6 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import type { Group } from 'three'
 import { PLATTER, PLATTER_DEG_PER_SEC, RECORD, RECORD_SURFACE_Y } from '../geometry/dimensions.js'
-import { LAYER } from '../layers.js'
 import {
   chromeMaterial,
   feltMaterial,
@@ -25,7 +24,6 @@ import {
 import { fallbackLabelTexture } from '../materials/textures.js'
 import { useInteraction } from '../interaction/context.js'
 import { DEG, damp, setCursor, useRenderStateRef } from '../useFrameState.js'
-import { OnLayer } from './OnLayer.js'
 import { useAlbumArtTexture } from './useAlbumArt.js'
 
 export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
@@ -67,11 +65,8 @@ export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Platter and slipmat. Static — only the record above them turns.
-          Part of the machine rather than of the record, so the flat-lay, which
-          has no turntable in it at all, does not draw them. */}
-      <OnLayer value={LAYER.MACHINE}>
-        <mesh position={[0, PLATTER.HEIGHT / 2, 0]} castShadow receiveShadow>
+      {/* Platter and slipmat. Static — only the record above them turns. */}
+      <mesh position={[0, PLATTER.HEIGHT / 2, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[PLATTER.RADIUS, PLATTER.RADIUS * 0.96, PLATTER.HEIGHT, 96]} />
           <primitive object={chromeMaterial()} attach="material" />
         </mesh>
@@ -81,7 +76,6 @@ export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
           />
           <primitive object={feltMaterial()} attach="material" />
         </mesh>
-      </OnLayer>
 
       <group ref={spinner}>
         {/* Rim and underside: plain black, none of the expensive detail. */}
@@ -120,14 +114,11 @@ export function Record({ albumArtUrl }: { albumArtUrl: string | null }) {
         </mesh>
       </group>
 
-      {/* Spindle, which also plugs the label's centre hole. The machine's,
-          not the record's: a record off its deck has a hole, not a spindle. */}
-      <OnLayer value={LAYER.MACHINE}>
-        <mesh position={[0, RECORD_SURFACE_Y + 0.004, 0]} castShadow>
-          <cylinderGeometry args={[RECORD.HOLE_RADIUS, RECORD.HOLE_RADIUS, 0.012, 24]} />
-          <primitive object={chromeMaterial()} attach="material" />
-        </mesh>
-      </OnLayer>
+      {/* Spindle, which also plugs the label's centre hole. */}
+      <mesh position={[0, RECORD_SURFACE_Y + 0.004, 0]} castShadow>
+        <cylinderGeometry args={[RECORD.HOLE_RADIUS, RECORD.HOLE_RADIUS, 0.012, 24]} />
+        <primitive object={chromeMaterial()} attach="material" />
+      </mesh>
     </group>
   )
 }

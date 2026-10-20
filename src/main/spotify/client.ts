@@ -381,6 +381,7 @@ type SpotifyTrackItem = {
   name: string
   duration_ms: number | null
   artists: { name: string }[] | null
+  album: { images: SpotifyImage[] | null } | null
 }
 
 type SpotifyPlaylistTracksResponse = {
@@ -400,6 +401,7 @@ function toPlaylistTrack(item: SpotifyTrackItem): PlaylistTrack {
     // Episodes come back through these same endpoints and carry no artists.
     artist: (item.artists ?? []).map((a) => a.name).join(', '),
     durationMs: item.duration_ms ?? 0,
+    albumArtUrl: largestImage(item.album?.images ?? []),
   }
 }
 
@@ -449,7 +451,7 @@ export async function getPlaylistTracks(
 ): Promise<PlaylistTracksResult> {
   // `fields` is not an optimisation. Without it a 100-track page arrives with a
   // full album object per track, which is megabytes for a list of names.
-  const fields = 'items(track(uri,id,name,duration_ms,artists(name)))'
+  const fields = 'items(track(uri,id,name,duration_ms,artists(name),album(images)))'
   try {
     const data = await request<SpotifyPlaylistTracksResponse>(
       clientId,

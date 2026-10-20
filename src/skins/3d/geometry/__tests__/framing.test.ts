@@ -5,10 +5,6 @@ import {
   FIT_BOX,
   type ProfilePoint,
   profilePoints,
-  RECORD,
-  RECORD_SURFACE_Y,
-  SLEEVE,
-  SLEEVE_OUT_X,
 } from '../dimensions.js'
 import {
   FILL_H,
@@ -17,7 +13,6 @@ import {
   FILL_V_FRONT,
   type Framing,
   fitCamera,
-  insetRect,
   MAX_DISTANCE,
   MIN_DISTANCE,
   profile,
@@ -352,10 +347,13 @@ function screenY(framing: Framing, point: ProfilePoint): number {
   const cos = Math.cos(elevation)
   const sin = Math.sin(elevation)
 
-  // Height on the screen axis, relative to the point being looked at.
-  const up = point.y * cos - point.z * sin - framing.targetY * cos
+  // Height on the screen axis, relative to the point being looked at. The
+  // look-at slides along z as well as y once the flat-lay reserves its band.
+  const up = (point.y - framing.targetY) * cos - (point.z - framing.targetZ) * sin
   // Distance along the view direction.
-  const depth = framing.distance + framing.targetY * sin - (point.y * sin + point.z * cos)
+  const depth =
+    framing.distance -
+    ((point.y - framing.targetY) * sin + (point.z - framing.targetZ) * cos)
   return up / (depth * HALF_FOV_TAN)
 }
 
@@ -469,81 +467,20 @@ describe('room for the browser bar', () => {
   })
 })
 
-describe('the close-up pose', () => {
-  const close = (width: number, height: number, reserveRightPx = 0) =>
-    fitCamera({ width, height, reserveRightPx, pose: 'closeup' })
-
-  /** The record's top and bottom rims, as a fraction of the half-frame. */
-  const discHeight = (framing: Framing) =>
-    Math.abs(
-      screenY(framing, { y: RECORD_SURFACE_Y, z: -RECORD.RADIUS }) -
-        screenY(framing, { y: RECORD_SURFACE_Y, z: RECORD.RADIUS }),
-    )
-
-  it('shows the record far larger than the main view does', () => {
-    // Not by coming closer -- the flat-lay has to hold a sleeve as well as the
-    // record, so it sits about as far back as the main view. What it gains is
-    // the angle: from almost overhead the disc is a circle rather than the
-    // thin ellipse it is at 52 degrees, and that is the whole difference.
-    // Measured at 1.6x. Held at 1.5 so a tweak to either fill has room to
-    // move without a false failure, but a lost flat-lay cannot hide.
-    expect(discHeight(close(1100, 700))).toBeGreaterThan(discHeight(at(1100, 700)) * 1.5)
-  })
-
-  it('looks down far more steeply than the main view, and never straight down', () => {
-    expect(close(1100, 700).elevationDeg).toBeGreaterThan(at(1100, 700).elevationDeg)
-    // Exactly 90 is the degenerate case for lookAt with the default up vector,
-    // and it produces a NaN matrix rather than a flat-lay.
-    expect(close(1100, 700).elevationDeg).toBeLessThan(90)
-  })
-
-  it('fits the sleeve and the record inside the frame', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [1920, 1040],
-    ] as const) {
-      const framing = close(w, h)
-      for (const point of profilePoints('closeup')) {
-        expect(Math.abs(screenY(framing, point))).toBeLessThanOrEqual(1)
-      }
-    }
-  })
-
-  it('still slides out from under the panel', () => {
-    expect(close(1100, 700, 240).targetX).toBeGreaterThan(close(1100, 700, 0).targetX)
-  })
-
-  it('leaves room across the frame for the sleeve beside the record', () => {
-    // The vertical fit is the record and the sleeve lying flat; the horizontal
-    // one is what has to hold them side by side. Checked as a span in world
-    // units against the visible width at the sleeve's own depth.
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [1920, 1040],
-    ] as const) {
-      const framing = close(w, h)
-      const halfFov = Math.tan((CAMERA.FOV * DEG) / 2)
-      const visibleWidth = 2 * framing.distance * halfFov * (w / h)
-      const needed = RECORD.RADIUS - (SLEEVE_OUT_X - SLEEVE.SIZE / 2)
-      expect(visibleWidth).toBeGreaterThan(needed)
-    }
-  })
-})
-
 describe('the fit cache', () => {
   it('answers two alternating callers correctly', () => {
-    // The close-up view asks twice a frame, once for the record and once for
-    // the inset's whole machine. A single-slot cache would miss on every call
-    // -- which is only a waste -- but a slot that returned the *previous*
-    // answer would put one camera where the other belongs, and nothing else
-    // in these tests would catch it.
-    const a1 = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-    const b1 = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'top' })
+    // Written when the close-up asked twice a frame, once for the record and
+    // once for the inset's machine. That view is a separate skin now and the
+    // scene has one camera again, but the hazard the test covers is the cache
+    // itself: a single-slot cache would miss on every call -- only a waste --
+    // while a slot that returned the *previous* answer would frame one
+    // viewport as though it were the other, and nothing else here would catch
+    // it.
+    const a1 = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'top' })
+    const b1 = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'front' })
     for (let i = 0; i < 5; i++) {
-      const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'closeup' })
-      const b = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'top' })
+      const a = fitCamera({ width: 1100, height: 700, reserveRightPx: 0, pose: 'top' })
+      const b = fitCamera({ width: 260, height: 170, reserveRightPx: 0, pose: 'front' })
       expect(a.distance).toBeCloseTo(a1.distance, 12)
       expect(b.distance).toBeCloseTo(b1.distance, 12)
       expect(a.distance).not.toBeCloseTo(b.distance, 3)
@@ -558,37 +495,5 @@ describe('the fit cache', () => {
     const again = fitCamera({ width: 800, height: 700, reserveRightPx: 0 })
     expect(again.distance).toBeGreaterThan(MIN_DISTANCE)
     expect(again.distance).toBeLessThan(MAX_DISTANCE)
-  })
-})
-
-describe('the inset', () => {
-  it('sits inside the window at every size', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [2560, 1440],
-    ] as const) {
-      const rect = insetRect(w, h)
-      expect(rect.x).toBeGreaterThan(0)
-      expect(rect.x + rect.width).toBeLessThan(w)
-      expect(rect.y + rect.height).toBeLessThan(h)
-    }
-  })
-
-  it('never takes more than a corner', () => {
-    for (const [w, h] of [
-      [640, 520],
-      [1100, 700],
-      [2560, 1440],
-    ] as const) {
-      const rect = insetRect(w, h)
-      expect(rect.width / w).toBeLessThanOrEqual(0.4)
-      expect(rect.height / h).toBeLessThanOrEqual(0.42)
-    }
-  })
-
-  it('grows with the window, up to a limit', () => {
-    expect(insetRect(1920, 1040).width).toBeGreaterThan(insetRect(1100, 700).width)
-    expect(insetRect(5000, 3000).width).toBe(insetRect(4000, 3000).width)
   })
 })

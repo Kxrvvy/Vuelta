@@ -35,40 +35,6 @@ export const RECORD = {
   HOLE_RADIUS: 0.00362,
 } as const
 
-/**
- * The album sleeve, which exists only in the flat-lay look.
- *
- * A real 12" jacket is 315mm square -- a little larger than the 302mm record,
- * which is what lets the record live inside it. It lies in the record's own
- * plane and slightly *above* it, because a record slides out from inside its
- * sleeve and the front panel has to cover it.
- */
-export const SLEEVE = {
-  SIZE: 0.315,
-  THICKNESS: 0.0032,
-  /** Gap between sleeve and record once the record is out. */
-  GAP: 0.012,
-} as const
-
-/** Centre x of the sleeve with the record fully out of it. */
-export const SLEEVE_OUT_X = -(SLEEVE.SIZE / 2) - RECORD.RADIUS - SLEEVE.GAP
-
-/**
- * Centre x with the record tucked back in.
- *
- * Placed by where its right edge lands rather than by the centre: at x = +0.03
- * the sleeve covers the record from its left rim to just past the spindle,
- * which is about 60% of the disc and matches the reference photograph.
- */
-export const SLEEVE_IN_X = 0.03 - SLEEVE.SIZE / 2
-
-/** How much of the disc's diameter the sleeve covers when tucked in. */
-export function sleeveCoverage(centerX: number): number {
-  const right = centerX + SLEEVE.SIZE / 2
-  const covered = Math.min(right, RECORD.RADIUS) - -RECORD.RADIUS
-  return Math.max(0, Math.min(1, covered / (RECORD.RADIUS * 2)))
-}
-
 export const PLATTER = {
   RADIUS: 0.1495,
   HEIGHT: 0.014,
@@ -78,14 +44,6 @@ export const PLATTER = {
 
 /** Top face of the record, where the stylus rides. */
 export const RECORD_SURFACE_Y = PLATTER.HEIGHT + PLATTER.MAT_THICKNESS + RECORD.THICKNESS
-
-/**
- * Where the sleeve lies: the record's own plane, a whisker above it.
- *
- * Above and not below, because the record comes out from *inside* the sleeve,
- * so where the two overlap it is the sleeve's front panel you see.
- */
-export const SLEEVE_Y = RECORD_SURFACE_Y + 0.003
 
 // ---------------------------------------------------------------------------
 // Tonearm
@@ -279,24 +237,13 @@ export const CAMERA = {
    */
   TOP_ELEVATION_DEG: 52,
   FRONT_ELEVATION_DEG: 10,
-  /**
-   * The flat-lay. Almost straight down, because that is how the reference is
-   * shot: a sleeve and a record laid on a surface and photographed from above.
-   *
-   * Not 90. CameraRig aims the camera with `lookAt` and the default up vector,
-   * and looking exactly along -y with up +y is the degenerate case that
-   * produces a NaN matrix. Four degrees off is flat to the eye and nowhere
-   * near it.
-   */
-  CLOSEUP_ELEVATION_DEG: 86,
   FOV: 32,
 } as const
 
-export type CameraPose = 'top' | 'front' | 'closeup'
+export type CameraPose = 'top' | 'front'
 
 export function elevationFor(pose: CameraPose): number {
   if (pose === 'front') return CAMERA.FRONT_ELEVATION_DEG
-  if (pose === 'closeup') return CAMERA.CLOSEUP_ELEVATION_DEG
   return CAMERA.TOP_ELEVATION_DEG
 }
 
@@ -326,19 +273,6 @@ export const FIT_BOX = {
  * Including it would cost the record a quarter of its size for a part of the
  * arm that does nothing.
  */
-const FLATLAY_LEFT = SLEEVE_OUT_X - SLEEVE.SIZE / 2
-const FLATLAY_RIGHT = 0.24
-
-export const CLOSEUP_BOX = {
-  WIDTH: FLATLAY_RIGHT - FLATLAY_LEFT,
-  CENTER_X: (FLATLAY_LEFT + FLATLAY_RIGHT) / 2,
-} as const
-
-/** What the camera fits against, per pose. */
-export function fitBoxFor(pose: CameraPose): { WIDTH: number; CENTER_X: number } {
-  return pose === 'closeup' ? CLOSEUP_BOX : FIT_BOX
-}
-
 /** Lowest point of the machine: the underside of the feet. */
 const BOTTOM_Y = -(PLINTH.HEIGHT + FOOT.HEIGHT)
 
@@ -385,18 +319,7 @@ export function profilePoints(pose: CameraPose): ProfilePoint[] {
   ]
 
   if (pose === 'front') return cabinet
-  if (pose === 'top') return [...cabinet, raisedLidTip()]
-
-  // The flat-lay sees none of the machine: a sleeve and a record lying flat,
-  // both of which are deeper than they are tall. The arm's bearing sits well
-  // inside this in depth and contributes almost nothing in height from an
-  // angle this close to vertical, so it does not drive the fit.
-  return [
-    { y: SLEEVE_Y, z: SLEEVE.SIZE / 2 },
-    { y: SLEEVE_Y, z: -SLEEVE.SIZE / 2 },
-    { y: RECORD_SURFACE_Y, z: RECORD.RADIUS },
-    { y: RECORD_SURFACE_Y, z: -RECORD.RADIUS },
-  ]
+  return [...cabinet, raisedLidTip()]
 }
 
 /**

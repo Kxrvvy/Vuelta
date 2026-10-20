@@ -27,7 +27,7 @@ import {
   CAMERA,
   type CameraPose,
   elevationFor,
-  fitBoxFor,
+  FIT_BOX,
   type ProfilePoint,
   profilePoints,
 } from './dimensions.js'
@@ -79,17 +79,8 @@ export const FILL_H = 0.95
 export const FILL_V_FRONT = 0.5675
 export const FILL_H_FRONT = 0.86
 
-/**
- * The close-up. Fuller than either, because it has to earn being a separate
- * look: the subject is a 302mm record rather than a 455mm machine, and
- * framing it as loosely as the cabinet would barely enlarge it.
- */
-export const FILL_V_CLOSEUP = 0.84
-export const FILL_H_CLOSEUP = 0.84
-
 function fillFor(pose: CameraPose): { v: number; h: number } {
   if (pose === 'front') return { v: FILL_V_FRONT, h: FILL_H_FRONT }
-  if (pose === 'closeup') return { v: FILL_V_CLOSEUP, h: FILL_H_CLOSEUP }
   return { v: FILL_V, h: FILL_H }
 }
 
@@ -111,6 +102,17 @@ export type Framing = {
   targetX: number
   /** The look-at height that centres the machine vertically in the window. */
   targetY: number
+  /**
+   * How far the look-at slides along the deck to clear the inset's band.
+   *
+   * Zero everywhere but the flat-lay. It is `z` and not `y` because of the
+   * angle: at 86 degrees the look-at's *height* barely moves anything up or
+   * down the screen -- cos(86) is 0.07 -- so asking the solver to make room by
+   * raising it sent it three quarters of a metre into the air and collapsed
+   * the composition to a third of its size. Depth is the axis that maps to
+   * screen-vertical from overhead.
+   */
+  targetZ: number
   elevationDeg: number
   /** Camera position, derived from distance and elevation. */
   position: [number, number, number]
@@ -136,7 +138,7 @@ function clamp(value: number, low: number, high: number): number {
  * surface is the lid's tip, not anything on the cabinet.
  */
 export function profile(elevationDeg: number, pose: CameraPose) {
-  const box = fitBoxFor(pose)
+  const box = FIT_BOX
   const elevation = elevationDeg * DEG
   const cos = Math.cos(elevation)
   const sin = Math.sin(elevation)
@@ -297,11 +299,15 @@ export function fitCamera(viewport: Viewport): Framing {
     0,
     width * 0.6,
   )
+
+  // Every argument that changes the answer has to be in the key. A reserve
+  // left out of it returns a stale framing, and the symptom is a band that is
+  // simply ignored -- which looks exactly like not having implemented it.
   const key = pose + '|' + width + '|' + height + '|' + reserved
   const hit = cache.get(key)
   if (hit) return hit
 
-  const box = fitBoxFor(pose)
+  const box = FIT_BOX
   const elevationDeg = elevationFor(pose)
   const elevation = elevationDeg * DEG
   const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)
@@ -312,12 +318,14 @@ export function fitCamera(viewport: Viewport): Framing {
   const freeFraction = (width - reserved) / width
   const fill = fillFor(pose)
 
+  const fillV = fill.v
+
   // Start from the old closed form, then correct it. It is a good opening
   // guess and a poor answer: it measures the outline orthographically and adds
   // the near distance back, which undershoots the true projected size.
   const near = extent.near
   const reach = reachTowardLens(points, elevation)
-  let distance = extent.vertical / (2 * halfFovTan * fill.v) + near
+  let distance = extent.vertical / (2 * halfFovTan * fillV) + near
   let targetY = extent.targetY
 
   // Both constraints have to be solved together, not one after the other.
@@ -344,7 +352,7 @@ export function fitCamera(viewport: Viewport): Framing {
     // there converges much faster than scaling the whole distance.
     const byHeight =
       Number.isFinite(measured) && measured > 0
-        ? near + (distance - near) * (measured / fill.v)
+        ? near + (distance - near) * (measured / fillV)
         : distance
 
     // Width needs no iteration of its own: the machine is one constant width,
@@ -366,6 +374,11 @@ export function fitCamera(viewport: Viewport): Framing {
   const visibleWidth = 2 * (distance - near) * halfFovTan * aspect
   const targetX = box.CENTER_X + (reserved / width) * (visibleWidth / 2)
 
+  // Nothing is reserved along the top any more. The inset that needed a band
+  // of its own went with the 3D close-up, and the flat-lay that replaced it is
+  // a separate skin with no camera in it at all.
+  const targetZ = 0
+
   // Nothing is reserved along the bottom, on purpose. Exact centring leaves a
   // margin of (1 - FILL_V) / 2 beneath the machine, which at the smallest
   // window Vuelta opens is already taller than the browser bar - so the bar
@@ -381,11 +394,12 @@ export function fitCamera(viewport: Viewport): Framing {
     distance,
     targetX,
     targetY,
+    targetZ,
     elevationDeg,
     position: [
       targetX,
       targetY + distance * Math.sin(elevation),
-      distance * Math.cos(elevation),
+      targetZ + distance * Math.cos(elevation),
     ],
   }
 
@@ -398,41 +412,4 @@ export function fitCamera(viewport: Viewport): Framing {
   }
   cache.set(key, framing)
   return framing
-}
-
-/**
- * Where the inset sits in the close-up look, in CSS pixels from the top left.
- *
- * Shared on purpose: the scissored viewport that draws it and the DOM frame
- * drawn over it have to agree to the pixel, and they are computed in two
- * different files. A copy in either would drift the first time this changed.
- *
- * Proportional to the window with a floor, because a fixed size is a thumbnail
- * on a large display and half the screen on a small one.
- */
-export const INSET = {
-  MARGIN_PX: 18,
-  WIDTH_FRACTION: 0.22,
-  MIN_WIDTH_PX: 150,
-  MAX_WIDTH_PX: 320,
-  /** Close to the machine's own proportions from overhead. */
-  ASPECT: 0.66,
-} as const
-
-export function insetRect(
-  width: number,
-  height: number,
-): { x: number; y: number; width: number; height: number } {
-  const w = clamp(width * INSET.WIDTH_FRACTION, INSET.MIN_WIDTH_PX, INSET.MAX_WIDTH_PX)
-  const h = w * INSET.ASPECT
-  // Never let the inset eat a small window: at the 640 x 520 floor it has to
-  // stay a corner of the screen rather than a second view competing with the
-  // record it is meant to be a reference for.
-  const scale = Math.min(1, (height * 0.42) / h, (width * 0.4) / w)
-  return {
-    x: INSET.MARGIN_PX,
-    y: INSET.MARGIN_PX,
-    width: w * scale,
-    height: h * scale,
-  }
 }

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { armAngleFor } from '../core/armMath.js'
 import type {
   Actions,
+  PlaylistTrack,
   PlayerPoll,
   RenderState,
   TrackSummary,
@@ -27,6 +28,7 @@ import { createEngine } from '../core/engine.js'
 import type { PlaybackPort } from '../core/ports.js'
 import type { VueltaStore } from '../core/store.js'
 import { isPollFailure, nextPollDelay } from '../core/syncPolicy.js'
+import { IDLE_TRANSITION, stepTransition, type Transition } from '../core/transition.js'
 
 /** Panel text refresh. The scene reads the ref at 60fps; text needs 4Hz. */
 const READOUT_HZ = 4
@@ -60,12 +62,29 @@ export type Readout = {
   isDragging: boolean
 }
 
+/**
+ * The track the scene should be *drawing*, which is not always the track that
+ * is playing.
+ *
+ * For the hidden moment in the middle of a record swap it is the incoming one:
+ * the art and the label change while the disc is behind the sleeve, which is
+ * two seconds before Spotify agrees the track has changed. Resolving it here
+ * means the skin never has to know which side of the boundary it is on.
+ */
+export type Display = {
+  albumArtUrl: string | null
+  title: string | null
+  artist: string | null
+}
+
 export type Sync = {
   /** Live state for the skin. Mutated in place; never triggers a render. */
   stateRef: React.RefObject<RenderState>
   actions: Actions
   /** Structural — changes rarely, so it is real React state. */
   track: TrackSummary | null
+  /** What to draw, which leads `track` by the length of a swap. */
+  display: Display
   /** Slow text values for the panel. */
   readout: Readout
   /** True while anything is moving, so the scene can drop to on-demand. */
@@ -87,8 +106,20 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
   const stateRef = useRef<RenderState>({ ...INITIAL_RENDER_STATE })
   const lidOpenRef = useRef(false)
 
+  // M6. The transition is stepped every frame, so it lives in a ref; the
+  // pre-fetched next track does too, because the frame loop reads it and must
+  // not be re-created when it arrives.
+  const transitionRef = useRef<Transition>(IDLE_TRANSITION)
+  const nextTrackRef = useRef<PlaylistTrack | null>(null)
+
   const [lidOpen, setLidOpen] = useState(false)
   const [track, setTrack] = useState<TrackSummary | null>(null)
+  const [display, setDisplay] = useState<Display>({
+    albumArtUrl: null,
+    title: null,
+    artist: null,
+  })
+  const displayRef = useRef<Display>(display)
   const [active, setActive] = useState(false)
   const [readout, setReadout] = useState<Readout>({
     progressMs: 0,
@@ -107,6 +138,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     let lastReadout = 0
     let lastTrackId: string | null = null
     let lastPlaying: boolean | null = null
+    /** Per-frame, unlike `lastTrackId`, which only moves at READOUT_HZ. */
+    let lastSwapTrackId: string | null = null
 
     const frame = (now: number) => {
       const delta = now - last
@@ -129,6 +162,46 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       state.armAngle = lidOpenRef.current
         ? armAngleFor(value.progressMs, value.durationMs)
         : ARM.REST_ANGLE
+
+      // ---- the record swap, M6 ---------------------------------------------
+      // Anticipated: `stepTransition` arms on the *local clock* reading about
+      // two seconds left, not on a poll reporting a change that has already
+      // been heard. The queue pre-fetch is what makes that possible.
+      const swapTrackId = value.track?.trackId ?? null
+      const trackChanged = swapTrackId !== lastSwapTrackId
+      lastSwapTrackId = swapTrackId
+
+      const nextUp = nextTrackRef.current
+      transitionRef.current = stepTransition(transitionRef.current, {
+        deltaMs: delta,
+        remainingMs: value.durationMs - value.progressMs,
+        durationMs: value.durationMs,
+        trackChanged,
+        hasNext: nextUp !== null,
+        isPlaying: value.isPlaying,
+      })
+
+      const transition = transitionRef.current
+      state.transitionPhase = transition.phase
+      state.transitionOut = transition.out
+      state.nextAlbumArtUrl = nextUp?.albumArtUrl ?? null
+
+      // The one React write in this loop that is not throttled, because it
+      // happens once per swap rather than once per frame: which track the
+      // scene is drawing.
+      const shown = transition.showNext && nextUp ? nextUp : value.track
+      const shownArt = shown?.albumArtUrl ?? null
+      const shownTitle = shown?.title ?? null
+      const shownArtist = shown?.artist ?? null
+      const drawn = displayRef.current
+      if (
+        shownArt !== drawn.albumArtUrl ||
+        shownTitle !== drawn.title ||
+        shownArtist !== drawn.artist
+      ) {
+        displayRef.current = { albumArtUrl: shownArt, title: shownTitle, artist: shownArtist }
+        setDisplay(displayRef.current)
+      }
 
       if (now - lastReadout > 1000 / READOUT_HZ) {
         lastReadout = now
@@ -236,6 +309,39 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     }
   }, [enabled, engine, store])
 
+  // ---- the queue pre-fetch (M6) --------------------------------------------
+  // One read per track, so a swap can begin before the boundary rather than
+  // after a poll reports it. Deliberately not joined to the player poll: the
+  // next track changes once every few minutes, and spending a request on it
+  // every three seconds would burn a rate limit shared with everything else.
+  //
+  // `GET /me/player/queue` needs no scope beyond `user-read-playback-state`.
+  useEffect(() => {
+    const trackId = track?.trackId ?? null
+    if (!enabled || !trackId) {
+      nextTrackRef.current = null
+      return
+    }
+
+    let cancelled = false
+    void (async () => {
+      let result
+      try {
+        result = await window.vuelta.getQueue()
+      } catch {
+        // A failed pre-fetch is not an error worth showing: it only means the
+        // next boundary animates as a load rather than as a swap.
+        return
+      }
+      if (cancelled) return
+      nextTrackRef.current = result.ok ? (result.queue.items[0] ?? null) : null
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, track?.trackId])
+
   // ---- the lid -------------------------------------------------------------
   // Two one-way controls rather than a toggle. The Open button releases the
   // latch; clicking the acrylic shuts it. Each is a no-op in the state where
@@ -271,6 +377,7 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     stateRef,
     actions: engine.actions,
     track,
+    display,
     readout,
     active,
     lidOpen,

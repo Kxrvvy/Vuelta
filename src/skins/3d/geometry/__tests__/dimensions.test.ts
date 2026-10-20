@@ -10,12 +10,6 @@ import {
   PLATTER_DEG_PER_SEC,
   PLINTH,
   RECORD,
-  RECORD_SURFACE_Y,
-  SLEEVE,
-  SLEEVE_IN_X,
-  SLEEVE_OUT_X,
-  SLEEVE_Y,
-  sleeveCoverage,
   TONEARM,
   TONEARM_PIVOT,
 } from '../dimensions.js'
@@ -121,38 +115,5 @@ describe('the deck counter fits where it is put', () => {
     // the frame and +x to the right.
     expect(DISPLAY.CENTER_X).toBeGreaterThan(0)
     expect(DISPLAY.CENTER_Z).toBeGreaterThan(0)
-  })
-})
-
-describe('the sleeve, and the record sliding in and out of it', () => {
-  it('is a real jacket: square, and larger than the record it holds', () => {
-    expect(SLEEVE.SIZE).toBeGreaterThan(RECORD.RADIUS * 2)
-    // A 12 inch jacket is 315mm and a 12 inch record 302mm. Much more than
-    // that and it stops reading as a sleeve for this record.
-    expect(SLEEVE.SIZE - RECORD.RADIUS * 2).toBeLessThan(0.02)
-  })
-
-  it('clears the record completely when the record is out', () => {
-    // The resting state, and the whole point of it: the disc is whole and
-    // turning, with nothing lying across it.
-    expect(sleeveCoverage(SLEEVE_OUT_X)).toBe(0)
-    expect(SLEEVE_OUT_X + SLEEVE.SIZE / 2).toBeLessThan(-RECORD.RADIUS)
-  })
-
-  it('covers about three fifths of the disc when the record is tucked in', () => {
-    // This ratio is the look. It is also what a later change to SLEEVE.SIZE
-    // would move without anything else noticing.
-    expect(sleeveCoverage(SLEEVE_IN_X)).toBeCloseTo(0.6, 1)
-  })
-
-  it('slides right to tuck, so the record never leaves the arm', () => {
-    expect(SLEEVE_IN_X).toBeGreaterThan(SLEEVE_OUT_X)
-  })
-
-  it('lies in the record plane, just above it', () => {
-    // Above, because the record comes out from inside the sleeve: where they
-    // overlap it is the sleeve's front panel you see.
-    expect(SLEEVE_Y).toBeGreaterThan(RECORD_SURFACE_Y)
-    expect(SLEEVE_Y - RECORD_SURFACE_Y).toBeLessThan(0.01)
   })
 })

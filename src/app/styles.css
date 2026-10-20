@@ -277,6 +277,13 @@ input[type='text']:focus {
   overflow: hidden;
 }
 
+/* The 3D skin's host. Absolute so that hiding it for the flat-lay leaves the
+   stage's other children exactly where they were. */
+.stage__machine {
+  position: absolute;
+  inset: 0;
+}
+
 .panel {
   position: absolute;
   top: 50%;
@@ -924,4 +931,535 @@ input[type='text']:focus {
   border-color: transparent;
   background: var(--accent);
   color: #1b1509;
+}
+
+/* ===========================================================================
+   The flat-lay — spec §9's close-up, rebuilt as a light paper scene.
+
+   Two objects lying on a sheet of paper: a sleeve, a record, and a tonearm.
+   No cabinet, no platter, no device chrome, and no pure black anywhere.
+
+   Light mode only, for now: a dark variant needs a different light model and
+   different material values, so the tokens exist and the second theme does
+   not.
+   =========================================================================== */
+
+.flatlay,
+.flatlay-chrome {
+  --paper: #eeeae7;
+  --ink: #2a2724;
+  --ink-soft: #3d3936;
+  --ink-muted: #6b6762;
+  --disc: #42413c;
+  --disc-groove: #4a4944;
+  --metal: #c8c4c6;
+  --metal-light: #f0eeef;
+  --metal-dark: #9c989b;
+  --housing: #f2efea;
+  --label: #272320;
+  --label-text: #e8e4df;
+  --label-muted: #a8a39d;
+  /* One shadow hue for the whole scene, so everything is lit by one lamp. */
+  --cast: 40, 36, 32;
+}
+
+.flatlay {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+/* §2: a very subtle paper grain. Generated, not an image — the packaged app's
+   Content-Security-Policy forbids fetching one, and at 3% nobody could tell
+   the difference anyway. */
+.flatlay__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.028;
+  background-repeat: repeat;
+}
+
+/* §2: "an extremely soft vignette — barely perceptible, just enough that it
+   does not read as flat #FFF". */
+.flatlay__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 115% at 42% 38%,
+    rgba(var(--cast), 0) 52%,
+    rgba(var(--cast), 0.05) 100%
+  );
+}
+
+/* The 1280x800 design box the whole composition is specified in, scaled to the
+   window by one transform. Nothing reflows, so every px value in the spec —
+   shadow offsets, hairlines, ring periods — holds exactly. */
+.flatlay__box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 800px;
+  transform-origin: 0 0;
+}
+
+/* ---- the record ---------------------------------------------------------- */
+
+/* The sliding group. §9's swap moves this, and so does the card move.
+   The two offsets add; the frame loop writes one transform for both. */
+.flatlay__record {
+  position: absolute;
+  z-index: 1;
+  will-change: transform;
+}
+
+.flatlay__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: var(--disc);
+  /* §4, topmost layer first: a solid ring that leaves the grooves showing only
+     between the run-out and the lead-in, then the groove rings themselves. */
+  background-image:
+    radial-gradient(
+      circle at 50% 50%,
+      var(--disc) 0 var(--inner),
+      rgba(0, 0, 0, 0) var(--inner) var(--outer),
+      var(--disc) var(--outer) 100%
+    ),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      var(--disc) 0 1px,
+      var(--disc-groove) 1px 2px
+    );
+  /* §4: 1px rim highlight on the upper-left arc, 1px darker on the lower-right,
+     and a drop shadow on the same light as the sleeve but softer and wider. */
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.1),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.26),
+    8px 14px 40px rgba(var(--cast), 0.16);
+  cursor: pointer;
+}
+
+/* The rotating layer. Concentric grooves cannot show rotation, so this carries
+   what can: a faint uneven catch of light, and the label's catalogue line. */
+.flatlay__spin {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  will-change: transform;
+  /* The disc underneath is the play/pause target; nothing here is clickable. */
+  pointer-events: none;
+  background-image: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0) 28%,
+    rgba(0, 0, 0, 0.02) 55%,
+    rgba(255, 255, 255, 0) 78%,
+    rgba(255, 255, 255, 0.035)
+  );
+}
+
+/* §4: one soft band from the upper left. Static — a real record's sheen stays
+   where the lamp is while the disc turns under it. */
+.flatlay__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: linear-gradient(
+    132deg,
+    rgba(255, 255, 255, 0.085) 0%,
+    rgba(255, 255, 255, 0.03) 26%,
+    rgba(255, 255, 255, 0) 48%
+  );
+}
+
+/* ---- the centre label ---------------------------------------------------- */
+/* §5: a printed record label, not the album art. The art belongs on the
+   sleeve, where it is large and legible; duplicating it in a 165px circle made
+   the scene read as a media player rather than two objects on a desk. */
+
+.flatlay__label {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--label);
+  overflow: hidden;
+}
+
+/* §5: a hairline ring at ~0.88 of the label radius. */
+.flatlay__label::after {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 228, 223, 0.22);
+  pointer-events: none;
+}
+
+/* §5: catalogue-number text. Texture, not information — and because it rides
+   the rotating layer, it is also what makes the spin visible. */
+.flatlay__label-cat {
+  position: absolute;
+  bottom: 11%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 6px;
+  letter-spacing: 0.16em;
+  color: var(--label-text);
+  opacity: 0.35;
+}
+
+/* The counter-rotating group: the inverse of the disc's rotation, so the text
+   stays upright while the record turns. */
+.flatlay__label-upright {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 15%;
+  text-align: center;
+  will-change: transform;
+}
+
+.flatlay__label-title {
+  font-size: 11px;
+  line-height: 1.18;
+  font-stretch: condensed;
+  font-weight: 600;
+  color: var(--label-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.flatlay__label-artist {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--label-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* §5: the spindle hole punches through to the paper. */
+.flatlay__hole {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: inset 0 1px 1px rgba(var(--cast), 0.45);
+}
+
+/* ---- the sleeve ---------------------------------------------------------- */
+
+.flatlay__sleeve {
+  position: absolute;
+  /* Above the record by default: the cover starts in front. The frame loop
+     swaps these two during a card move, in the middle of its hold. */
+  z-index: 2;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #dcd6d0;
+  cursor: pointer;
+  will-change: transform;
+  /* §3: a soft directional shadow from the upper left, plus a tight contact
+     shadow along the bottom and right so it sits *on* the paper. And a 1px
+     inner highlight on the top and left edges, for a printed card edge
+     catching the light. */
+  box-shadow:
+    6px 10px 28px rgba(var(--cast), 0.18),
+    1px 2px 2px rgba(var(--cast), 0.3),
+    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.flatlay__sleeve-art {
+  position: absolute;
+  inset: 0;
+}
+
+/* §9: the art changes while the disc is hidden, but the sleeve never is --
+   so its art dissolves rather than cuts. */
+.flatlay__sleeve-art--in {
+  animation: flatlay-art-in 260ms ease-out both;
+}
+
+@keyframes flatlay-art-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.flatlay__sleeve img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.flatlay__sleeve--empty {
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: rgba(var(--cast), 0.45);
+  text-transform: uppercase;
+}
+
+/* ---- the tonearm -------------------------------------------------------- */
+
+.flatlay__arm {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  /* Above both cards, always. The arm rests *on* the record, and the card
+     move raises the record to z-index 2 — without this the record paints over
+     the arm for as long as the cover is behind it. */
+  z-index: 4;
+}
+
+/* §7: the lift. The whole group shifts up-left and its shadow grows; the
+   headshell lifts a little further than the pivot so the arm reads as tilted.
+   The lift transform lives here and the rotation lives on the group inside,
+   because the rotation is written every frame and must never be transitioned. */
+.flatlay__arm-lift {
+  transition:
+    transform 240ms ease-out,
+    filter 240ms ease-out;
+  transform: translate(0, 0);
+  filter: drop-shadow(1px 2px 3px rgba(var(--cast), 0.35));
+}
+
+.flatlay__arm-lift[data-lifted='true'] {
+  transform: translate(-3px, -3px);
+  filter: drop-shadow(2px 4px 12px rgba(var(--cast), 0.22));
+}
+
+.flatlay__arm-headshell {
+  transition: transform 240ms ease-out;
+}
+
+.flatlay__arm-lift[data-lifted='true'] .flatlay__arm-headshell {
+  transform: translate(-2px, -2px);
+}
+
+/* The grab target: far fatter than the tube, because the real arm is nine
+   pixels wide and that is not a handle. */
+.flatlay__arm-grab {
+  pointer-events: all;
+  cursor: grab;
+}
+
+.flatlay__arm-grab:active {
+  cursor: grabbing;
+}
+
+/* §6: the cue control. A real button, not decoration — it is the cue lever.
+   It belongs to the arm, so it travels with the record during a card move. */
+.flatlay__cue {
+  position: absolute;
+  z-index: 3;
+  border: 0;
+  padding: 0;
+  border-radius: 12px;
+  background: #8b8884;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 2px 4px 10px rgba(var(--cast), 0.2);
+  transition: background 140ms ease-out;
+}
+
+.flatlay__cue:hover {
+  background: #7d7a76;
+}
+
+.flatlay__cue-ring {
+  border-radius: 50%;
+  border: 7px solid #fff;
+}
+
+/* ---- the chrome: §8's transport pill, and its two outliers -------------- */
+
+.flatlay-chrome {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flatlay-chrome > * {
+  pointer-events: all;
+}
+
+.flatlay__pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: #fdfcfa;
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgba(var(--cast), 0.14);
+}
+
+.flatlay__pill-icon {
+  border: 0;
+  background: none;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 120ms ease-out;
+}
+
+.flatlay__pill-icon:hover {
+  background: rgba(120, 116, 110, 0.12);
+}
+
+.flatlay__pill-icon[data-on='true'] {
+  background: rgba(120, 116, 110, 0.18);
+}
+
+.flatlay__pill-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px 5px 5px;
+  border-radius: 999px;
+  background: rgba(120, 116, 110, 0.14);
+}
+
+/* The little record that stands in for §8's stylus glyph. */
+.flatlay__pill-glyph {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+  background:
+    radial-gradient(circle at 50% 50%, var(--paper) 0 2.5px, rgba(0, 0, 0, 0) 2.5px),
+    repeating-radial-gradient(circle at 50% 50%, var(--disc) 0 1px, var(--disc-groove) 1px 2px);
+  overflow: hidden;
+}
+
+.flatlay__pill-meta {
+  min-width: 0;
+  max-width: 230px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.flatlay__pill-title {
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flatlay__pill-artist {
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flatlay__pill-play {
+  border: 0;
+  background: none;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.flatlay__round {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fdfcfa;
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(var(--cast), 0.14);
+}
+
+.flatlay__gear {
+  position: absolute;
+  border: 0;
+  background: none;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  color: rgba(61, 57, 54, 0.55);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.flatlay__gear:hover {
+  color: rgba(61, 57, 54, 0.9);
+}
+
+/* The view switcher, hung off the round button at the bottom right. The
+   browser bar is not drawn in this look, so without this the only way out
+   would be the 1/2/3 keys. */
+.flatlay__menu {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: #fdfcfa;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(var(--cast), 0.18);
+}
+
+.flatlay__menu button {
+  border: 0;
+  background: none;
+  padding: 7px 18px 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.flatlay__menu button:hover {
+  background: rgba(120, 116, 110, 0.12);
+}
+
+.flatlay__menu button[data-on='true'] {
+  background: rgba(120, 116, 110, 0.2);
+  color: var(--ink);
+}
+
+.flatlay__menu-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 4px 12px 2px;
 }
