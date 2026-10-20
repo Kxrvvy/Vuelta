@@ -158,7 +158,7 @@ IDLE ──click lid──> CONNECTING ──ok──> NO_DEVICE ──device fo
 
 Playback starts when the **disc** is clicked, which issues `PUT /me/player/play` with no body and so resumes the user's last context. The point this section was originally making survives intact: playback still begins without Vuelta needing a library browser. It is simply the disc that does it, not the lid.
 
-Closing the lid remains the stop gesture (§11): it pauses, and it is the only thing that returns the arm to the cradle. The asymmetry is deliberate.
+Closing the lid remains the stop gesture (§11): it pauses, and pause returns the arm to the cradle. The asymmetry is deliberate.
 
 ---
 
@@ -245,11 +245,13 @@ The park is a *pose*, not a bearing on the groove band. The skin draws any `armA
 
 **The disc is the play/pause target, not the arm.** The arm is thin and moving, which makes it a poor click target.
 
-### Cue-lever pause
+### Pause parks the arm
 
-Pause does **not** return the arm to the cradle. It lifts the arm a few millimetres and leaves it **hovering at its current angle**, exactly as a real turntable's cue lever does. The platter still spins down with easing.
+Pause lifts the stylus a few millimetres **and returns the arm to its rest position** — the cradle in the machine looks, the vertical park in the flat-lay. The platter still spins down with easing, so the two read as one gesture: the arm lifts, and then it travels home while the disc winds down.
 
-This is how an actual record player behaves, and it dissolves a problem the earlier design created for itself. When pause parked the arm in the cradle there was no position indicator and nothing to drag, which forced a proposed faint marker on the disc to scrub against. That marker is no longer needed and has been dropped: while paused the arm stays exactly where it was and stays draggable, with `seek` committing on release just as when playing.
+This reverses the cue-lever rule that stood here before, which left the arm **hovering at its current angle** on the grounds that this is what a real turntable's cue lever does. It is, and it was still the wrong call. A paused turntable that has visibly *stopped* is legible at a glance; one frozen mid-sweep is not, because the arm's angle means position, not state, and nothing else in the frame distinguishes "paused here" from "playing here" except a shadow and three millimetres of lift. The rest position is the only part of the arm's travel that says *not playing* on its own.
+
+What the old rule was protecting is kept anyway: **the arm stays draggable while paused**, and `seek` still commits on release exactly as when playing. A drag outranks the park, so the arm follows your hand the moment you take hold of it, and returns to rest when you let go — because it is still paused. One function, `armAngleNow` in `core/armMath.ts`, holds that ordering for every look, and it is stepped in a test rather than inferred from the state layer.
 
 The lifted state has to be legible or pause looks like nothing happened. Three cues carry it: a slightly larger and softer drop shadow, a small vertical offset, and the needle visibly clear of the groove.
 
@@ -257,7 +259,7 @@ The lifted state has to be legible or pause looks like nothing happened. Three c
 
 **There is no stop button.** Spotify has no stop endpoint, and a stop control that also reset position would be a destructive button sitting next to play.
 
-Closing the lid is what stops playback. It pauses, and it is the only thing that returns the arm to `REST_ANGLE`.
+Closing the lid is what stops playback. It pauses — and pause is now what returns the arm to `REST_ANGLE`, so the lid no longer owns that on its own. What the lid still owns is the *session*: it is the gesture that says you are finished, and it is the only one that also shuts the machine.
 
 Opening is *not* the symmetric act. The lid rises and nothing plays (§7) — starting the record is the disc's job. A lid that started music the moment it opened would take the decision away from you; a lid shut over a spinning record plainly ends the session.
 
@@ -563,6 +565,6 @@ What's actually needed — smaller than a design system:
 ## 19. Still open
 
 1. ~~Background treatment for the player~~ — **settled, and it is two answers.** The machine looks (Main, Lyrics) keep the **dark field**: the unit floats on the app background, with no desk surface, no ground plane and no contact shadow. The flat-lay (§12) is lit instead, on a **warm paper field, `#EEEAE7`**, with a faint grain and a very soft vignette — it is a photograph of two objects lying on a desk, so it needs the surface the machine does not. Light mode only for now: a dark variant of that scene needs a different light model and different material values, and is not worth building twice. The tokens (`--paper`, `--ink`, `--disc`, `--metal`) exist so it can be.
-2. ~~The paused-position marker on the disc~~ — **dropped.** The cue-lever pause in §11 leaves the arm hovering at its angle and draggable, so there is nothing for a marker to solve.
+2. ~~The paused-position marker on the disc~~ — **dropped, and worth revisiting.** It was dropped because the cue-lever pause left the arm hovering at its angle, which was itself the position indicator. Pause now parks the arm (§11), so while paused nothing on the disc shows where playback stopped. Dragging still works and still commits on release, so nothing is broken — but the thing the marker was for has come back.
 3. Auto-launching the Spotify client via the `spotify:` URI scheme when no device is found, as an M7 stretch goal. Needs a polling loop with a timeout and a graceful fall back to NO_DEVICE.
 4. ~~Whether the SETUP flow gets its own milestone~~ — **settled: folded into M0**, as built.

@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { armAngleFor } from '../core/armMath.js'
+import { armAngleNow } from '../core/armMath.js'
 import type {
   Actions,
   PlaylistTrack,
@@ -22,7 +22,7 @@ import type {
   RenderState,
   TrackSummary,
 } from '../core/contract.js'
-import { ARM, INITIAL_RENDER_STATE, PLATTER_RPM } from '../core/contract.js'
+import { INITIAL_RENDER_STATE, PLATTER_RPM } from '../core/contract.js'
 import type { Engine } from '../core/engine.js'
 import { createEngine } from '../core/engine.js'
 import type { PlaybackPort } from '../core/ports.js'
@@ -157,11 +157,15 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       state.albumArtUrl = value.track?.albumArtUrl ?? null
       state.lidOpen = lidOpenRef.current
       state.platterRpm = value.isPlaying ? PLATTER_RPM : 0
-      // Cue-lever pause: the arm holds its angle when paused and returns to
-      // the cradle only when the lid closes. That is the stop gesture.
-      state.armAngle = lidOpenRef.current
-        ? armAngleFor(value.progressMs, value.durationMs)
-        : ARM.REST_ANGLE
+      // Every rule about where the arm rests lives in core/armMath.ts, so it
+      // can be stepped in a test rather than read out of this assembly.
+      state.armAngle = armAngleNow({
+        lidOpen: lidOpenRef.current,
+        isPlaying: value.isPlaying,
+        isDragging: value.isDragging,
+        progressMs: value.progressMs,
+        durationMs: value.durationMs,
+      })
 
       // ---- the record swap, M6 ---------------------------------------------
       // Anticipated: `stepTransition` arms on the *local clock* reading about
