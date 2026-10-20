@@ -39,7 +39,14 @@ const DEG = Math.PI / 180
 
 export const SLEEVE = {
   SIZE: 440,
-  LEFT: 70,
+  /**
+   * Solved, not placed — see `SLEEVE_LEFT` below, which centres the whole
+   * arrangement in the box. A getter because that solve needs the arm, and
+   * the arm needs these dimensions.
+   */
+  get LEFT() {
+    return SLEEVE_LEFT
+  },
   /** Vertically centred. */
   get TOP() {
     return (BOX.HEIGHT - this.SIZE) / 2
@@ -80,24 +87,6 @@ export const RECORD = {
   GROOVE_PERIOD: 2,
   CENTER_Y: BOX.HEIGHT / 2,
 } as const
-
-/**
- * Where the record sits at rest, derived so that exactly `TUCK_FRACTION` of it
- * is behind the sleeve.
- */
-export const RECORD_CENTER_X =
-  SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS
-
-/**
- * Where the record sits when it is completely hidden.
- *
- * The sleeve and the record are both 440px across, so "fully behind it" is
- * exactly concentric -- there is no fudge factor to tune.
- */
-export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
-
-/** §9's travel: 286px. */
-export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
 
 /** The playable band, as radii from the record's centre. */
 export const GROOVE = {
@@ -158,9 +147,13 @@ export const STYLUS_OFFSET_DEG = (Math.atan2(STYLUS_LOCAL.y, STYLUS_LOCAL.x) * 1
 /**
  * Direction from the record's centre to the pivot, as the spec draws it:
  * up and to the right. Only the *distance* is solved; this bearing is kept.
+ *
+ * A literal rather than `atan2` of the spec's own pivot against the record's
+ * centre, which is how it was first worked out: the centre is now solved from
+ * this bearing, so measuring the bearing from the centre would be circular.
+ * It is the angle from (576, 400) to the spec's (1105, 180).
  */
-export const PIVOT_BEARING_DEG =
-  (Math.atan2(180 - RECORD.CENTER_Y, 1105 - RECORD_CENTER_X) * 180) / Math.PI
+export const PIVOT_BEARING_DEG = -22.58
 
 /** Radius from the record's centre that a stylus at `alphaDeg` off the pivot line reaches. */
 function radiusAt(pivotDistance: number, reach: number, alphaDeg: number): number {
@@ -258,6 +251,55 @@ export const ARM_SOLUTION = solveArm({
   sweepDeg: 22,
 })
 
+/** How far right of the record's centre the pivot sits. */
+const PIVOT_DX = ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG)
+
+/**
+ * How wide the arrangement is, measured from the sleeve's left edge to the
+ * outside of the bearing circle — which is its rightmost point, further out
+ * than either the record's rim or the counterweight at any angle.
+ *
+ * Independent of where the arrangement is put, which is what lets the next
+ * constant solve for a position rather than be told one.
+ */
+const COMPOSITION_WIDTH =
+  SLEEVE.SIZE -
+  TUCK_FRACTION * RECORD.RADIUS * 2 +
+  RECORD.RADIUS +
+  PIVOT_DX +
+  ARM.BEARING_DIAMETER / 2
+
+/**
+ * Where the sleeve's left edge goes, so the whole arrangement sits centred.
+ *
+ * It used to be 70, which put the sleeve near the left edge and left a third
+ * of the frame empty on the right: the arm reaches a long way past the record,
+ * so the composition is much wider than the two cards suggest and eyeballing
+ * its left edge does not centre it. Solved here instead, and a test holds it.
+ */
+const SLEEVE_LEFT = (BOX.WIDTH - COMPOSITION_WIDTH) / 2
+
+/**
+ * Where the record sits at rest, derived so that exactly `TUCK_FRACTION` of it
+ * is behind the sleeve.
+ */
+export const RECORD_CENTER_X =
+  SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS
+
+/**
+ * Where the record sits when it is completely hidden.
+ *
+ * The sleeve and the record are both 440px across, so "fully behind it" is
+ * exactly concentric -- there is no fudge factor to tune.
+ */
+export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
+
+/** §9's travel: 286px. */
+export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
+
+/** The outside of the bearing circle: the arrangement's right-hand edge. */
+export const COMPOSITION_RIGHT_X = RECORD_CENTER_X + PIVOT_DX + ARM.BEARING_DIAMETER / 2
+
 export const PIVOT = {
   x: RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
   y: RECORD.CENTER_Y + ARM_SOLUTION.pivotDistance * Math.sin(PIVOT_BEARING_DEG * DEG),
@@ -322,12 +364,15 @@ export const ARM_LOCAL = {
  *
  * Both move, in opposite directions, and they have to clear each other -- the
  * stacking order flips while they are apart, so it is never seen as a pop
- * inside the overlap band. The cover alone cannot do it: 154px of it is behind
- * the record and there are only 70px of frame to its left.
+ * inside the overlap band.
  *
- * The record takes the larger share because it has the room, and **the arm
- * travels with it**. That keeps the stylus on the groove it is playing, which
- * was the whole reason the old rule said the record must never move.
+ * Splitting the travel was forced at first: the sleeve sat at x=70, with less
+ * frame to its left than the 154px overlap was wide, so it could not get clear
+ * on its own. Centring the arrangement has since given it that room, and the
+ * split is kept anyway — neither object has to travel the whole overlap, the
+ * move stays symmetrical, and **the arm travels with the record**, so the
+ * smaller the record's share the less the arm has to go with it. That is what
+ * keeps the stylus on the groove it is playing.
  */
 export const SWAP = {
   /** Left, as far as the frame allows. */

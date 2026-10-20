@@ -9,6 +9,7 @@ import {
   armAngleAtPoint,
   armBearingDeg,
   BOX,
+  COMPOSITION_RIGHT_X,
   fitBox,
   GROOVE,
   PIVOT,
@@ -50,10 +51,18 @@ describe('the flat-lay layout', () => {
     expect(covered / (RECORD.RADIUS * 2)).toBeCloseTo(TUCK_FRACTION, 10)
   })
 
-  it('puts the record centre where the derivation lands, not where the table says', () => {
-    // The spec's own table says 700, which would be a 7% overlap. See the
-    // header note in geometry.ts.
-    expect(RECORD_CENTER_X).toBeCloseTo(576, 6)
+  it('centres the whole arrangement in the design box', () => {
+    // Not the two cards: the arm reaches a long way past the record, so the
+    // arrangement is much wider than the sleeve and disc suggest. Centring by
+    // eye on the cards left a third of the frame empty on the right.
+    expect((SLEEVE.LEFT + COMPOSITION_RIGHT_X) / 2).toBeCloseTo(BOX.WIDTH / 2, 6)
+  })
+
+  it('has the bearing circle as its right-hand edge, not the record', () => {
+    // If this ever stopped being true the centring above would be measuring
+    // the wrong thing, and nothing else would notice.
+    expect(COMPOSITION_RIGHT_X).toBeGreaterThan(RECORD_CENTER_X + RECORD.RADIUS)
+    expect(COMPOSITION_RIGHT_X).toBeCloseTo(PIVOT.x + ARM.BEARING_DIAMETER / 2, 6)
   })
 
   it('hides the record completely when it is concentric with the sleeve', () => {
@@ -116,7 +125,11 @@ describe('the arm solve', () => {
   })
 
   it('is not the pivot the spec names, because that one cannot reach', () => {
-    const specDistance = Math.hypot(1105 - RECORD_CENTER_X, 180 - RECORD.CENTER_Y)
+    // The spec's own layout: pivot at (1105, 180), record centre at (576, 400)
+    // — written out, because the arrangement has since been moved to centre it
+    // and the absolute numbers no longer line up with anything here.
+    const specDistance = Math.hypot(1105 - 576, 180 - 400)
+    expect(specDistance).toBeCloseTo(573, 0)
     // The closest the stylus could come to the centre from there.
     expect(specDistance - ARM_REACH).toBeGreaterThan(RECORD.RADIUS)
   })
@@ -208,12 +221,17 @@ describe('the card move', () => {
     expect(recordLeft).toBeGreaterThan(coverRight)
   })
 
-  it('cannot be done by moving the cover alone', () => {
-    // 154px of the cover is behind the record and there are only 70px of frame
-    // to its left, which is why the record takes the larger share.
+  it('splits the travel between the two, rather than making one do it all', () => {
+    // Both move, so neither has to travel the whole overlap on its own and the
+    // move stays symmetrical about the arrangement. When the sleeve sat at
+    // x=70 this was forced — there was less frame to its left than the overlap
+    // was wide — and centring the arrangement has since given it the room.
+    // Splitting it is still the better move, and it is what keeps the arm's
+    // share small, since the arm travels with the record.
     const overlap = TUCK_FRACTION * RECORD.RADIUS * 2
-    expect(SLEEVE.LEFT).toBeLessThan(overlap)
-    expect(Math.abs(SWAP.COVER_SHIFT)).toBeLessThanOrEqual(SLEEVE.LEFT)
+    expect(Math.abs(SWAP.COVER_SHIFT)).toBeLessThan(overlap)
+    expect(SWAP.RECORD_SHIFT).toBeLessThan(overlap)
+    expect(Math.abs(SWAP.COVER_SHIFT) + SWAP.RECORD_SHIFT).toBeGreaterThan(overlap)
   })
 
   it('keeps everything inside the design box at full travel', () => {

@@ -379,6 +379,13 @@ generated environment map and the textures survive the round trip.
 Nothing reflows and nothing is stretched, which is what lets every pixel value in the design hold
 exactly and keeps the record a circle at any window size.
 
+**Centred by derivation.** The sleeve's left edge is solved for, not chosen: the arrangement's
+width is fixed by the tuck and the arm's reach, and the left edge is whatever puts that width in
+the middle of the box. It needs solving because the arm reaches a long way past the record — the
+outside of the bearing circle is the right-hand edge, not the record's rim — so an arrangement
+centred on the two cards by eye sits well to the left, with about a third of the frame empty
+beside it. That is exactly what it did at first.
+
 **The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
 soft vignette; the sleeve with its art bleeding to all four edges, a 2px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
@@ -414,10 +421,11 @@ is the one you would make with a card — the two slide apart, trade places in t
 nothing is overlapping, and slide home — three ordered phases over about 600ms, in
 `core/cardSwap.ts` so its shape can be stepped in a test.
 
-**Both of them move, and the arm goes with the record.** The cover cannot do it alone: 154px of it
-is behind the record and there are only 70px of frame to its left, so it can never get clear. The
-record takes the larger share because it has the room to its right, and the tonearm travels with
-it — which is what keeps the stylus on the groove it is playing, and was the
+**Both of them move, and the arm goes with the record.** Splitting the travel was forced at first:
+the sleeve sat at the left edge of the frame, with less room beside it than the 154px overlap was
+wide, so it could never get clear on its own. Centring the arrangement has since given it that
+room, and the split is kept regardless — neither object travels the whole overlap, the move stays
+symmetrical, and the arm's share stays small. The tonearm travels with the record — which is what keeps the stylus on the groove it is playing, and was the
 whole reason the earlier rule said the record must never move. They end up 16px clear of each
 other, which is what lets the stacking flip during the hold rather than as a pop inside the
 overlap.

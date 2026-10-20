@@ -115,10 +115,15 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   after; only which one is on top changes. The move is the three ordered phases of
   `core/cardSwap.ts` — apart, flip, home — and the flip happens during the hold, where the two are
   clear of each other, so it is never seen as a pop inside the overlap band.
-- **Both objects move, and the arm travels with the record.** The cover alone cannot do it: 154px
-  of it is behind the record and there are only 70px of frame to its left. The record takes the
-  larger share because it has the room, and the arm goes with it — which is what keeps the stylus
-  on the groove it is playing, the reason the old rule said the record must never move.
+- **Both objects move, and the arm travels with the record.** Splitting the travel was forced when
+  the sleeve sat at the left edge, with less frame beside it than the 154px overlap was wide; the
+  centred arrangement has since given it room to clear on its own, and the split is kept because
+  neither object then travels the whole overlap and the arm's share stays small. The arm goes with
+  the record, which keeps the stylus on the groove it is playing.
+- **The arrangement is centred by derivation, not by eye** — `SLEEVE_LEFT` solves for it from the
+  composition's width. The arm reaches well past the record, so the bearing circle is the
+  right-hand edge and the thing is much wider than the two cards suggest; centring on the cards
+  left a third of the frame empty.
 - **The cover lies askew when it is behind**, tilted four degrees anticlockwise so its upper right
   corner rides higher than its upper left. Only the back of the stack gets it; the front sits
   square. The tilt eases on with the depth rather than snapping once the move lands.
