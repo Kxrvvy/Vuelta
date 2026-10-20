@@ -154,7 +154,6 @@ export function App() {
             sync={sync}
             scopesStale={setup.scopesStale}
             onReconnect={() => void reconnect()}
-            onSignOut={() => void startOver()}
           />
         )
       case 'not-allowlisted':

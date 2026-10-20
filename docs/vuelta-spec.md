@@ -412,12 +412,20 @@ lower layer than that is painted over by it — the arm included, which is a thi
 The gesture is purely visual: playback is untouched, and the record remains the play/pause target
 so the two never collide. The order is remembered for the session.
 
-**Its chrome is permanent.** A transport pill floats at the bottom centre — library, the current
-track, play/pause, queue — with a gear at the top right and a round button at the bottom right that
-carries the view switcher. The browser bar is not drawn in this look, so without that last one the
-only way out would be the number keys. The pill does not fade with the click gesture: it is the
-only transport in a scene with no machine to click, which is the same reason the lyrics column does
-not fade.
+**Its chrome is the same bar as everywhere else.** The browser bar sits at the bottom centre in all
+three looks, with the same Playlists and Queue panes and the same view switcher, and it is summoned
+and dismissed by the same click on the empty field.
+
+It was not always. The flat-lay shipped first with a transport pill of its own — library, the
+current track with play/pause, queue — plus a gear at the top right and a round `···` button at the
+bottom right to carry the view switcher, since the bar was not drawn in this look. It read well and
+it was still wrong: two pieces of chrome doing one job means two places to change when the job
+changes, and the view switcher ended up somewhere it was not in either of the other looks. One bar.
+
+The one thing that had to come with it: **everything lying on the paper absorbs its own click**.
+The chrome gesture is a click that reaches the field, so the disc, the cover, the arm and the cue
+all stop propagation — otherwise play/pause would summon or dismiss the bar every time, and the
+cover could not be turned over without the chrome flickering.
 
 **Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob
 and three transport buttons, disc and tonearm on the right. It becomes a fourth look rather than a

@@ -83,6 +83,8 @@ export type FlatLayProps = {
   onArmDragStart: () => void
   onArmDragTo: (progressMs: number) => void
   onArmDragEnd: () => void
+  /** A click that landed on the paper, not on an object lying on it. */
+  onBackgroundClick: () => void
 }
 
 export function FlatLay({
@@ -94,6 +96,7 @@ export function FlatLay({
   onArmDragStart,
   onArmDragTo,
   onArmDragEnd,
+  onBackgroundClick,
 }: FlatLayProps) {
   const host = useRef<HTMLDivElement | null>(null)
   const record = useRef<HTMLDivElement | null>(null)
@@ -173,10 +176,17 @@ export function FlatLay({
     onDragEnd: onArmDragEnd,
   })
 
-  const toggle = useCallback(() => {
-    if (state.current?.isPlaying) actions.pause()
-    else actions.play()
-  }, [actions, state])
+  const toggle = useCallback(
+    (event: { stopPropagation(): void }) => {
+      // Everything lying on the paper absorbs its own click. Without that the
+      // click reaches the field underneath and toggles the chrome as well, so
+      // play/pause would summon or dismiss the bar every time.
+      event.stopPropagation()
+      if (state.current?.isPlaying) actions.pause()
+      else actions.play()
+    },
+    [actions, state],
+  )
 
   // ---- the frame loop ------------------------------------------------------
   useEffect(() => {
@@ -315,7 +325,7 @@ export function FlatLay({
   const holeInset = RECORD.LABEL_RADIUS - RECORD.SPINDLE_RADIUS
 
   return (
-    <div className="flatlay" ref={host}>
+    <div className="flatlay" ref={host} onClick={onBackgroundClick}>
       <div className="flatlay__grain" style={{ backgroundImage: GRAIN }} />
       <div className="flatlay__vignette" />
 
@@ -388,7 +398,10 @@ export function FlatLay({
         <div
           ref={sleeve}
           className={`flatlay__sleeve${slots.front ? '' : ' flatlay__sleeve--empty'}`}
-          onClick={() => setCoverInFront((was) => !was)}
+          onClick={(event) => {
+            event.stopPropagation()
+            setCoverInFront((was) => !was)
+          }}
           role="button"
           tabIndex={-1}
           aria-label="Send the cover behind the record, or bring it back in front"
@@ -514,6 +527,7 @@ export function FlatLay({
                     wraps, because nine pixels is not a drag handle. */}
                 <line
                   className="flatlay__arm-grab"
+                  onClick={(event) => event.stopPropagation()}
                   x1={14}
                   y1={0}
                   x2={ARM_REACH}
