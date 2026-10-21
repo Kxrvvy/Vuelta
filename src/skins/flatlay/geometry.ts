@@ -95,8 +95,24 @@ export const RECORD = {
   LEAD_IN: 14 * RECORD_SCALE,
   /** §4: smooth band just outside the label. */
   RUN_OUT: 10 * RECORD_SCALE,
-  /** §4: "ring period ~2px. The grooves should be felt, not counted." */
-  GROOVE_PERIOD: 2,
+  /**
+   * The spacing of the groove rings, in design pixels.
+   *
+   * The design asked for ~2px, "felt, not counted", and what shipped could
+   * not be seen at all. Measured rather than guessed, against the real
+   * stylesheet: the cause was mostly *contrast* — the rings were nine levels
+   * off the base, which at this size is a grey wash — and only partly the
+   * spacing.
+   *
+   * The spacing still matters. The box is scaled to the window, about 0.945
+   * at the reference size, so a 2px period lands two sub-pixel bands on the
+   * grid and they beat against it: rings resolve, but unevenly, in merged
+   * runs. At 4 each band clears a device pixel and the spacing stays regular.
+   *
+   * A real LP's grooves are far finer than either figure, and far finer than
+   * a screen can draw. Past a point, accuracy is just grey.
+   */
+  GROOVE_PERIOD: 4,
   CENTER_Y: BOX.HEIGHT / 2,
 } as const
 

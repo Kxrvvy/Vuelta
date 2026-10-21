@@ -952,11 +952,14 @@ input[type='text']:focus {
   /* Vinyl is far darker than a dark grey and never flat: almost all of what
      you see on a record is reflection, not colour. Still not black — nothing
      in this scene is. */
-  --disc: #2b2a2e;
-  --disc-groove: #343338;
+  --disc: #26252b;
+  /* Far enough off the base to be seen as lines rather than as a texture.
+     They were nine levels apart, which at this size was a grey wash. */
+  --disc-groove: #3c3b43;
   /* The smooth lands — the lead-in at the rim and the run-out by the label.
-     No grooves to scatter the light, so they come back glossier. */
-  --disc-land: #323137;
+     No grooves to scatter the light, so they come back glossier, and with the
+     rings now legible the difference between ringed and smooth reads too. */
+  --disc-land: #343339;
   --metal: #c8c4c6;
   --metal-light: #f0eeef;
   --metal-dark: #9c989b;
@@ -1048,8 +1051,8 @@ input[type='text']:focus {
     ),
     repeating-radial-gradient(
       circle at 50% 50%,
-      var(--disc) 0 1px,
-      var(--disc-groove) 1px 2px
+      var(--disc) 0 calc(var(--groove) * 0.62),
+      var(--disc-groove) calc(var(--groove) * 0.62) var(--groove)
     );
   /* §4: 1px rim highlight on the upper-left arc, 1px darker on the lower-right,
      and a drop shadow on the same light as the sleeve but softer and wider. */

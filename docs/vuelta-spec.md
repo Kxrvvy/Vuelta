@@ -371,7 +371,7 @@ into the air. And handing any `useFrame` a priority stopped R3F rendering by its
 viewport module drew every frame in every look.
 
 None of that exists now. The scene the spec describes is flat, lit and specified entirely in CSS
-values — px shadow offsets, 1px hairlines, a 2px groove period — so drawing it in DOM is both more
+values — px shadow offsets, 1px hairlines, a groove period — so drawing it in DOM is both more
 faithful and very much smaller. Switching to it hides the canvas rather than unmounting it, so the
 generated environment map and the textures survive the round trip.
 
@@ -400,7 +400,14 @@ survive.
 **The vinyl.** `#42413C` was the colour the design called for and it read as dark plastic, because
 almost everything you see on a record is reflection rather than colour. What it takes:
 
-- A much darker base, `#2b2a2e`, with the groove rings only a shade off it. Still not black.
+- A much darker base, `#26252b`. Still not black.
+- **Groove rings you can actually see.** The design asked for a ~2px period at very low contrast —
+  "felt, not counted" — and what that produced could not be made out at all. Measured against the
+  real stylesheet, the cause was mostly contrast: nine levels off the base is a grey wash at this
+  size. Spacing mattered too, but differently than it looked: at 2px, with the box scaled to the
+  window, the bands land sub-pixel and beat against the grid, so the rings resolve in uneven
+  merged runs. A wider period keeps them regular. A real LP's grooves are finer than either
+  figure and finer than a screen can draw — past a point, accuracy is just grey.
 - **Two specular arcs, and not pointed at the lamp.** Grooves are a circular diffraction grating,
   so the highlight does not sit where the light comes from — it forms two arcs about 90° either
   side of it. With the lamp at the upper left the arcs fall upper-right and lower-left. Aiming one

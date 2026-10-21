@@ -356,6 +356,7 @@ export function FlatLay({
               // itself against the same two radii.
               '--inner': `${GROOVE.INNER}px`,
               '--outer': `${GROOVE.OUTER}px`,
+              '--groove': `${RECORD.GROOVE_PERIOD}px`,
             } as CSSProperties
           }
         >
