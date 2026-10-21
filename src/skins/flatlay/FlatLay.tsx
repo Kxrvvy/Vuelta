@@ -111,6 +111,7 @@ export function FlatLay({
   const sleeve = useRef<HTMLDivElement | null>(null)
   /** The arm assembly, which travels with the record when it adjusts. */
   const armShift = useRef<SVGGElement | null>(null)
+  const board = useRef<HTMLDivElement | null>(null)
   /** The record's current shift, shared with the drag. */
   const shiftRef = useRef(0)
 
@@ -270,6 +271,7 @@ export function FlatLay({
             `translateX(${(recordShift - hidden * RECORD_TRAVEL).toFixed(2)}px)`
         }
         armShift.current?.setAttribute('transform', `translate(${recordShift.toFixed(2)} 0)`)
+        if (board.current) board.current.style.transform = `translateX(${recordShift.toFixed(2)}px)`
         // The stacking flips in the middle of the hold, where nothing
         // overlaps, so the change is never seen as a pop. Decided before the
         // record reads it, because the record's adjustment hangs off it.
@@ -378,6 +380,24 @@ export function FlatLay({
         className="flatlay__box"
         style={{ transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})` }}
       >
+        {/* §6: the armboard, the plate the pivot is mounted on.
+            First in the box and carrying no z-index, so it paints under both
+            cards — the record sits *on* the deck, and the board is part of the
+            deck. Drawn over the disc it was a translucent plate lying across
+            the rim, which is the wrong way round and the thing you notice.
+            It still travels with the arm. */}
+        <div
+          className="flatlay__board"
+          ref={board}
+          style={{
+            left: `${PIVOT.x + BOARD_OFFSET.x - ARM.BOARD_WIDTH / 2}px`,
+            top: `${PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2}px`,
+            width: `${ARM.BOARD_WIDTH}px`,
+            height: `${ARM.BOARD_HEIGHT}px`,
+            borderRadius: `${ARM.BOARD_WIDTH * 0.4}px`,
+          }}
+        />
+
         {/* The record, below the sleeve in paint order: §2's signature is that
             the sleeve occludes it, so the disc reads as half-pulled-out of the
             jacket rather than as a separate object parked beside it. */}
@@ -519,18 +539,6 @@ export function FlatLay({
 
           {/* Everything below travels with the record when it adjusts. */}
           <g ref={armShift}>
-            {/* §6: the bearing base — a hairline circle, and the only visible
-                mechanism in the scene. It does not turn with the arm. */}
-            <rect
-              x={PIVOT.x + BOARD_OFFSET.x - ARM.BOARD_WIDTH / 2}
-              y={PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2}
-              width={ARM.BOARD_WIDTH}
-              height={ARM.BOARD_HEIGHT}
-              rx={ARM.BOARD_WIDTH * 0.4}
-              fill="rgba(255,255,255,0.20)"
-              stroke="rgba(80,76,70,0.08)"
-              strokeWidth={1}
-            />
 
             <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
             <g

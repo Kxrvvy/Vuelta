@@ -1125,6 +1125,16 @@ input[type='text']:focus {
 
 /* ---- the record ---------------------------------------------------------- */
 
+/* §6: the armboard. No z-index at all, which is the point — the record and
+   the cover both carry one, so this paints beneath them whichever of the two
+   is on top. */
+.flatlay__board {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(80, 76, 70, 0.08);
+  will-change: transform;
+}
+
 /* The sliding group. §9's swap moves this, and so does the card move.
    The two offsets add; the frame loop writes one transform for both. */
 .flatlay__record {
