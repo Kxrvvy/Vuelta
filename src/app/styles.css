@@ -1081,6 +1081,56 @@ input[type='text']:focus {
   opacity: max(0.1, calc(0.34 - var(--d) * 0.07));
 }
 
+/* Nothing to follow, so the sentence goes in the middle of the column. The
+   air above and below exists to let the first and last lyric reach the centre
+   while scrolling; with a single line there is nothing to scroll, and that
+   padding would just hang it near the top where the first lyric would be. The
+   mask goes too -- there is nothing running past the ends to dissolve. */
+.lyrics__body[data-mode='note'] {
+  padding: 0;
+  mask-image: none;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.lyrics__body[data-mode='note'] .lyrics__note {
+  margin: 0 0 1.1rem;
+}
+
+/* Skip, under the message. Only drawn on the empty state, so it never sits
+   over the words. */
+.lyrics__skip {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.lyrics__skip button {
+  width: 2.1rem;
+  height: 2.1rem;
+  /* The global button rule sets 0.5rem 1.1rem, which with border-box is wider
+     than this button: the content box collapses, the grid track is laid out
+     after the left padding, and the icon lands half its own width right of
+     centre and low. Any button given an explicit size has to clear it. */
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.lyrics__skip button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .lyrics__note {
   margin: 0 0 0.6rem;
   font-size: 0.82rem;

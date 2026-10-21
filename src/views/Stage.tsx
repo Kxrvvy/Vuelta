@@ -236,7 +236,12 @@ export function Stage({
       ) : null}
 
       {lyricsShown && !flatlayShown ? (
-        <LyricsColumn ref={rightRef} load={lyrics} stateRef={sync.stateRef} />
+        <LyricsColumn
+          ref={rightRef}
+          load={lyrics}
+          stateRef={sync.stateRef}
+          actions={sync.actions}
+        />
       ) : flatlayShown ? null : (
         <NowPlayingPanel
           ref={rightRef}

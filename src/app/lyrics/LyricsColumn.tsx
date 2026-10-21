@@ -19,20 +19,24 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { RenderState } from '../../core/contract.js'
+import type { Actions, RenderState } from '../../core/contract.js'
 import { activeLyricIndex, type LyricLine } from '../../core/lyrics.js'
 import type { LyricsLoad } from './useLyrics.js'
+import { Next, Previous } from '../transport/icons.js'
 
 export function LyricsColumn({
   ref,
   load,
   stateRef,
+  actions,
 }: {
   /** Measured by the stage so the camera can frame beside it. */
   ref?: React.Ref<HTMLElement>
   load: LyricsLoad
   /** Live progress, read per frame. Never a prop that changes per frame. */
   stateRef: React.RefObject<RenderState>
+  /** Only skip, and only on the empty state -- see the note below the body. */
+  actions: Actions
 }) {
   const lines = load.status === 'ready' ? (load.value?.lines ?? []) : []
   const [index, setIndex] = useState(-1)
@@ -92,13 +96,50 @@ export function LyricsColumn({
     })
   }, [index])
 
+  const mode = bodyMode(load, lines)
+
   return (
     <aside className="lyrics" ref={ref}>
-      <div className="lyrics__body" ref={scroller}>
+      <div className="lyrics__body" data-mode={mode} ref={scroller}>
         <Body load={load} index={index} activeRef={active} lines={lines} />
+
+        {/* Skip, under the message and only there.
+            Stripping the column of its transport cost this view its only
+            previous and next -- play and pause survived it, because the
+            machine is beside this column and the disc is the control, but
+            skip had nowhere else to go. The empty state is exactly where it
+            is wanted and exactly where there is room: a column with no words
+            in it is a column you want to move on from. With lyrics up, the
+            words have the space and nothing is drawn over them. */}
+        {mode === 'note' ? (
+          <div className="lyrics__skip">
+            <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
+              <Previous />
+            </button>
+            <button type="button" aria-label="Next track" onClick={() => actions.next()}>
+              <Next />
+            </button>
+          </div>
+        ) : null}
       </div>
     </aside>
   )
+}
+
+/**
+ * What the body is showing, which is what decides how it is laid out.
+ *
+ * `lines` and `plain` both scroll and both want the half-column of air that
+ * lets the first and last lines reach the middle. A note is one sentence with
+ * nothing to follow, so it is centred instead -- left where the first lyric
+ * would have gone, it reads as a column that failed to load rather than as an
+ * answer.
+ */
+function bodyMode(load: LyricsLoad, lines: LyricLine[]): 'lines' | 'plain' | 'note' {
+  if (load.status !== 'ready') return 'note'
+  if (!load.value || load.value.instrumental) return 'note'
+  if (lines.length > 0) return 'lines'
+  return load.value.plain ? 'plain' : 'note'
 }
 
 function Body({

@@ -264,9 +264,15 @@ service that is not part of the API and must not be called. Lyrics come from **L
 - **The column is the words and nothing else.** No card, no background, no border, no shadow — the
   lyrics stand on the field with no edge around them. It had a title and artist above and a
   transport below, each in its own grid track, and for a short while a blurred sleeve behind as a
-  ground; all of it is gone. **Play and pause still have a home in this view** — the machine is
-  right there and the disc is the control — but **skip does not**, which is the price of the bare
-  column and the one thing it costs.
+  ground; all of it is gone. Play and pause still have a home in this view — the machine is right
+  there and the disc is the control.
+- **When there are no lyrics, the message goes in the middle, with skip under it.** The air above
+  and below the body exists so the first and last lyric can reach the centre while scrolling; with
+  one sentence there is nothing to scroll, and that padding would hang it near the top where the
+  first lyric would have been. `bodyMode` picks the layout — `lines` and `plain` scroll, `note`
+  centres. Skip is drawn **only** on that state: stripping the column of its transport left
+  previous and next with nowhere to go, and the empty state is both where they are wanted and
+  where there is room. With lyrics up, the words keep the space to themselves.
 - **There is no word-by-word fill**, which the reference has. LRCLIB gives **line** timings only,
   so a per-word highlight would have to be invented from the line's duration and would drift off
   the actual words. The line-level lead in `core/lyrics.ts` is the honest version of the same idea.
