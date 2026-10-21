@@ -383,6 +383,57 @@ input[type='text']:focus {
   inset: 0;
 }
 
+/* The machine, shrunk into the corner of the flat-lay: the same canvas and
+   camera, given a small box to frame themselves in.
+
+   It is a preview and nothing else. Its contents take no clicks, so the lid,
+   the disc and the arm inside it cannot be worked and the one deck you can
+   operate is still the one lying on the paper. The box itself still takes
+   them, though, and swallows them: it lies on the paper like the disc and the
+   cover do, and everything lying on the paper absorbs its own click. Letting
+   them through instead means clicking the thumbnail dismisses the browser
+   bar, because the field underneath reads it as a click on empty paper.
+
+   Above the flat-lay, which has no z-index of its own, and below the browser
+   bar and the settings corner.
+
+   The dark scene inside reads as a photograph lying on the paper, so it is
+   given a print's corners and a contact shadow rather than a window's border. */
+.stage__machine--preview {
+  inset: auto;
+  top: 18px;
+  left: 18px;
+  /* Sized to clear the sleeve in *both* resting arrangements, which is
+     tighter than it looks. With the cover in front its top-left corner is the
+     limit, and the box has to stay left of it; with the cover behind it moves
+     further left and lies over four degrees, so the raised corner reaches
+     further still and the box has to stay above it instead. Hence a wide, low
+     box: the height is what buys the clearance, and the width is kept to
+     roughly the machine's own proportions so the camera's fit does not leave
+     a wide dark margin either side of it. Measured at the reference size, it
+     clears the front arrangement by 46.5px and the behind one by 10.2px.
+     SCENE_SCALE moves both margins. */
+  width: 152px;
+  height: 90px;
+  z-index: 10;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow:
+    0 1px 2px rgba(40, 34, 28, 0.18),
+    0 8px 18px -6px rgba(40, 34, 28, 0.3);
+}
+
+/* react-three-fiber sets `pointer-events: auto` *inline* on its own event
+   container, so this cannot be done by setting `none` on the box above and
+   letting it inherit -- an inline declaration outranks that. Without it the
+   thumbnail is live, and a click on it raycasts into the real scene and works
+   the lid. !important is the only thing that beats an inline style, so it is
+   the right tool here rather than a shortcut. The box itself is deliberately
+   left clickable; see above. */
+.stage__machine--preview * {
+  pointer-events: none !important;
+}
+
 .panel {
   position: absolute;
   top: 50%;

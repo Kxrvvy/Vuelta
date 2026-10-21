@@ -220,6 +220,10 @@ armAngle = START + (progressMs / durationMs) × (END − START)
 - Hold `Shift` to slow the angle-to-time mapping for fine control
 - **Commit `seek` on drag release only.** Never fire continuously during the drag.
 
+**Scene size.** The flat-lay is drawn at `SCENE_SCALE` (1.2) — one multiplier folded into `fitBox`, applied to the whole design box at the very end. Every other number in the layout keeps the value given here, and nothing moves relative to anything else; the cover, the record, the label, the arm, the shadows and the hairlines all grow together. The box is therefore larger than the window and is meant to be: what must stay on screen is `CONTENT`, the arrangement's own bounds, which is a good deal smaller than the box and has headroom to about 1.52. The exception is the card swap, whose travel reaches further left than any resting state and lands about 71px off the window at this zoom — on screen at rest, clipped only during the move.
+
+**The machine preview.** The close-up carries a 152×90 preview of the machine, lid and all, in its top-left corner. It is not a second scene, a second camera or a picture: the 3D canvas is never unmounted when the flat-lay is up, so it is simply given a small box to frame itself in. It is inert — its contents take no clicks, so the deck you can operate is the one on the paper — but the box absorbs clicks rather than passing them to the paper underneath, which would otherwise dismiss the browser bar. Its size is set by what it must not cover: the sleeve's corner with the cover in front, and the tilted corner with the cover behind, which reaches further left and forces a wide, low box.
+
 **Rest position.** In the machine looks the arm rests in its cradle at `REST_ANGLE`. In the flat-lay it parks **vertically, straight down from the pivot and entirely clear of the disc**.
 
 The park is a *pose*, not a bearing on the groove band. The skin draws any `armAngle` at or below `START_ANGLE` as the park and eases between the two, which is what lets `REST_ANGLE` keep meaning "parked" in core without being re-tuned per skin.

@@ -13,6 +13,7 @@ import {
   BOARD_OFFSET,
   BOX,
   COMPOSITION_RIGHT_X,
+  CONTENT,
   LAYOUT_BACK,
   LAYOUT_FRONT,
   fitBox,
@@ -23,9 +24,11 @@ import {
   RECORD_CENTER_X,
   RECORD_HIDDEN_CENTER_X,
   RECORD_TRAVEL,
+  SCENE_SCALE,
   SLEEVE,
   solveArm,
   SWAP,
+  SWAP_REACH_LEFT,
   SWAP_CLEARANCE,
   STYLUS_OFFSET_DEG,
   stylusAt,
@@ -383,36 +386,85 @@ describe('the arm and the sleeve', () => {
 })
 
 describe('fitting the box to a window', () => {
-  it('is exact at the reference size', () => {
-    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
-    expect(fit.scale).toBe(1)
-    expect(fit.x).toBe(0)
-    expect(fit.y).toBe(0)
+  const SIZES = [
+    [BOX.WIDTH, BOX.HEIGHT],
+    [640, 520],
+    [1920, 1200],
+    [1100, 700],
+    [2560, 900],
+  ] as const
+
+  /** Where a design-box x lands on screen. */
+  const onScreen = (fit: { scale: number; x: number; y: number }) => ({
+    left: fit.x + CONTENT.left * fit.scale,
+    right: fit.x + CONTENT.right * fit.scale,
+    top: fit.y + CONTENT.top * fit.scale,
+    bottom: fit.y + CONTENT.bottom * fit.scale,
   })
 
-  it('scales uniformly and centres, so the record is never an ellipse', () => {
-    for (const [width, height] of [
-      [640, 520],
-      [1920, 1200],
-      [1100, 700],
-      [2560, 900],
-    ] as const) {
+  it('zooms by SCENE_SCALE at the reference size, and stays centred', () => {
+    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
+    expect(fit.scale).toBe(SCENE_SCALE)
+    // The box overflows on purpose, so the offsets are negative and equal on
+    // both sides -- which is the whole of "centred".
+    expect(fit.x).toBeCloseTo((BOX.WIDTH - BOX.WIDTH * SCENE_SCALE) / 2, 9)
+    expect(fit.y).toBeCloseTo((BOX.HEIGHT - BOX.HEIGHT * SCENE_SCALE) / 2, 9)
+    expect(fit.x).toBeLessThan(0)
+  })
+
+  it('scales uniformly, so the record is never an ellipse', () => {
+    for (const [width, height] of SIZES) {
       const fit = fitBox(width, height)
       expect(fit.scale).toBeGreaterThan(0)
-      expect(BOX.WIDTH * fit.scale).toBeLessThanOrEqual(width + 0.001)
-      expect(BOX.HEIGHT * fit.scale).toBeLessThanOrEqual(height + 0.001)
-      expect(fit.x).toBeGreaterThanOrEqual(0)
-      expect(fit.y).toBeGreaterThanOrEqual(0)
-      // One of the two axes is filled exactly.
+      // One axis of the *box* is filled exactly, before the zoom.
+      const unzoomed = fit.scale / SCENE_SCALE
       const filled =
-        Math.abs(BOX.WIDTH * fit.scale - width) < 0.001 ||
-        Math.abs(BOX.HEIGHT * fit.scale - height) < 0.001
+        Math.abs(BOX.WIDTH * unzoomed - width) < 0.001 ||
+        Math.abs(BOX.HEIGHT * unzoomed - height) < 0.001
       expect(filled).toBe(true)
     }
   })
 
+  it('keeps the arrangement on screen at every size, zoom and all', () => {
+    // The box is allowed off the window; this is what is not. Both resting
+    // arrangements are inside CONTENT, so this covers cover-in-front and
+    // cover-behind alike.
+    for (const [width, height] of SIZES) {
+      const rect = onScreen(fitBox(width, height))
+      expect(rect.left).toBeGreaterThanOrEqual(0)
+      expect(rect.top).toBeGreaterThanOrEqual(0)
+      expect(rect.right).toBeLessThanOrEqual(width + 0.001)
+      expect(rect.bottom).toBeLessThanOrEqual(height + 0.001)
+    }
+  })
+
+  it('has room left before the arrangement would touch the edge', () => {
+    // How much bigger the scene could go. Pinned so that raising SCENE_SCALE
+    // past what the composition can take fails here rather than in the window.
+    const halfWidth = Math.max(BOX.WIDTH / 2 - CONTENT.left, CONTENT.right - BOX.WIDTH / 2)
+    const halfHeight = Math.max(BOX.HEIGHT / 2 - CONTENT.top, CONTENT.bottom - BOX.HEIGHT / 2)
+    expect(BOX.WIDTH / 2 / halfWidth).toBeGreaterThan(SCENE_SCALE)
+    expect(BOX.HEIGHT / 2 / halfHeight).toBeGreaterThan(SCENE_SCALE)
+  })
+
+  it('pins the card swap leaving the window at this zoom', () => {
+    // Not a thing anyone chose, and the one cost of the zoom. The cover slides
+    // a clear disc-width left at the top of the swap -- further out than any
+    // resting state -- and the box's left margin is not deep enough to pay for
+    // that at SCENE_SCALE as well. It is on screen at rest and clipped only
+    // during the move.
+    //
+    // The ceiling that would keep it in is about 1.08, so this is a real
+    // trade, not a rounding error. Recorded here so it is a decision and not a
+    // surprise: raising the zoom makes it worse, and the levers are the zoom
+    // itself or letting the record share the travel.
+    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
+    expect(SWAP_REACH_LEFT).toBeGreaterThan(0) // still inside the design box
+    expect(fit.x + SWAP_REACH_LEFT * fit.scale).toBeLessThan(0) // but off the window
+  })
+
   it('survives a window with no size yet', () => {
-    expect(fitBox(0, 0).scale).toBe(1)
-    expect(fitBox(Number.NaN, Number.NaN).scale).toBe(1)
+    expect(fitBox(0, 0).scale).toBe(SCENE_SCALE)
+    expect(fitBox(Number.NaN, Number.NaN).scale).toBe(SCENE_SCALE)
   })
 })

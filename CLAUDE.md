@@ -91,7 +91,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
 | **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
-| **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm. **No machine at all** — not even a picture of one. |
+| **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm, and the machine shrunk to a **preview in the top-left corner**. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
   reserves the right edge so the camera frames the machine beside it.
@@ -100,11 +100,30 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   flat and lit, every value in its spec is a CSS value, and nothing in it is a three.js object.
   Keeping it in the canvas is what forced the layer system, a scissored second viewport and a
   reserved band in the camera fit; all of that is deleted.
-- **Switching to it hides the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
+- **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
+  a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
+  same camera, given a 152×90 box to frame themselves in, so the only thing that changes is the
+  size of the element the renderer is already drawing into. Its contents take no clicks — R3F sets
+  `pointer-events: auto` inline on its own container, so the override has to be `!important` — but
+  the box itself absorbs them, because everything lying on the paper absorbs its own click.
+- **The preview's size is set by what it must not cover.** With the cover in front its top-left
+  corner is the limit; with the cover behind, the tilted corner reaches further left, so the box
+  has to stay *above* it instead. That is why it is wide and low. `SCENE_SCALE` moves both margins.
+- **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
+  `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
+  anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
+  as it grows — applied afterwards it scales about the top-left corner and slides the scene away.
+  The box is then *larger than the window and meant to be*; what has to stay on screen is
+  `CONTENT`, the arrangement's own bounds, which has room to about 1.52.
+- **The card swap is the one thing the zoom does not fit.** The cover slides a clear disc-width
+  left at the top of the move — further out than any resting state — and at `SCENE_SCALE` 1.2 that
+  lands about 71px off the window. On screen at rest, clipped only mid-move. The ceiling that would
+  keep it in is ~1.08, so it is a real trade; a test pins it so it stays a decision.
+- **Switching to it shrinks the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
   away the generated environment map and every texture and rebuilds both on the way back, so
   `Stage` sets `display: none` on `.stage__machine` instead.
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
-  `transform`. That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
+  `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
 - **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
   jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands

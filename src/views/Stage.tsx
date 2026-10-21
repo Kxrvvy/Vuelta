@@ -10,7 +10,8 @@
  *   main     spec §12's View A, unchanged: the whole machine, centred.
  *   lyrics   the machine to the left, a column of synced lyrics beside it.
  *   closeup  a different skin entirely -- a sleeve and a record lying on
- *            paper, drawn in DOM. The machine is not in it at all.
+ *            paper, drawn in DOM, with the machine shrunk to a preview in
+ *            the top-left corner.
  *
  * It also owns the two numbers both halves need: how much of the right-hand
  * side the panel is using, and how much of the bottom the bar is. CSS sizes
@@ -114,8 +115,9 @@ export function Stage({
   const paneOpen = library.pane !== 'none'
   const closePane = library.close
 
-  // The flat-lay is a separate skin, and it has no machine in it -- so, like
-  // the close-up before it, it only means anything with the lid up. With the
+  // The flat-lay is a separate skin, and the machine is only a thumbnail in
+  // it -- so, like the close-up before it, it only means anything with the lid
+  // up. With the
   // lid shut the front pose is what you get, in every look, which is what
   // keeps "closing the lid is the stop gesture" true here too.
   const flatlayShown = view === 'closeup' && sync.lidOpen
@@ -185,10 +187,17 @@ export function Stage({
 
   return (
     <div className="stage">
-      {/* Hidden rather than unmounted while the flat-lay is up. Tearing the
-          Canvas down would throw away the generated environment map and every
-          texture, and rebuild both on the way back. */}
-      <div className="stage__machine" style={flatlayShown ? { display: 'none' } : undefined}>
+      {/* Never unmounted. Tearing the Canvas down would throw away the
+          generated environment map and every texture, and rebuild both on the
+          way back.
+
+          Under the flat-lay it used to be `display: none`. Now it shrinks into
+          the top-left corner instead and becomes the preview of the machine --
+          which is the same canvas, the same camera and the same lid, just
+          given a small box to frame itself in. That is why there is no second
+          viewport and no second scene: the only thing that changes is the size
+          of the element the renderer is already drawing into. */}
+      <div className={flatlayShown ? 'stage__machine stage__machine--preview' : 'stage__machine'}>
         <Turntable
           state={sync.stateRef}
           actions={sync.actions}

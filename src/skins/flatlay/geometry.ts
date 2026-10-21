@@ -35,6 +35,22 @@
 /** The box every number below is measured in. */
 export const BOX = { WIDTH: 1280, HEIGHT: 800 } as const
 
+/**
+ * How much larger than the window the design box is drawn.
+ *
+ * A zoom, and deliberately the only way the scene's size is set: every number
+ * below keeps the value the spec gives it, and the whole composition -- cover,
+ * record, label, arm, board, shadows, hairlines -- grows by one multiplier at
+ * the very end. Nothing moves relative to anything else, so none of the
+ * geometry here has to know about it.
+ *
+ * The box therefore overflows the window, and is *meant* to. What has to stay
+ * on screen is `CONTENT`, which is a good deal smaller than the box: the
+ * arrangement is centred and the box has wide empty margins, and this spends
+ * them. See the check beside `CONTENT` for how much is left.
+ */
+export const SCENE_SCALE = 1.2
+
 const DEG = Math.PI / 180
 
 export const SLEEVE = {
@@ -569,10 +585,57 @@ export const SWAP_CLEARANCE =
   Math.abs(SWAP.COVER_SHIFT) - TUCK_FRACTION * RECORD.RADIUS * 2
 
 /**
+ * The arrangement's own bounds, as against the design box's.
+ *
+ * The box has wide empty margins -- the composition is centred and much
+ * narrower than 1280 -- and `SCENE_SCALE` is spent out of them. So the box is
+ * allowed off the window; this rect is not.
+ *
+ * It is the union of **both resting arrangements**, cover in front and cover
+ * behind, with an allowance for the back one's tilt: a square turned four
+ * degrees pokes out past its own edges, and this is the corner that does it.
+ *
+ * It does *not* cover the card swap's full travel. The cover slides a clear
+ * disc-width left at the top of that move, which reaches further out than any
+ * resting state does -- see the test that pins where it lands.
+ */
+const TILT_ALLOWANCE =
+  (SLEEVE.SIZE / 2) *
+    (Math.cos(SWAP.BACK_TILT_DEG * DEG) + Math.abs(Math.sin(SWAP.BACK_TILT_DEG * DEG))) -
+  SLEEVE.SIZE / 2
+
+const BOARD_TOP = PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2
+const BOARD_BOTTOM = PIVOT.y + BOARD_OFFSET.y + ARM.BOARD_HEIGHT / 2
+
+export const CONTENT = {
+  left: Math.min(LAYOUT_FRONT.coverLeft, LAYOUT_BACK.coverLeft - TILT_ALLOWANCE),
+  right: Math.max(
+    COMPOSITION_RIGHT_X,
+    LAYOUT_BACK.coverLeft + LAYOUT_BACK.width,
+    LAYOUT_BACK.recordCenterX + RECORD.RADIUS,
+  ),
+  top: Math.min(SLEEVE.TOP - TILT_ALLOWANCE, RECORD.CENTER_Y - RECORD.RADIUS, BOARD_TOP),
+  bottom: Math.max(
+    SLEEVE.TOP + SLEEVE.SIZE + TILT_ALLOWANCE,
+    RECORD.CENTER_Y + RECORD.RADIUS,
+    BOARD_BOTTOM,
+    // The park, which hangs below everything else in the scene.
+    PIVOT.y + ARM_REACH,
+  ),
+} as const
+
+/** Where the cover's leading edge reaches at the top of the card swap. */
+export const SWAP_REACH_LEFT = LAYOUT_FRONT.coverLeft + SWAP.COVER_SHIFT - TILT_ALLOWANCE
+
+/**
  * How much to scale the design box to fill a window, and where to put it.
  *
  * One uniform scale, never a stretch: the composition is specified at one
  * aspect and a non-uniform fit would make the record an ellipse.
+ *
+ * `SCENE_SCALE` is folded in here rather than applied by the skin, so that the
+ * offsets re-centre the box at its new size. Applied afterwards it would scale
+ * about the box's top-left corner and slide the whole scene down and right.
  */
 export type BoxFit = {
   scale: number
@@ -584,7 +647,7 @@ export type BoxFit = {
 export function fitBox(width: number, height: number): BoxFit {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : BOX.WIDTH
   const safeHeight = Number.isFinite(height) && height > 0 ? height : BOX.HEIGHT
-  const scale = Math.min(safeWidth / BOX.WIDTH, safeHeight / BOX.HEIGHT)
+  const scale = Math.min(safeWidth / BOX.WIDTH, safeHeight / BOX.HEIGHT) * SCENE_SCALE
   return {
     scale,
     x: (safeWidth - BOX.WIDTH * scale) / 2,
