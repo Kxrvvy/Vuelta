@@ -13,6 +13,52 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
  *
  * M7 replaces this with frameless chrome and a tray icon.
  */
+/**
+ * A cog, built from its teeth rather than drawn by hand.
+ *
+ * What was here was a ring with eight thin rays around it, which is a sun.
+ * A gear reads as a gear because of the *teeth*: short trapezoidal lugs with
+ * flat tops, each as wide as the gap beside it, not spokes radiating into
+ * space.
+ *
+ * Generated so the shape stays regular — eight teeth placed by hand never
+ * quite are — and so the proportions can be adjusted in one place.
+ */
+function cogPath(teeth: number, outer: number, root: number, hub: number): string {
+  const centre = 11
+  const step = (Math.PI * 2) / teeth
+  /** Half the angular width of a tooth's flat top, and of its flank. */
+  const top = step * 0.17
+  const flank = step * 0.31
+
+  const at = (radius: number, angle: number) =>
+    `${(centre + radius * Math.cos(angle)).toFixed(2)} ${(centre + radius * Math.sin(angle)).toFixed(2)}`
+
+  const parts: string[] = []
+  for (let i = 0; i < teeth; i += 1) {
+    const a = i * step - Math.PI / 2
+    parts.push(
+      `${i === 0 ? 'M' : 'L'}${at(root, a - flank)}`,
+      `L${at(outer, a - top)}`,
+      `L${at(outer, a + top)}`,
+      `L${at(root, a + flank)}`,
+    )
+  }
+  parts.push('Z')
+
+  // The bore, as a second sub-path. With fill-rule evenodd it is cut out of
+  // the body rather than drawn on top of it, so the cog works on any ground.
+  parts.push(
+    `M${centre + hub} ${centre}`,
+    `A${hub} ${hub} 0 1 0 ${centre - hub} ${centre}`,
+    `A${hub} ${hub} 0 1 0 ${centre + hub} ${centre}`,
+    'Z',
+  )
+  return parts.join(' ')
+}
+
+const COG = cogPath(8, 9.6, 7.3, 3.3)
+
 export function Shell({ children, settings }: { children: ReactNode; settings: ReactNode }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement | null>(null)
@@ -47,14 +93,8 @@ export function Shell({ children, settings }: { children: ReactNode; settings: R
           aria-expanded={open}
           onClick={() => setOpen((was) => !was)}
         >
-          <svg width="18" height="18" viewBox="0 0 22 22" fill="none" aria-hidden>
-            <circle cx="11" cy="11" r="3.1" stroke="currentColor" strokeWidth="1.5" />
-            <path
-              d="M11 2.6v2.2M11 17.2v2.2M2.6 11h2.2M17.2 11h2.2M5.1 5.1l1.6 1.6M15.3 15.3l1.6 1.6M16.9 5.1l-1.6 1.6M6.7 15.3l-1.6 1.6"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+          <svg width="18" height="18" viewBox="0 0 22 22" fill="currentColor" aria-hidden>
+            <path d={COG} fillRule="evenodd" />
           </svg>
         </button>
 
