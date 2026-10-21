@@ -68,6 +68,11 @@ body {
 .settings__button {
   width: 2rem;
   height: 2rem;
+  /* The global button rule sets 0.5rem 1.1rem, and with border-box that is
+     wider than the button itself: the content box collapses to nothing, the
+     grid track is laid out after the left padding, and the icon ends up half
+     its own width right of centre. An icon-only button carries no padding. */
+  padding: 0;
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
