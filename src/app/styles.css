@@ -1012,80 +1012,21 @@ input[type='text']:focus {
   position: absolute;
   top: 1.1rem;
   /* Clear of the browser bar. The bar is centred on the window and the column
-     is at its right edge, so at narrow widths the two meet -- and what they
-     meet over is this column's transport, which is the one thing in the view
-     you need to be able to hit. */
+     is at its right edge, so at narrow widths the two meet. */
   bottom: 3.6rem;
   right: 1.1rem;
   /* Wider than the panel: a line of lyric is a line of text, and wrapping
      every one of them in half would cost more than the machine gains. */
   width: clamp(13rem, 32vw, 24rem);
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 0.6rem;
-  padding: 1rem;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(22, 19, 17, 0.82);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-  /* The art layer below is clipped to the column's corners. */
-  overflow: hidden;
-  isolation: isolate;
-}
-
-/* The record's own colour, under the words.
-   The sleeve blurred far past recognition, scaled up so no edge of it shows,
-   and held down by a scrim dark enough to read 700-weight white over. It is a
-   ground, not a picture: at this blur it carries the album's colour and
-   nothing else, which is the whole of what it is for. */
-.lyrics::before {
-  content: '';
-  position: absolute;
-  /* Overdrawn, because a blur of this radius pulls the edges inward and would
-     otherwise leave a pale rim inside the corners. */
-  inset: -18%;
-  z-index: -1;
-  background-image: var(--art, none);
-  background-size: cover;
-  background-position: center;
-  filter: blur(40px) saturate(1.9) brightness(0.9);
-  opacity: 0.95;
-}
-
-/* The scrim. Separate from the blur so the two can be tuned apart, and a
-   gradient rather than a flat wash: the head and the transport sit on the
-   ends, and they need more cover than the middle of the column does. */
-.lyrics::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(
-    to bottom,
-    rgba(14, 12, 11, 0.82),
-    rgba(14, 12, 11, 0.42) 24%,
-    rgba(14, 12, 11, 0.42) 76%,
-    rgba(14, 12, 11, 0.82)
-  );
-}
-
-.lyrics__head {
-  display: grid;
-  gap: 0.15rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.lyrics__title {
-  font-size: 0.95rem;
-  line-height: 1.3;
-  color: var(--text);
-}
-
-.lyrics__artist {
-  font-size: 0.8rem;
-  color: var(--muted);
+  /* One row. There was a head above and a transport below, each in its own
+     track; the words are all that is left. */
+  grid-template-rows: 1fr;
+  /* No card: no background, no border, no shadow, and no blurred sleeve
+     behind it. The lyrics stand on the field with no edge around them, so
+     there is nothing to hold them and nothing to read them against but the
+     words themselves. The padding goes with it -- an edge inset is for
+     keeping text off a border, and there is no border. */
 }
 
 .lyrics__body {
@@ -1152,45 +1093,6 @@ input[type='text']:focus {
   line-height: 1.5;
   color: var(--muted);
   white-space: pre-wrap;
-}
-
-.lyrics__transport {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--line);
-}
-
-.lyrics__transport button {
-  width: 2.1rem;
-  height: 2.1rem;
-  /* The global button rule's padding is wider than this button. Left on, the
-     content box collapses, the grid track is laid out after the left padding,
-     and the glyph sits off to the right and low — the same fault the settings
-     gear had. Any button given an explicit size has to clear it. */
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.lyrics__transport button:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.lyrics__transport button.primary {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-color: transparent;
-  background: var(--accent);
-  color: #1b1509;
 }
 
 /* ===========================================================================

@@ -90,7 +90,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 | | |
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
-| **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
+| **Lyrics** | Machine left, a bare column of synced lyrics at the side **in place of** the panel. |
 | **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm, and the machine shrunk to a **preview in the top-left corner**. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
@@ -261,11 +261,12 @@ service that is not part of the API and must not be called. Lyrics come from **L
   the lines either side stay readable and the column falls away from there, which is what makes
   the middle read as the present. Lines ahead are brighter than lines the same distance behind,
   so it reads in the direction it is going. `--d` carries the distance from the component.
-- **The column's ground is the sleeve itself**, blurred far past recognition behind a scrim, so
-  the lyrics sit in the record's own colour. As a CSS background, not a sampled palette: reading
-  an average colour means drawing the art into a canvas, and a canvas with a remote image in it is
-  tainted unless the CDN cooperates. Measured at the reference size, the ground carries a chroma
-  of about 40 — the album's colour, not grey.
+- **The column is the words and nothing else.** No card, no background, no border, no shadow — the
+  lyrics stand on the field with no edge around them. It had a title and artist above and a
+  transport below, each in its own grid track, and for a short while a blurred sleeve behind as a
+  ground; all of it is gone. **Play and pause still have a home in this view** — the machine is
+  right there and the disc is the control — but **skip does not**, which is the price of the bare
+  column and the one thing it costs.
 - **There is no word-by-word fill**, which the reference has. LRCLIB gives **line** timings only,
   so a per-word highlight would have to be invented from the line's duration and would drift off
   the actual words. The line-level lead in `core/lyrics.ts` is the honest version of the same idea.
@@ -308,5 +309,6 @@ The split at M1 matters: everything up to there is plumbing with real unknowns. 
   `0.5rem 1.1rem`, and with `box-sizing: border-box` that is wider than any icon-sized button: the
   content box collapses to nothing, the grid track gets laid out after the left padding, and the
   glyph sits half its own width right of centre and low. The button also comes out wider than the
-  size it asked for, which is the tell. It has caught the settings gear and the lyrics transport.
+  size it asked for, which is the tell. It caught the settings gear, and the lyrics transport back
+  when that existed.
 - Keep every Spotify API call behind one module. Spotify changes their terms often; a migration should touch one file.

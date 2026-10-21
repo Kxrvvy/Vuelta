@@ -11,43 +11,28 @@
  * one leads in. That rule is core/lyrics.ts; here it is only a class name and
  * a CSS transition.
  *
- * Skip keeps a home at the foot. It has no gesture on a turntable, and this
- * view is the one that takes the panel's buttons away.
+ * The words and nothing else. It had a title, an artist and a transport of its
+ * own, and a card to hold them; all of it is gone, so the lyrics stand on the
+ * field with no edge around them. Play and pause still have a home in this
+ * view -- the machine is right there, and the disc is the control -- but skip
+ * no longer does, which is the price of the bare column.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { Actions, RenderState, TrackSummary } from '../../core/contract.js'
+import type { RenderState } from '../../core/contract.js'
 import { activeLyricIndex, type LyricLine } from '../../core/lyrics.js'
 import type { LyricsLoad } from './useLyrics.js'
-import { Next, Pause, Play, Previous } from '../transport/icons.js'
 
 export function LyricsColumn({
   ref,
   load,
-  track,
-  isPlaying,
   stateRef,
-  actions,
-  albumArtUrl,
 }: {
   /** Measured by the stage so the camera can frame beside it. */
   ref?: React.Ref<HTMLElement>
   load: LyricsLoad
-  track: TrackSummary | null
-  isPlaying: boolean
   /** Live progress, read per frame. Never a prop that changes per frame. */
   stateRef: React.RefObject<RenderState>
-  actions: Actions
-  /**
-   * The sleeve, used as the column's ground: blurred far past recognition and
-   * dropped behind a scrim, so the lyrics sit in the record's own colour.
-   *
-   * As a CSS background rather than a sampled palette. Reading an average
-   * colour off the art means drawing it into a canvas, and a canvas that has
-   * had a remote image drawn into it is tainted unless the CDN cooperates --
-   * so the straightforward version is the one that cannot break.
-   */
-  albumArtUrl: string | null
 }) {
   const lines = load.status === 'ready' ? (load.value?.lines ?? []) : []
   const [index, setIndex] = useState(-1)
@@ -108,35 +93,9 @@ export function LyricsColumn({
   }, [index])
 
   return (
-    <aside
-      className="lyrics"
-      ref={ref}
-      style={{ '--art': albumArtUrl ? `url("${albumArtUrl}")` : 'none' } as React.CSSProperties}
-    >
-      <header className="lyrics__head">
-        <div className="lyrics__title">{track?.title ?? 'Nothing playing'}</div>
-        <div className="lyrics__artist">{track?.artist ?? '—'}</div>
-      </header>
-
+    <aside className="lyrics" ref={ref}>
       <div className="lyrics__body" ref={scroller}>
         <Body load={load} index={index} activeRef={active} lines={lines} />
-      </div>
-
-      <div className="lyrics__transport">
-        <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
-          <Previous />
-        </button>
-        <button
-          type="button"
-          className="primary"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          onClick={() => (isPlaying ? actions.pause() : actions.play())}
-        >
-          {isPlaying ? <Pause /> : <Play />}
-        </button>
-        <button type="button" aria-label="Next track" onClick={() => actions.next()}>
-          <Next />
-        </button>
       </div>
     </aside>
   )
