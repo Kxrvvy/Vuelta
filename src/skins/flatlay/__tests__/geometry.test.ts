@@ -177,10 +177,14 @@ describe('the arm solve', () => {
     }
   })
 
-  it('picks the physical branch, near a real deck’s proportions', () => {
-    // A real 12" deck: pivot at ~1.38x the disc radius, arm ~1.51x it.
+  it('picks the physical branch, with the bearing off the record', () => {
+    // The constraint that means something: a tonearm's bearing sits beyond the
+    // rim, not over the disc. A real 12" deck puts it at about 1.38x the
+    // radius; this arm is deliberately shorter than that, so the bound is the
+    // rim itself rather than a figure picked to match a particular deck — the
+    // arm's length is a design choice and the solve has to follow it.
     const ratio = ARM_SOLUTION.pivotDistance / RECORD.RADIUS
-    expect(ratio).toBeGreaterThan(1.2)
+    expect(ARM_SOLUTION.pivotDistance).toBeGreaterThan(RECORD.RADIUS)
     expect(ratio).toBeLessThan(1.7)
     // The second root of the error function is much further out; if the solve
     // ever found it, the offset angle would be smaller than the sweep.

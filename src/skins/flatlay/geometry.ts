@@ -146,12 +146,25 @@ export const GROOVE = {
   INNER: RECORD.LABEL_RADIUS + RECORD.RUN_OUT,
 } as const
 
+/**
+ * How much of its drawn length the arm keeps.
+ *
+ * Applies to the two measurements that run along the arm — the tube and the
+ * headshell — and so to the reach, which is what `solveArm` works from. The
+ * widths are untouched: this shortens the arm, it does not scale it.
+ *
+ * Everything downstream follows on its own. The pivot comes in to 1.17x the
+ * disc's radius from 1.23x, the arrangement is narrower and so re-centres,
+ * and the park still lands 306px from the spindle against a 209px disc.
+ */
+const ARM_LENGTH_SCALE = 0.9
+
 export const ARM = {
   /** §6: slim brushed aluminium cylinder. */
-  TUBE_LENGTH: 290,
+  TUBE_LENGTH: 290 * ARM_LENGTH_SCALE,
   TUBE_WIDTH: 9,
   /** §6: angled ~20° off the tube axis. The arm visibly bends here. */
-  HEADSHELL_LENGTH: 46,
+  HEADSHELL_LENGTH: 46 * ARM_LENGTH_SCALE,
   HEADSHELL_WIDTH: 26,
   HEADSHELL_OFFSET_DEG: 20,
   /** §6: a hairline circle, the only visible mechanism in the scene. */
