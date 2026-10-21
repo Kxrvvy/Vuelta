@@ -11,32 +11,27 @@
  * one leads in. That rule is core/lyrics.ts; here it is only a class name and
  * a CSS transition.
  *
- * Skip keeps a home at the foot. It has no gesture on a turntable, and this
- * view is the one that takes the panel's buttons away.
+ * The words and nothing else. It had a title, an artist and a transport of its
+ * own, and a card to hold them; all of it is gone, so the lyrics stand on the
+ * field with no edge around them. Playback controls remain on the machine:
+ * the disc is the play/pause control.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { Actions, RenderState, TrackSummary } from '../../core/contract.js'
+import type { RenderState } from '../../core/contract.js'
 import { activeLyricIndex, type LyricLine } from '../../core/lyrics.js'
 import type { LyricsLoad } from './useLyrics.js'
-import { Next, Pause, Play, Previous } from '../transport/icons.js'
 
 export function LyricsColumn({
   ref,
   load,
-  track,
-  isPlaying,
   stateRef,
-  actions,
 }: {
   /** Measured by the stage so the camera can frame beside it. */
   ref?: React.Ref<HTMLElement>
   load: LyricsLoad
-  track: TrackSummary | null
-  isPlaying: boolean
   /** Live progress, read per frame. Never a prop that changes per frame. */
   stateRef: React.RefObject<RenderState>
-  actions: Actions
 }) {
   const lines = load.status === 'ready' ? (load.value?.lines ?? []) : []
   const [index, setIndex] = useState(-1)
@@ -96,35 +91,31 @@ export function LyricsColumn({
     })
   }, [index])
 
+  const mode = bodyMode(load, lines)
+
   return (
     <aside className="lyrics" ref={ref}>
-      <header className="lyrics__head">
-        <div className="lyrics__title">{track?.title ?? 'Nothing playing'}</div>
-        <div className="lyrics__artist">{track?.artist ?? '—'}</div>
-      </header>
-
-      <div className="lyrics__body" ref={scroller}>
+      <div className="lyrics__body" data-mode={mode} ref={scroller}>
         <Body load={load} index={index} activeRef={active} lines={lines} />
-      </div>
-
-      <div className="lyrics__transport">
-        <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
-          <Previous />
-        </button>
-        <button
-          type="button"
-          className="primary"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          onClick={() => (isPlaying ? actions.pause() : actions.play())}
-        >
-          {isPlaying ? <Pause /> : <Play />}
-        </button>
-        <button type="button" aria-label="Next track" onClick={() => actions.next()}>
-          <Next />
-        </button>
       </div>
     </aside>
   )
+}
+
+/**
+ * What the body is showing, which is what decides how it is laid out.
+ *
+ * `lines` and `plain` both scroll and both want the half-column of air that
+ * lets the first and last lines reach the middle. A note is one sentence with
+ * nothing to follow, so it is centred instead -- left where the first lyric
+ * would have gone, it reads as a column that failed to load rather than as an
+ * answer.
+ */
+function bodyMode(load: LyricsLoad, lines: LyricLine[]): 'lines' | 'plain' | 'note' {
+  if (load.status !== 'ready') return 'note'
+  if (!load.value || load.value.instrumental) return 'note'
+  if (lines.length > 0) return 'lines'
+  return load.value.plain ? 'plain' : 'note'
 }
 
 function Body({

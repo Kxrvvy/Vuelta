@@ -90,7 +90,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 | | |
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
-| **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
+| **Lyrics** | Machine left, a bare column of synced lyrics at the side **in place of** the panel. |
 | **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm, and the machine shrunk to a **preview in the top-left corner**. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
@@ -171,6 +171,13 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   grooved band, and a rolled edge. The arcs are static; the disc turns under them.
 - **The arm's cast parts need a lit edge.** Black on near-black vinyl has no value difference at
   all — the headshell vanished the moment it crossed the disc. The silhouette has to be stroked.
+- **The spin needs something that is not rotationally symmetric.** The grooves are perfect
+  circles, so turning them changes no pixel: the black field read as dead still however fast it
+  was going, and only the label moved — half of which the cover hides. The rotating conic on
+  `.flatlay__spin` is the one asymmetric thing on the record and so the only thing that can show
+  it turning. It was 0.035 white over a `#0c0c0e` disc, about eight levels, which is the same
+  mistake the grooves made; tripled, a fixed point on the field now swings 22–25 levels per
+  revolution. The static sheen stays where the lamp is; this one goes round.
 - **The groove rings are meant to be seen.** `GROOVE_PERIOD` is the one authority and the skin
   hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
   mostly contrast, and the wider period keeps the spacing even rather than beating against the
@@ -247,8 +254,60 @@ service that is not part of the API and must not be called. Lyrics come from **L
   misses. Nothing is sent in the other two looks. See SECURITY.md.
 - Parsing and the which-line-now rule are pure, in `core/lyrics.ts`. The fetch is in
   `main/lyrics/client.ts` — not in `spotify/client.ts`, which maps every 403 to `not-allowlisted`.
-- Any non-200 means "no lyrics", never an error screen: an unmatched lookup was observed returning
-  503 rather than the documented 404.
+- A non-200 means "no lyrics" — never an error screen — **except when the body says the service is
+  unwell**. `/api/get` has been seen returning 503 for an unmatched lookup, which is why every
+  non-200 used to count as a miss; but a real outage names itself (`ServerOverloaded`), and the
+  difference matters because **a miss is cached for the session**. One busy minute would otherwise
+  mark a track lyric-less until the app restarts. An outage returns `ok: false`, which is not
+  cached and is retried.
+- **`/api/get` alone finds far less than LRCLIB has.** It matches on duration and matches it
+  tightly, and Spotify's figure and LRCLIB's routinely differ by a second or two for the same
+  recording. Three tracks the app called lyric-less had 1, 6 and 5 synced results waiting in
+  `/api/search`. So a miss from the exact lookup falls through to the fuzzy one, ranked here by
+  duration closeness and synced-over-plain, because search returns the best *text* match and that
+  is not necessarily the recording playing. Measured across five tracks, coverage went from 1 in 5
+  to 4 in 5.
+- The column is set after Spotify's own lyrics view: **large and bold**, and **one line lit at a
+  time**. Everything not being sung is faded to the same value, whether it has gone or is still
+  coming. It was graded by distance for a while, so the lines either side stayed bright and the
+  eye had three or four places to be; one lit line leaves it nowhere to go but the right one.
+- **The type is sized to hold about five lines**, not ten — roughly double what it was.
+- **The column carries no transport at all.** It had a skip row under the words for a while; it is
+  gone again, and so this view has no previous or next. Play and pause do not need one here — the
+  machine is beside this column and the disc is the control — but skip has nowhere to go, which is
+  the standing cost of the bare column. `.lyrics` still declares a second grid track for the row
+  that used to sit there.
+- **The body needs `min-height: 0` and a capped padding.** A grid item's automatic minimum is its
+  content, and the body's air is set in *padding*, which resolves against **width** however tall
+  the box is — widening and shortening the column in one go took it to 184px a side inside 362px
+  of column. Padding puts a floor under an element's height that `min-height: 0` cannot lift, so
+  the track grew to fit it and anything below the body left the bottom of the column. Hence
+  `min(40%, 17vh)`. It still matters with nothing under the body, because the padding alone would
+  otherwise outgrow the column.
+- **The column is half the height it was and centred in the gap**, not stretched between two
+  insets and pinned to the right edge. The offset is *derived*, not chosen: the camera frames the
+  machine into whatever the column leaves it, so sliding the column left widens the reserve,
+  shrinks the machine, and moves the very edge the centre was measured from — a fixed point. A
+  flat offset will not hold it either, because the width is clamped, so past a certain window the
+  column stops growing while the gap keeps going. The machine's right edge measures a steady
+  ~0.545 of the window, which gives `right = 22.75vw - column/2`, and that lands within ~9px at
+  every size tried.
+- **Through an intro nothing is lit.** `activeLyricIndex` returns −1 until the first line is due,
+  so no line carries `data-state='now'` and the whole column sits faded until the singing starts.
+  That falls out of the rule rather than being a case of its own, so do not add one.
+- **The column is the words and nothing else.** No card, no background, no border, no shadow — the
+  lyrics stand on the field with no edge around them. It had a title and artist above and a
+  transport below, each in its own grid track, and for a short while a blurred sleeve behind as a
+  ground; all of it is gone. Play and pause still have a home in this view — the machine is right
+  there and the disc is the control.
+- **When there are no lyrics, the message goes in the middle, with skip under it.** The air above
+  and below the body exists so the first and last lyric can reach the centre while scrolling; with
+  one sentence there is nothing to scroll, and that padding would hang it near the top where the
+  first lyric would have been. `bodyMode` picks the layout — `lines` and `plain` scroll, `note`
+  centres.
+- **There is no word-by-word fill**, which the reference has. LRCLIB gives **line** timings only,
+  so a per-word highlight would have to be invented from the line's duration and would drift off
+  the actual words. The line-level lead in `core/lyrics.ts` is the honest version of the same idea.
 - Read the active line from the **live state ref**, never from `readout` — that updates at
   `READOUT_HZ` (4), which would make every line up to 250ms late.
 
@@ -288,5 +347,6 @@ The split at M1 matters: everything up to there is plumbing with real unknowns. 
   `0.5rem 1.1rem`, and with `box-sizing: border-box` that is wider than any icon-sized button: the
   content box collapses to nothing, the grid track gets laid out after the left padding, and the
   glyph sits half its own width right of centre and low. The button also comes out wider than the
-  size it asked for, which is the tell. It has caught the settings gear and the lyrics transport.
+  size it asked for, which is the tell. It caught the settings gear, and the lyrics transport back
+  when that existed.
 - Keep every Spotify API call behind one module. Spotify changes their terms often; a migration should touch one file.
