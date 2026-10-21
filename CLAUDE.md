@@ -211,4 +211,9 @@ The split at M1 matters: everything up to there is plumbing with real unknowns. 
 ## Style
 
 - Hand-written CSS for the skin. Utility classes fight custom transforms and gradients.
+- **A button given an explicit size must clear the global padding.** `button {}` sets
+  `0.5rem 1.1rem`, and with `box-sizing: border-box` that is wider than any icon-sized button: the
+  content box collapses to nothing, the grid track gets laid out after the left padding, and the
+  glyph sits half its own width right of centre and low. The button also comes out wider than the
+  size it asked for, which is the tell. It has caught the settings gear and the lyrics transport.
 - Keep every Spotify API call behind one module. Spotify changes their terms often; a migration should touch one file.

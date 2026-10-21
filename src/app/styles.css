@@ -989,6 +989,11 @@ input[type='text']:focus {
 .lyrics__transport button {
   width: 2.1rem;
   height: 2.1rem;
+  /* The global button rule's padding is wider than this button. Left on, the
+     content box collapses, the grid track is laid out after the left padding,
+     and the glyph sits off to the right and low — the same fault the settings
+     gear had. Any button given an explicit size has to clear it. */
+  padding: 0;
   display: grid;
   place-items: center;
   border-radius: 999px;
