@@ -272,6 +272,15 @@ service that is not part of the API and must not be called. Lyrics come from **L
   coming. It was graded by distance for a while, so the lines either side stayed bright and the
   eye had three or four places to be; one lit line leaves it nowhere to go but the right one.
 - **The type is sized to hold about five lines**, not ten — roughly double what it was.
+- **Skip sits in its own row under the words**, outside the scrolling body — inside it, it would
+  travel with the lyrics. Play and pause have never needed a home here: the machine is beside this
+  column and the disc is the control.
+- **The body needs `min-height: 0` and a capped padding**, or that row is pushed out of the
+  column. A grid item's automatic minimum is its content, and the body's air is set in *padding*,
+  which resolves against **width** however tall the box is — widening and shortening the column in
+  one go took it to 184px a side inside 362px of column. Padding puts a floor under an element's
+  height that `min-height: 0` cannot lift, so the track grew to fit it and the buttons left the
+  bottom of the column. Hence `min(40%, 17vh)`.
 - **The column is half the height it was and centred in the gap**, not stretched between two
   insets and pinned to the right edge. The offset is *derived*, not chosen: the camera frames the
   machine into whatever the column leaves it, so sliding the column left widens the reserve,
@@ -292,9 +301,7 @@ service that is not part of the API and must not be called. Lyrics come from **L
   and below the body exists so the first and last lyric can reach the centre while scrolling; with
   one sentence there is nothing to scroll, and that padding would hang it near the top where the
   first lyric would have been. `bodyMode` picks the layout — `lines` and `plain` scroll, `note`
-  centres. Skip is drawn **only** on that state: stripping the column of its transport left
-  previous and next with nowhere to go, and the empty state is both where they are wanted and
-  where there is room. With lyrics up, the words keep the space to themselves.
+  centres.
 - **There is no word-by-word fill**, which the reference has. LRCLIB gives **line** timings only,
   so a per-word highlight would have to be invented from the line's duration and would drift off
   the actual words. The line-level lead in `core/lyrics.ts` is the honest version of the same idea.

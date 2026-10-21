@@ -1052,9 +1052,9 @@ input[type='text']:focus {
   --col-w: clamp(15.6rem, 38.4vw, 28.8rem);
   width: var(--col-w);
   display: grid;
-  /* One row. There was a head above and a transport below, each in its own
-     track; the words are all that is left. */
-  grid-template-rows: 1fr;
+  /* The words, and a row under them for skip. */
+  grid-template-rows: 1fr auto;
+  gap: 0.7rem;
   /* No card: no background, no border, no shadow, and no blurred sleeve
      behind it. The lyrics stand on the field with no edge around them, so
      there is nothing to hold them and nothing to read them against but the
@@ -1064,6 +1064,10 @@ input[type='text']:focus {
 
 .lyrics__body {
   overflow: hidden;
+  /* A grid item's min-height is `auto`, so this would size to its content --
+     all forty-odd lines of it -- and push the skip row out of the column
+     entirely rather than scrolling inside its track. */
+  min-height: 0;
   scroll-behavior: smooth;
   /* Lines dissolve at the ends of the column instead of being cut off by it,
      so the one in the middle is plainly the one being sung. */
@@ -1074,9 +1078,16 @@ input[type='text']:focus {
     #000 86%,
     transparent 100%
   );
-  /* Half a column of air top and bottom, so the first and last lines can
-     still reach the middle. */
-  padding: 40% 0;
+  /* Air top and bottom, so the first and last lines can still be scrolled
+     toward the middle instead of stopping at the ends.
+
+     Capped against the window, and it has to be: a percentage padding resolves
+     against *width*, never height. The column got wider and shorter in the
+     same breath, which took this to 184px a side inside a 362px column -- more
+     padding than there was column. Padding sets a floor under an element's
+     height that `min-height: 0` cannot lift, so the grid track grew to fit it
+     and pushed the skip row clean out of the bottom of the column. */
+  padding: min(40%, 17vh) 0;
 }
 
 /* Large and bold, and only one line of it lit at a time.
@@ -1129,11 +1140,10 @@ input[type='text']:focus {
 }
 
 .lyrics__body[data-mode='note'] .lyrics__note {
-  margin: 0 0 1.1rem;
+  margin: 0;
 }
 
-/* Skip, under the message. Only drawn on the empty state, so it never sits
-   over the words. */
+/* Skip, in its own row at the foot of the column. */
 .lyrics__skip {
   display: flex;
   justify-content: center;
