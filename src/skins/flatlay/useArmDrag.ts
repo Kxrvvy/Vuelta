@@ -38,9 +38,9 @@ export function useArmDrag(options: {
   hostRef: RefObject<HTMLElement | null>
   fitRef: RefObject<BoxFit>
   /**
-   * How far the record is currently shifted by the card move, in design
-   * pixels. The arm travels with it, so the pointer has to come back into the
-   * arm's own frame before it means an angle.
+   * How far the record is currently shifted, in design pixels. The arm travels
+   * with it, so the pointer has to come back into the arm's own frame before
+   * it means an angle.
    */
   shiftRef: RefObject<number>
   onDragStart: () => void

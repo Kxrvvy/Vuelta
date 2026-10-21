@@ -30,12 +30,13 @@ import {
   ARM_REACH,
   armBearingDeg,
   BOX,
-  CUE,
   fitBox,
   GROOVE,
   PIVOT,
   RECORD,
   RECORD_CENTER_X,
+  BACK_SHIFT,
+  BOARD_OFFSET,
   RECORD_TRAVEL,
   SLEEVE,
   SWAP,
@@ -47,6 +48,9 @@ import { useArmDrag } from './useArmDrag.js'
  * §2's paper grain, generated rather than fetched: the packaged app's
  * Content-Security-Policy forbids loading an image, and this costs nothing.
  */
+/** Where the tube emerges from the pivot column, in the arm's own frame. */
+const TUBE_START = 20
+
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")"
 
@@ -101,13 +105,15 @@ export function FlatLay({
   const host = useRef<HTMLDivElement | null>(null)
   const record = useRef<HTMLDivElement | null>(null)
   const spin = useRef<HTMLDivElement | null>(null)
-  const upright = useRef<HTMLDivElement | null>(null)
   const armGroup = useRef<SVGGElement | null>(null)
   const armLift = useRef<SVGGElement | null>(null)
   /** The whole arm assembly, which travels with the record during a card move. */
-  const armShift = useRef<SVGGElement | null>(null)
   const sleeve = useRef<HTMLDivElement | null>(null)
-  const cue = useRef<HTMLButtonElement | null>(null)
+  /** The arm assembly, which travels with the record when it adjusts. */
+  const armShift = useRef<SVGGElement | null>(null)
+  const board = useRef<HTMLDivElement | null>(null)
+  /** The record's current shift, shared with the drag. */
+  const shiftRef = useRef(0)
 
   // Which of the two cards is on top. Skin-local and purely visual: it moves
   // nothing but the stacking, and playback is untouched.
@@ -121,8 +127,6 @@ export function FlatLay({
   const fromInFront = useRef(coverInFront)
   /** Arriving is not a move. */
   const settled = useRef(false)
-  /** The record's current shift, shared with the drag. */
-  const shiftRef = useRef(0)
 
   useEffect(() => {
     // Nothing animates on the way in. A move with nothing to travel is worse
@@ -166,6 +170,19 @@ export function FlatLay({
     }
   }, [])
 
+  /**
+   * Putting the needle down starts the record.
+   *
+   * A drag that ends on the groove is the gesture for "play from here", the
+   * same as it is on a real deck — so a scrub while paused no longer leaves
+   * the arm travelling back to its park the moment you let go. The seek is
+   * committed first, by the handler this wraps; the play follows it.
+   */
+  const endDrag = useCallback(() => {
+    onArmDragEnd()
+    if (!state.current?.isPlaying) actions.play()
+  }, [actions, onArmDragEnd, state])
+
   const drag = useArmDrag({
     stateRef: state,
     hostRef: host,
@@ -173,7 +190,7 @@ export function FlatLay({
     shiftRef,
     onDragStart: onArmDragStart,
     onDragTo: onArmDragTo,
-    onDragEnd: onArmDragEnd,
+    onDragEnd: endDrag,
   })
 
   const toggle = useCallback(
@@ -198,6 +215,8 @@ export function FlatLay({
     let bearing = armBearingDeg(CORE_ARM.START_ANGLE)
     let lifted: boolean | null = null
     let front: boolean | null = null
+    /** Where the record has got to on its way between the two layouts. */
+    let recordShift = coverInFrontRef.current ? 0 : BACK_SHIFT.RECORD
 
     const frame = (now: number) => {
       // Clamped: a backgrounded window hands back one enormous delta, and an
@@ -213,11 +232,13 @@ export function FlatLay({
         if (degPerSec > 0.05) {
           // Clockwise from above, which is what a positive CSS rotation is.
           angle = (angle + degPerSec * delta) % 360
+          // Everything on the record turns with it, the label included. The
+          // title and artist used to be held upright by the inverse rotation,
+          // which kept them readable and left the middle of the disc dead
+          // still — and a record whose centre does not move does not read as
+          // a record at all. Legibility was the wrong thing to optimise for:
+          // the label is not where you read the title, the bar is.
           if (spin.current) spin.current.style.transform = `rotate(${angle}deg)`
-          // §5: the inverse, so the text stays upright. Written in the same
-          // pass as the rotation it undoes, so the two cannot disagree by a
-          // frame.
-          if (upright.current) upright.current.style.transform = `rotate(${-angle}deg)`
         }
 
         // The card move. Both objects slide apart, trade places in the stack
@@ -233,26 +254,27 @@ export function FlatLay({
           if (progress >= 1) swapElapsed.current = null
         }
 
-        const shift = out * SWAP.RECORD_SHIFT
-        shiftRef.current = shift
+        // The record follows the cover rather than moving with it: it eases
+        // toward the layout the stacking has settled on, which starts when the
+        // flip happens and finishes after the cover is home. That is the
+        // "and then the disc adjusts" half of the gesture, and damping is what
+        // makes it read as settling rather than as a second slide.
+        const shiftTarget = front === false ? BACK_SHIFT.RECORD : 0
+        recordShift = damp(recordShift, shiftTarget, 7, delta)
+        shiftRef.current = recordShift
 
-        // §9's slide. `transitionOut` is 1 at rest and 0 fully behind the
-        // sleeve; the record is laid out at rest and moves left to hide. The
-        // two offsets simply add -- a track can change mid-move.
+        // §9's slide rides on top of it: `transitionOut` is 1 at rest and 0
+        // fully behind the sleeve. The two offsets simply add.
         if (record.current) {
           const hidden = 1 - live.transitionOut
-          record.current.style.transform = `translateX(${shift - hidden * RECORD_TRAVEL}px)`
+          record.current.style.transform =
+            `translateX(${(recordShift - hidden * RECORD_TRAVEL).toFixed(2)}px)`
         }
-        if (sleeve.current) {
-          sleeve.current.style.transform = `translateX(${out * SWAP.COVER_SHIFT}px)`
-        }
-        // The arm goes with the record, which is what keeps the stylus on the
-        // groove it is playing while the two cards are apart.
-        armShift.current?.setAttribute('transform', `translate(${shift.toFixed(2)} 0)`)
-        if (cue.current) cue.current.style.transform = `translateX(${shift}px)`
-
+        armShift.current?.setAttribute('transform', `translate(${recordShift.toFixed(2)} 0)`)
+        if (board.current) board.current.style.transform = `translateX(${recordShift.toFixed(2)}px)`
         // The stacking flips in the middle of the hold, where nothing
-        // overlaps, so the change is never seen as a pop.
+        // overlaps, so the change is never seen as a pop. Decided before the
+        // record reads it, because the record's adjustment hangs off it.
         const wantFront =
           swapElapsed.current === null
             ? coverInFrontRef.current
@@ -264,6 +286,31 @@ export function FlatLay({
           if (sleeve.current) sleeve.current.style.zIndex = wantFront ? '2' : '1'
           if (record.current) record.current.style.zIndex = wantFront ? '1' : '2'
         }
+
+        // How far through to the back of the stack the cover is, 0 at the
+        // front and 1 behind. At rest `crossed` is 1, so this is simply which
+        // side it is on; mid-move it eases.
+        const behind = coverInFrontRef.current ? 1 - crossed : crossed
+
+        // The cover's resting place is not the same on both sides: in front it
+        // covers half the disc, behind it draws back to a quarter. It changes
+        // places during the hold, where it is clear of the record, so the
+        // reposition and the change of depth happen in the same breath and
+        // neither is seen against the other.
+        if (sleeve.current) {
+          const rest = behind * BACK_SHIFT.COVER
+          // Toward the clearance position, not by it. Adding the two would
+          // stack the reposition on top of the travel and take the cover off
+          // the left of the box by 13px at the end of the hold, where both are
+          // at full value; landing *on* COVER_SHIFT means the clearance is the
+          // same however far the cover has already drawn back.
+          const x = rest + out * (SWAP.COVER_SHIFT - rest)
+          sleeve.current.style.transform =
+            `translateX(${x.toFixed(2)}px) ` +
+            `rotate(${(behind * SWAP.BACK_TILT_DEG).toFixed(3)}deg)`
+        }
+
+
 
         // The arm. Anything at or below START_ANGLE is parked, which is a
         // *pose* and not a bearing on the groove band -- that is what lets
@@ -333,27 +380,46 @@ export function FlatLay({
         className="flatlay__box"
         style={{ transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})` }}
       >
+        {/* §6: the armboard, the plate the pivot is mounted on.
+            First in the box and carrying no z-index, so it paints under both
+            cards — the record sits *on* the deck, and the board is part of the
+            deck. Drawn over the disc it was a translucent plate lying across
+            the rim, which is the wrong way round and the thing you notice.
+            It still travels with the arm. */}
+        <div
+          className="flatlay__board"
+          ref={board}
+          style={{
+            left: `${PIVOT.x + BOARD_OFFSET.x - ARM.BOARD_WIDTH / 2}px`,
+            top: `${PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2}px`,
+            width: `${ARM.BOARD_WIDTH}px`,
+            height: `${ARM.BOARD_HEIGHT}px`,
+            borderRadius: `${ARM.BOARD_WIDTH * 0.4}px`,
+          }}
+        />
+
         {/* The record, below the sleeve in paint order: §2's signature is that
             the sleeve occludes it, so the disc reads as half-pulled-out of the
             jacket rather than as a separate object parked beside it. */}
         <div
           className="flatlay__record"
           ref={record}
-          style={{
-            left: `${recordLeft}px`,
-            top: `${recordTop}px`,
-            width: `${RECORD.RADIUS * 2}px`,
-            height: `${RECORD.RADIUS * 2}px`,
-          }}
+          style={
+            {
+              left: `${recordLeft}px`,
+              top: `${recordTop}px`,
+              width: `${RECORD.RADIUS * 2}px`,
+              height: `${RECORD.RADIUS * 2}px`,
+              // On the wrapper, not the disc: the sheen is a sibling and masks
+              // itself against the same two radii.
+              '--inner': `${GROOVE.INNER}px`,
+              '--outer': `${GROOVE.OUTER}px`,
+              '--groove': `${RECORD.GROOVE_PERIOD}px`,
+            } as CSSProperties
+          }
         >
           <div
             className="flatlay__disc"
-            style={
-              {
-                '--inner': `${GROOVE.INNER}px`,
-                '--outer': `${GROOVE.OUTER}px`,
-              } as CSSProperties
-            }
             onClick={toggle}
             role="button"
             tabIndex={-1}
@@ -363,18 +429,40 @@ export function FlatLay({
           <div className="flatlay__spin" ref={spin}>
             <div
               className="flatlay__label"
-              style={{
-                left: `${labelInset}px`,
-                top: `${labelInset}px`,
-                width: `${RECORD.LABEL_RADIUS * 2}px`,
-                height: `${RECORD.LABEL_RADIUS * 2}px`,
-              }}
+              style={
+                {
+                  left: `${labelInset}px`,
+                  top: `${labelInset}px`,
+                  width: `${RECORD.LABEL_RADIUS * 2}px`,
+                  height: `${RECORD.LABEL_RADIUS * 2}px`,
+                  '--hole-gap': `${RECORD.SPINDLE_RADIUS * 2 + 13}px`,
+                } as CSSProperties
+              }
             >
-              {/* Rides the rotation, so it orbits -- which is what makes the
-                  spin visible at all once the title is held upright. */}
-              <span className="flatlay__label-cat">{catalogueNumber(title)}</span>
+              {/* The small print, curved around the label the way a pressing
+                  sets it. */}
+              <svg className="flatlay__label-print" viewBox="0 0 200 200" aria-hidden>
+                <defs>
+                  {/* Left to right over the top, and right to left under the
+                      bottom, so both read the right way up. */}
+                  <path id="flatlay-arc-top" d="M 28 100 A 72 72 0 0 1 172 100" fill="none" />
+                  <path id="flatlay-arc-foot" d="M 176 100 A 76 76 0 0 1 24 100" fill="none" />
+                </defs>
+                <text className="flatlay__label-arc">
+                  <textPath href="#flatlay-arc-top" startOffset="50%" textAnchor="middle">
+                    VUELTA · LONG PLAY · 16⅔ RPM
+                  </textPath>
+                </text>
+                <text className="flatlay__label-arc">
+                  <textPath href="#flatlay-arc-foot" startOffset="50%" textAnchor="middle">
+                    {catalogueNumber(title)}
+                  </textPath>
+                </text>
+              </svg>
 
-              <div className="flatlay__label-upright" ref={upright}>
+              <span className="flatlay__label-code" />
+
+              <div className="flatlay__label-text">
                 <span className="flatlay__label-title">{title ?? 'No record'}</span>
                 {artist ? <span className="flatlay__label-artist">{artist}</span> : null}
               </div>
@@ -438,25 +526,19 @@ export function FlatLay({
           <defs>
             {/* §6: a vertical gradient across the tube's width, to fake a
                 cylinder. Not flat grey, and not dark. */}
+            {/* The tube is the only light thing on the arm, and in the
+                reference it is nearly white down its centre line. */}
             <linearGradient id="flatlay-tube" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--metal)" />
-              <stop offset="0.5" stopColor="var(--metal-light)" />
-              <stop offset="1" stopColor="var(--metal-dark)" />
+              <stop offset="0" stopColor="#9a969b" />
+              <stop offset="0.28" stopColor="#e8e6e8" />
+              <stop offset="0.46" stopColor="#ffffff" />
+              <stop offset="0.72" stopColor="#c2bec2" />
+              <stop offset="1" stopColor="#7e7a7f" />
             </linearGradient>
           </defs>
 
-          {/* Everything below travels with the record during a card move. */}
+          {/* Everything below travels with the record when it adjusts. */}
           <g ref={armShift}>
-            {/* §6: the bearing base — a hairline circle, and the only visible
-                mechanism in the scene. It does not turn with the arm. */}
-            <circle
-              cx={PIVOT.x}
-              cy={PIVOT.y}
-              r={ARM.BEARING_DIAMETER / 2}
-              fill="none"
-              stroke="rgba(80,76,70,0.28)"
-              strokeWidth={1}
-            />
 
             <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
             <g
@@ -464,11 +546,11 @@ export function FlatLay({
               transform={`rotate(${armBearingDeg(CORE_ARM.START_ANGLE)} ${PIVOT.x} ${PIVOT.y})`}
             >
               <g transform={`translate(${PIVOT.x} ${PIVOT.y})`}>
-                {/* The tube. */}
+                {/* The tube, between the two cast collars it runs into. */}
                 <rect
-                  x={0}
+                  x={TUBE_START}
                   y={-ARM.TUBE_WIDTH / 2}
-                  width={ARM.TUBE_LENGTH}
+                  width={ARM.TUBE_LENGTH - TUBE_START}
                   height={ARM.TUBE_WIDTH}
                   rx={ARM.TUBE_WIDTH / 2}
                   fill="url(#flatlay-tube)"
@@ -481,54 +563,93 @@ export function FlatLay({
                   className="flatlay__arm-headshell"
                   transform={`rotate(${ARM.HEADSHELL_OFFSET_DEG} ${ARM_LOCAL.bend.x} 0)`}
                 >
-                  <path
-                    d={[
-                      `M ${ARM_LOCAL.bend.x} ${-ARM.HEADSHELL_WIDTH / 2}`,
-                      `H ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 9}`,
-                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${-ARM.HEADSHELL_WIDTH / 2 + 9}`,
-                      `V ${ARM.HEADSHELL_WIDTH / 2}`,
-                      `H ${ARM_LOCAL.bend.x}`,
-                      'Z',
-                    ].join(' ')}
-                    fill="var(--housing)"
+                  {/* The collar at the bend, which is what makes the joint
+                      read as a fitting rather than as a kink in a line. */}
+                  <rect
+                    x={ARM_LOCAL.bend.x - 20}
+                    y={-ARM.TUBE_WIDTH / 2 - 2.5}
+                    width={26}
+                    height={ARM.TUBE_WIDTH + 5}
+                    rx={3}
+                    fill="var(--arm-dark)"
                   />
-                  {/* §6: the stylus — the point that maps to `armAngle`. */}
-                  <circle
-                    cx={ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH}
-                    cy={0}
-                    r={ARM.STYLUS_SIZE / 2 + 0.5}
-                    fill="#2a2724"
+                  <rect
+                    x={ARM_LOCAL.bend.x - 2}
+                    y={-ARM.HEADSHELL_WIDTH / 2}
+                    width={ARM.HEADSHELL_LENGTH + 4}
+                    height={ARM.HEADSHELL_WIDTH}
+                    rx={8}
+                    fill="var(--arm-dark)"
+                    stroke="var(--arm-edge)"
+                    strokeWidth={1}
+                  />
+                  {/* §6: the stylus — the point that maps to `armAngle`. A
+                      stub off the shell's far corner, as the reference has it. */}
+                  <rect
+                    x={ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 12}
+                    y={ARM.HEADSHELL_WIDTH / 2 - 2}
+                    width={17}
+                    height={5}
+                    rx={2.5}
+                    fill="#2c2c33"
+                    transform={`rotate(26 ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 12} ${ARM.HEADSHELL_WIDTH / 2})`}
                   />
                 </g>
 
-                {/* §6: the pivot housing, boxy, with a small cylinder on top. */}
+                {/* The pivot assembly, in the reference's three pieces: the
+                    column the tube comes out of, the counterweight beside it,
+                    and a smaller block standing proud on top of that. */}
                 <rect
-                  x={-ARM.HOUSING_WIDTH / 2}
-                  y={-ARM.HOUSING_HEIGHT / 2}
-                  width={ARM.HOUSING_WIDTH}
-                  height={ARM.HOUSING_HEIGHT}
-                  rx={4}
-                  fill="var(--housing)"
+                  x={-26}
+                  y={-12}
+                  width={48}
+                  height={24}
+                  rx={5}
+                  fill="var(--arm-dark)"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
                 />
-                <circle cx={0} cy={0} r={9} fill="#f8f6f2" stroke="rgba(80,76,70,0.18)" />
-
-                {/* §6: the counterweight, slightly proud of the housing and
-                    catching a touch more light. */}
                 <rect
-                  x={ARM_LOCAL.counterweightX - ARM.COUNTERWEIGHT / 2}
-                  y={-ARM.COUNTERWEIGHT / 2}
-                  width={ARM.COUNTERWEIGHT}
-                  height={ARM.COUNTERWEIGHT}
+                  x={-36}
+                  y={2}
+                  width={40}
+                  height={38}
+                  rx={5}
+                  fill="#1b1b20"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
+                />
+                {/* The band of light across it, running *across* the block
+                    and so perpendicular to the tube — along the arm it reads
+                    as a stripe down the casting instead, which is what it did
+                    first. The reference's cast parts are not flat black, and
+                    this is most of what says so. */}
+                <rect
+                  x={-32}
+                  y={11}
+                  width={6}
+                  height={27}
                   rx={3}
-                  fill="#f7f5f1"
+                  fill="rgba(255,255,255,0.16)"
+                />
+                <rect
+                  x={-31}
+                  y={36}
+                  width={30}
+                  height={14}
+                  rx={3}
+                  fill="#26262d"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
                 />
 
                 {/* The grab target. Invisible, and far fatter than the tube it
-                    wraps, because nine pixels is not a drag handle. */}
+                    wraps, because nine pixels is not a drag handle. It starts
+                    clear of the housing so the two targets do not fight. */}
                 <line
                   className="flatlay__arm-grab"
                   onClick={(event) => event.stopPropagation()}
-                  x1={14}
+                  x1={34}
                   y1={0}
                   x2={ARM_REACH}
                   y2={0}
@@ -537,31 +658,26 @@ export function FlatLay({
                   strokeLinecap="round"
                   {...drag}
                 />
+
+                {/* The top of the arm — housing and counterweight — is the
+                    play/pause control. It replaces the cue button that used
+                    to sit beside the bearing: the gesture belongs on the arm
+                    itself, where a cue lever is. Last in paint order, so it
+                    takes the click before the drag target does. */}
+                <circle
+                  className="flatlay__arm-cue"
+                  cx={0}
+                  cy={0}
+                  r={30}
+                  fill="rgba(0,0,0,0)"
+                  onClick={toggle}
+                />
                 </g>
               </g>
             </g>
           </g>
         </svg>
 
-        {/* §6: the cue control. Wired to play/pause — it is the cue lever. */}
-        <button
-          ref={cue}
-          type="button"
-          className="flatlay__cue"
-          onClick={toggle}
-          title="Cue"
-          style={{
-            left: `${CUE.CENTER_X - CUE.SIZE / 2}px`,
-            top: `${CUE.CENTER_Y - CUE.SIZE / 2}px`,
-            width: `${CUE.SIZE}px`,
-            height: `${CUE.SIZE}px`,
-          }}
-        >
-          <span
-            className="flatlay__cue-ring"
-            style={{ width: `${CUE.RING_DIAMETER}px`, height: `${CUE.RING_DIAMETER}px` }}
-          />
-        </button>
       </div>
     </div>
   )

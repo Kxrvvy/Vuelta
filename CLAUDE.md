@@ -63,7 +63,7 @@ the read fail with a 403.
 
 ## Domain model
 
-- **One track = one record.** In the machine looks the centre label is that track's album art. In the flat-lay it is a **printed record label** — title, artist, hairline ring, catalogue number, punched spindle hole — and it counter-rotates so the text stays upright. The album art is on the **sleeve** there, once, never twice in one frame.
+- **One track = one record.** In the machine looks the centre label is that track's album art. In the flat-lay it is a **printed record label** — cream stock, dark ink, 45% of the disc, title above the spindle hole and artist below, small print curving round and a barcode under the artist. **Everything on the record turns with it**, the label and its text included — nothing is held upright. The title and artist were counter-rotated to stay readable, and that left the middle of the disc dead still, which is the one thing that stops it reading as a record at all. The label is not where you read the title; the bar is. The album art is on the **sleeve** there, once, never twice in one frame.
 - Arm sweep: `REST_ANGLE` −12°, `START_ANGLE` 0°, `END_ANGLE` 22°.
 - **The park is a pose, not an angle.** The flat-lay parks the arm vertically, clear of the disc, by drawing any `armAngle` at or below `START_ANGLE` as that pose and easing between. `REST_ANGLE` keeps its meaning in core and is never re-tuned per skin.
 - **The flat-lay's arm geometry is solved** (`skins/flatlay/geometry.ts`), because placing it by eye does not close: a pivot far enough out to look right cannot reach the inner groove, and forcing it needs an arm half the width of the window. `solveArm` bisects for the one pivot distance that puts `armAngle` 0 on the outer groove and 22 on the inner.
@@ -91,7 +91,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 |---|---|
 | **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
 | **Lyrics** | Machine left, a column of synced lyrics at the side **in place of** the panel. |
-| **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm. **No machine at all** — not even a picture of one. |
+| **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm, and the machine shrunk to a **preview in the top-left corner**. |
 
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
   reserves the right edge so the camera frames the machine beside it.
@@ -100,14 +100,61 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   flat and lit, every value in its spec is a CSS value, and nothing in it is a three.js object.
   Keeping it in the canvas is what forced the layer system, a scissored second viewport and a
   reserved band in the camera fit; all of that is deleted.
-- **Switching to it hides the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
+- **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
+  a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
+  same camera, given a 237×140 box to frame themselves in, so the only thing that changes is the
+  size of the element the renderer is already drawing into.
+- **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
+  `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
+  card. Nothing else in the scene paints a backdrop — the unit floats and has no ground plane — so
+  dropping that one attachment clears the frame to the page. R3F puts the field back on the way
+  out; the other two looks are untouched.
+- **The preview takes no clicks at all, box included.** Its contents cannot, by `!important`: R3F
+  sets `pointer-events: auto` inline on its own container, which outranks anything inherited, and
+  without the override a click raycasts into the real scene and works the lid. The box is
+  click-through too, which is the opposite of the disc and the cover — those are objects lying on
+  the paper and absorb their own click, but an invisible box is not an object, and swallowing
+  clicks there would leave a dead rectangle in a corner that otherwise responds everywhere.
+- **What has to clear the sleeve is the machine, not the box.** With no field behind it the box's
+  empty margins lie over the cover with nothing showing — two thirds of it is bare paper, and the
+  machine's ink is 109×103 of the 237×140. Measure it **by difference and per pixel**, never box
+  against box: the cover behind is a square turned four degrees, so the corners of its rect are
+  bare paper, and a rect overlap there covers nothing. Shoot the frame with the preview hidden,
+  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE` and
+  the preview's size both move this, so re-measure when either changes.
+- **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
+  `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
+  anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
+  as it grows — applied afterwards it scales about the top-left corner and slides the scene away.
+  The box is then *larger than the window and meant to be*; what has to stay on screen is
+  `CONTENT`, the arrangement's own bounds, which has room to about 1.52.
+- **The card swap is the one thing the zoom does not fit.** The cover slides a clear disc-width
+  left at the top of the move — further out than any resting state — and at `SCENE_SCALE` 1.2 that
+  lands about 71px off the window. On screen at rest, clipped only mid-move. The ceiling that would
+  keep it in is ~1.08, so it is a real trade; a test pins it so it stays a decision.
+- **Switching to it shrinks the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
   away the generated environment map and every texture and rebuilds both on the way back, so
   `Stage` sets `display: none` on `.stage__machine` instead.
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
-  `transform`. That is what lets the spec's pixel values — shadow offsets, hairlines, a 2px groove
+  `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
-- **The sleeve overlaps the record and occludes it.** 35% of the disc is tucked behind the jacket
-  at rest, and `TUCK_FRACTION` is the one number the whole layout and §9's slide derive from. This
+- **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
+  jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands
+  scale with it.
+- **Vinyl is drawn as reflection, not colour**: a near-black base, two specular arcs set ~90° off the
+  lamp rather than toward it — a groove is a circular grating — smooth lands glossier than the
+  grooved band, and a rolled edge. The arcs are static; the disc turns under them.
+- **The arm's cast parts need a lit edge.** Black on near-black vinyl has no value difference at
+  all — the headshell vanished the moment it crossed the disc. The silhouette has to be stroked.
+- **The groove rings are meant to be seen.** `GROOVE_PERIOD` is the one authority and the skin
+  hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
+  mostly contrast, and the wider period keeps the spacing even rather than beating against the
+  pixel grid once the box is scaled.
+- **Two resting arrangements, both centred.** In front the sleeve covers **half** the disc
+  (`TUCK_FRACTION`, and the spindle lands exactly on the sleeve's right edge); behind it draws back
+  to a **quarter** (`TUCK_FRACTION_BACK`), so the record it is now under is mostly clear of it and
+  the label reads. `layoutFor` solves each, and because both are centred the move is symmetrical —
+  the cover gives up exactly what the record takes, 52px each way. This
   replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where
   whichever card sat behind had a bite taken out of it by the other. In DOM, paint order settles it
   and nothing is lost.
@@ -115,10 +162,28 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   after; only which one is on top changes. The move is the three ordered phases of
   `core/cardSwap.ts` — apart, flip, home — and the flip happens during the hold, where the two are
   clear of each other, so it is never seen as a pop inside the overlap band.
-- **Both objects move, and the arm travels with the record.** The cover alone cannot do it: 154px
-  of it is behind the record and there are only 70px of frame to its left. The record takes the
-  larger share because it has the room, and the arm and cue go with it — which is what keeps the
-  stylus on the groove it is playing, the reason the old rule said the record must never move.
+- **The cover moves first, then the disc adjusts.** The cover slides clear, trades places and
+  repositions during the hold — all while nothing overlaps — and only once the stacking has flipped
+  does the record ease across to the other layout, arm with it. Damped, not timed, so it reads as
+  settling rather than as a second slide.
+- **The cover's clearance travel lerps toward `COVER_SHIFT`, it does not add to it.** The
+  reposition and the travel are both at full value at the end of the hold; adding them took the
+  cover 13px off the left of the box.
+- **The arm is solved, then nudged 12px right** (`ARM_NUDGE_X`) to open the gap at the rim. The
+  solve fixes the pivot's *distance* from the spindle, so the nudge is slack being spent, and it is
+  spent out of the **lead-in**: the stylus sets down 5.8px into a 13.3px band of smooth land
+  instead of exactly on the first groove, which is how a needle is actually dropped. The ceiling is
+  ~27px, where the stylus would touch the rim. It is the one number in `geometry.ts` that is not
+  derived — do not re-tune it by eye, and do not let the lead-in, the label or the overlap shrink
+  without re-measuring it. It also bought the clearance that keeps the stylus **off the album
+  cover** for the whole sweep, which it previously crossed by a whisker at the end of every side.
+- **The arrangement is centred by derivation, not by eye** — `SLEEVE_LEFT` solves for it from the
+  composition's width. The arm reaches well past the record, so the bearing circle is the
+  right-hand edge and the thing is much wider than the two cards suggest; centring on the cards
+  left a third of the frame empty.
+- **The cover lies askew when it is behind**, tilted four degrees anticlockwise so its upper right
+  corner rides higher than its upper left. Only the back of the stack gets it; the front sits
+  square, and the tilt eases on with the depth rather than snapping once the move lands.
 - **The arm sits above both cards** (`z-index: 4`). The card move raises the record to 2, and
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is
@@ -127,9 +192,15 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   summoned and dismissed by the same click on the empty field. It had a transport pill of its own
   for a while, with a gear and a `···` view switcher in the corners; two pieces of chrome doing one
   job is one too many, and the pill is gone.
-- **Everything lying on the paper absorbs its own click** — the disc, the cover, the arm and the
-  cue. Without that the click reaches the field underneath and toggles the chrome too, so
-  play/pause would summon or dismiss the bar every time.
+- **Everything lying on the paper absorbs its own click** — the disc, the cover and the arm.
+  Without that the click reaches the field underneath and toggles the chrome too, so play/pause
+  would summon or dismiss the bar every time.
+- **The top of the arm is the play/pause control**, and there is no cue button. The gesture belongs
+  on the arm, where a cue lever is. The housing takes the click; the tube below it is the drag
+  handle, and the two targets are kept apart so they cannot fight.
+- **Putting the needle down starts the record.** A drag that ends on the groove commits its seek
+  and then plays, the way it does on a real deck — which is also what stops a scrub-while-paused
+  from sending the arm straight back to its park the moment you let go.
 - **The flat-lay still needs the lid open**, like the close-up before it. A closed lid is the front
   pose in every look, which is what keeps "closing the lid is the stop gesture" true here too.
 
@@ -180,4 +251,9 @@ The split at M1 matters: everything up to there is plumbing with real unknowns. 
 ## Style
 
 - Hand-written CSS for the skin. Utility classes fight custom transforms and gradients.
+- **A button given an explicit size must clear the global padding.** `button {}` sets
+  `0.5rem 1.1rem`, and with `box-sizing: border-box` that is wider than any icon-sized button: the
+  content box collapses to nothing, the grid track gets laid out after the left padding, and the
+  glyph sits half its own width right of centre and low. The button also comes out wider than the
+  size it asked for, which is the tell. It has caught the settings gear and the lyrics transport.
 - Keep every Spotify API call behind one module. Spotify changes their terms often; a migration should touch one file.

@@ -4,25 +4,36 @@ import { ARM as CORE_ARM } from '../../../core/contract.js'
 import {
   ARM,
   ARM_LOCAL,
+  ARM_NUDGE_X,
   ARM_REACH,
   ARM_SOLUTION,
   armAngleAtPoint,
   armBearingDeg,
+  BACK_SHIFT,
+  BOARD_OFFSET,
   BOX,
+  COMPOSITION_RIGHT_X,
+  CONTENT,
+  LAYOUT_BACK,
+  LAYOUT_FRONT,
   fitBox,
   GROOVE,
   PIVOT,
+  PIVOT_BEARING_DEG,
   RECORD,
   RECORD_CENTER_X,
   RECORD_HIDDEN_CENTER_X,
   RECORD_TRAVEL,
+  SCENE_SCALE,
   SLEEVE,
   solveArm,
   SWAP,
+  SWAP_REACH_LEFT,
   SWAP_CLEARANCE,
   STYLUS_OFFSET_DEG,
   stylusAt,
   TUCK_FRACTION,
+  TUCK_FRACTION_BACK,
 } from '../geometry.js'
 
 const DEG = Math.PI / 180
@@ -45,29 +56,94 @@ function alongArm(bearingDeg: number, samples = 40): { x: number; y: number }[] 
 }
 
 describe('the flat-lay layout', () => {
-  it('tucks exactly 35% of the record behind the sleeve', () => {
+  it('tucks exactly TUCK_FRACTION of the record behind the sleeve', () => {
     const covered = SLEEVE.RIGHT_EDGE_X - (RECORD_CENTER_X - RECORD.RADIUS)
     expect(covered / (RECORD.RADIUS * 2)).toBeCloseTo(TUCK_FRACTION, 10)
   })
 
-  it('puts the record centre where the derivation lands, not where the table says', () => {
-    // The spec's own table says 700, which would be a 7% overlap. See the
-    // header note in geometry.ts.
-    expect(RECORD_CENTER_X).toBeCloseTo(576, 6)
+  it('puts the spindle on the sleeve’s edge, which is what half an overlap means', () => {
+    // At a half the record's centre lands exactly on the sleeve's right edge.
+    // Worth pinning: it is the one place the two objects agree on, and it is
+    // what the whole layout is measured from.
+    expect(TUCK_FRACTION).toBe(0.5)
+    expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 9)
+  })
+
+  it('covers half the disc in front and a quarter behind', () => {
+    const coveredIn = (l: typeof LAYOUT_FRONT) =>
+      (l.coverLeft + SLEEVE.SIZE - (l.recordCenterX - RECORD.RADIUS)) / (RECORD.RADIUS * 2)
+    expect(coveredIn(LAYOUT_FRONT)).toBeCloseTo(TUCK_FRACTION, 9)
+    expect(coveredIn(LAYOUT_BACK)).toBeCloseTo(TUCK_FRACTION_BACK, 9)
+    expect(TUCK_FRACTION_BACK).toBeLessThan(TUCK_FRACTION)
+  })
+
+  it('centres both arrangements, which is what makes the move symmetrical', () => {
+    for (const layout of [LAYOUT_FRONT, LAYOUT_BACK]) {
+      expect(layout.coverLeft + layout.width / 2).toBeCloseTo(BOX.WIDTH / 2, 9)
+    }
+    // Equal and opposite: the cover gives up exactly what the record takes.
+    expect(BACK_SHIFT.COVER).toBeCloseTo(-BACK_SHIFT.RECORD, 9)
+    expect(BACK_SHIFT.COVER).toBeLessThan(0)
+  })
+
+  it('still clears the record at full travel, from either resting place', () => {
+    // The cover has to get clear of the record where the record actually is,
+    // and at the moment of the flip the record has not adjusted yet.
+    const coverRightAtFullTravel = LAYOUT_FRONT.coverLeft + SLEEVE.SIZE + SWAP.COVER_SHIFT
+    expect(LAYOUT_FRONT.recordCenterX - RECORD.RADIUS).toBeGreaterThan(coverRightAtFullTravel)
+  })
+
+  it('centres the whole arrangement in the design box', () => {
+    // Not the two cards: the arm reaches a long way past the record, so the
+    // arrangement is much wider than the sleeve and disc suggest. Centring by
+    // eye on the cards left a third of the frame empty on the right.
+    expect((SLEEVE.LEFT + COMPOSITION_RIGHT_X) / 2).toBeCloseTo(BOX.WIDTH / 2, 6)
+  })
+
+  it('has the armboard as its right-hand edge, not the record', () => {
+    // If this ever stopped being true the centring above would be measuring
+    // the wrong thing, and nothing else would notice.
+    expect(COMPOSITION_RIGHT_X).toBeGreaterThan(RECORD_CENTER_X + RECORD.RADIUS)
+    expect(COMPOSITION_RIGHT_X).toBeCloseTo(
+      PIVOT.x + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2,
+      6,
+    )
+  })
+
+  it('sits the armboard under the metalwork, not under the bearing', () => {
+    // The assembly is behind and beside the pivot — a counterweight has to be —
+    // so a board centred on the pivot leaves it in one corner. The board is
+    // offset onto the assembly instead.
+    expect(BOARD_OFFSET.x).not.toBeCloseTo(0, 1)
+    expect(BOARD_OFFSET.y).not.toBeCloseTo(0, 1)
+    // And it still contains the pivot, or the arm would appear to float free
+    // of its own mounting.
+    expect(Math.abs(BOARD_OFFSET.x)).toBeLessThan(ARM.BOARD_WIDTH / 2)
+    expect(Math.abs(BOARD_OFFSET.y)).toBeLessThan(ARM.BOARD_HEIGHT / 2)
+  })
+
+  it('keeps the armboard taller than it is wide', () => {
+    // It reads as a disc otherwise, which is what it did at 95 square-ish.
+    expect(ARM.BOARD_WIDTH).toBeLessThan(ARM.BOARD_HEIGHT)
   })
 
   it('hides the record completely when it is concentric with the sleeve', () => {
     expect(RECORD_HIDDEN_CENTER_X).toBe(SLEEVE.CENTER_X)
-    // Both are 440 across, so concentric really is fully hidden.
-    expect(RECORD.RADIUS * 2).toBe(SLEEVE.SIZE)
+    // The record is the smaller of the two, so concentric covers it with a
+    // little to spare -- as a jacket does.
+    expect(RECORD.RADIUS * 2).toBeLessThan(SLEEVE.SIZE)
     const leftOfSleeve = RECORD_HIDDEN_CENTER_X - RECORD.RADIUS
     const rightOfSleeve = RECORD_HIDDEN_CENTER_X + RECORD.RADIUS
     expect(leftOfSleeve).toBeGreaterThanOrEqual(SLEEVE.LEFT - 0.001)
     expect(rightOfSleeve).toBeLessThanOrEqual(SLEEVE.RIGHT_EDGE_X + 0.001)
   })
 
-  it('travels 286px, and §9 clears 65% of the disc', () => {
-    expect(RECORD_TRAVEL).toBeCloseTo(286, 6)
+  it('travels exactly the gap between the two centres, and clears the rest', () => {
+    // Not a number: the travel is however far it is from resting to
+    // concentric, and it changed the moment the record stopped being the same
+    // size as its sleeve.
+    expect(RECORD_TRAVEL).toBeCloseTo(RECORD_CENTER_X - SLEEVE.CENTER_X, 9)
+    expect(RECORD_TRAVEL).toBeGreaterThan(0)
     const clearedAtRest = RECORD_CENTER_X + RECORD.RADIUS - SLEEVE.RIGHT_EDGE_X
     expect(clearedAtRest / (RECORD.RADIUS * 2)).toBeCloseTo(1 - TUCK_FRACTION, 10)
   })
@@ -77,15 +153,39 @@ describe('the flat-lay layout', () => {
     expect(SLEEVE.TOP).toBeGreaterThan(0)
     expect(SLEEVE.TOP + SLEEVE.SIZE).toBeLessThan(BOX.HEIGHT)
     expect(RECORD_CENTER_X + RECORD.RADIUS).toBeLessThan(BOX.WIDTH)
-    expect(PIVOT.x + ARM.BEARING_DIAMETER / 2).toBeLessThan(BOX.WIDTH)
-    expect(PIVOT.y - ARM.BEARING_DIAMETER / 2).toBeGreaterThan(0)
+    expect(PIVOT.x + ARM.BOARD_WIDTH / 2).toBeLessThan(BOX.WIDTH)
+    expect(PIVOT.y - ARM.BOARD_HEIGHT / 2).toBeGreaterThan(0)
   })
 })
 
 describe('the arm solve', () => {
   it('lands armAngle 0 on the outer groove and 22 on the inner, within a pixel', () => {
-    expect(distanceToRecordCentre(stylusAt(CORE_ARM.START_ANGLE))).toBeCloseTo(GROOVE.OUTER, 0)
-    expect(distanceToRecordCentre(stylusAt(CORE_ARM.END_ANGLE))).toBeCloseTo(GROOVE.INNER, 0)
+    // Measured at the pivot the solve actually solved for. `ARM_NUDGE_X`
+    // slides the finished arm sideways afterwards, for the composition's sake,
+    // and taking it back off is what checks the solve underneath it -- this is
+    // the assertion that caught an arm which could not reach the disc at all.
+    const unnudged = (armAngle: number) => {
+      const point = stylusAt(armAngle)
+      return { x: point.x - ARM_NUDGE_X, y: point.y }
+    }
+    expect(distanceToRecordCentre(unnudged(CORE_ARM.START_ANGLE))).toBeCloseTo(GROOVE.OUTER, 0)
+    expect(distanceToRecordCentre(unnudged(CORE_ARM.END_ANGLE))).toBeCloseTo(GROOVE.INNER, 0)
+  })
+
+  it('spends the nudge out of the lead-in, and not all of it', () => {
+    // What the sideways slide costs, where it costs it. Pinned rather than
+    // left to be discovered: the lead-in is the band being spent, so if the
+    // nudge grows past it the stylus starts setting down on the rim.
+    const start = distanceToRecordCentre(stylusAt(CORE_ARM.START_ANGLE))
+    const end = distanceToRecordCentre(stylusAt(CORE_ARM.END_ANGLE))
+
+    expect(start).toBeGreaterThan(GROOVE.OUTER)
+    expect(start - GROOVE.OUTER).toBeLessThan(RECORD.LEAD_IN)
+    expect(start).toBeLessThan(RECORD.RADIUS)
+
+    // The far end barely moves: a fraction of the run-out, not the label.
+    expect(end - GROOVE.INNER).toBeLessThan(RECORD.RUN_OUT)
+    expect(end).toBeGreaterThan(RECORD.LABEL_RADIUS)
   })
 
   it('sweeps inward monotonically across the whole band', () => {
@@ -105,10 +205,14 @@ describe('the arm solve', () => {
     }
   })
 
-  it('picks the physical branch, near a real deck’s proportions', () => {
-    // A real 12" deck: pivot at ~1.38x the disc radius, arm ~1.51x it.
+  it('picks the physical branch, with the bearing off the record', () => {
+    // The constraint that means something: a tonearm's bearing sits beyond the
+    // rim, not over the disc. A real 12" deck puts it at about 1.38x the
+    // radius; this arm is deliberately shorter than that, so the bound is the
+    // rim itself rather than a figure picked to match a particular deck — the
+    // arm's length is a design choice and the solve has to follow it.
     const ratio = ARM_SOLUTION.pivotDistance / RECORD.RADIUS
-    expect(ratio).toBeGreaterThan(1.2)
+    expect(ARM_SOLUTION.pivotDistance).toBeGreaterThan(RECORD.RADIUS)
     expect(ratio).toBeLessThan(1.7)
     // The second root of the error function is much further out; if the solve
     // ever found it, the offset angle would be smaller than the sweep.
@@ -116,7 +220,11 @@ describe('the arm solve', () => {
   })
 
   it('is not the pivot the spec names, because that one cannot reach', () => {
-    const specDistance = Math.hypot(1105 - RECORD_CENTER_X, 180 - RECORD.CENTER_Y)
+    // The spec's own layout: pivot at (1105, 180), record centre at (576, 400)
+    // — written out, because the arrangement has since been moved to centre it
+    // and the absolute numbers no longer line up with anything here.
+    const specDistance = Math.hypot(1105 - 576, 180 - 400)
+    expect(specDistance).toBeCloseTo(573, 0)
     // The closest the stylus could come to the centre from there.
     expect(specDistance - ARM_REACH).toBeGreaterThan(RECORD.RADIUS)
   })
@@ -197,95 +305,166 @@ describe('the park', () => {
 })
 
 describe('the card move', () => {
-  it('takes the two objects fully clear of each other', () => {
+  it('takes the cover fully clear of the record', () => {
     // The whole point of the hold in the middle: the stacking order changes
     // while nothing overlaps, so it is never seen as a pop inside the overlap
     // band. If this goes negative the flip becomes visible.
     expect(SWAP_CLEARANCE).toBeGreaterThan(0)
 
     const coverRight = SLEEVE.RIGHT_EDGE_X + SWAP.COVER_SHIFT
-    const recordLeft = RECORD_CENTER_X + SWAP.RECORD_SHIFT - RECORD.RADIUS
+    const recordLeft = RECORD_CENTER_X - RECORD.RADIUS
     expect(recordLeft).toBeGreaterThan(coverRight)
   })
 
-  it('cannot be done by moving the cover alone', () => {
-    // 154px of the cover is behind the record and there are only 70px of frame
-    // to its left, which is why the record takes the larger share.
+  it('moves the cover and nothing else', () => {
+    // The record stays where it is, so the arm has nothing to follow and the
+    // stylus never leaves the groove it is playing. Both objects used to move,
+    // because with the sleeve at the frame's left edge there was less room
+    // beside it than the overlap was wide; centring the arrangement gave the
+    // cover room to do the whole move itself.
     const overlap = TUCK_FRACTION * RECORD.RADIUS * 2
-    expect(SLEEVE.LEFT).toBeLessThan(overlap)
-    expect(Math.abs(SWAP.COVER_SHIFT)).toBeLessThanOrEqual(SLEEVE.LEFT)
+    expect(Math.abs(SWAP.COVER_SHIFT)).toBeGreaterThan(overlap)
+    expect(Object.keys(SWAP)).not.toContain('RECORD_SHIFT')
   })
 
-  it('keeps everything inside the design box at full travel', () => {
-    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThanOrEqual(0)
-    expect(RECORD_CENTER_X + SWAP.RECORD_SHIFT + RECORD.RADIUS).toBeLessThan(BOX.WIDTH)
-    // The arm and its cue travel with the record.
-    expect(PIVOT.x + ARM.BEARING_DIAMETER / 2 + SWAP.RECORD_SHIFT).toBeLessThan(BOX.WIDTH)
+  it('keeps the cover inside the design box at full travel', () => {
+    // Square on both sides of the stack now, so the travel is the whole of it
+    // -- there is no rotated corner reaching further out than the edge.
+    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThan(0)
   })
 
-  it('keeps the arm on the groove, because it travels with the record', () => {
-    // A rigid translation of both preserves every radius, so the solve still
-    // holds at full travel.
-    for (const angle of [0, 11, 22]) {
-      const moved = distanceToRecordCentre(
-        { x: stylusAt(angle).x + SWAP.RECORD_SHIFT, y: stylusAt(angle).y },
-        RECORD_CENTER_X + SWAP.RECORD_SHIFT,
-      )
-      expect(moved).toBeCloseTo(distanceToRecordCentre(stylusAt(angle)), 9)
-    }
+  it('leaves the record and the arm exactly where they were', () => {
+    // Nothing to assert about travel, because there is none -- so assert the
+    // thing that travel used to threaten: the arrangement after a swap is the
+    // arrangement before it.
+    expect(RECORD_CENTER_X).toBe(SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS)
+    expect(PIVOT.x).toBeCloseTo(
+      RECORD_CENTER_X +
+        ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG) +
+        ARM_NUDGE_X,
+      9,
+    )
   })
 })
 
 describe('the arm and the sleeve', () => {
-  it('never overlap, anywhere in the band or at the park', () => {
-    const insideSleeve = (point: { x: number; y: number }) =>
-      point.x >= SLEEVE.LEFT &&
-      point.x <= SLEEVE.RIGHT_EDGE_X &&
-      point.y >= SLEEVE.TOP &&
-      point.y <= SLEEVE.TOP + SLEEVE.SIZE
+  const insideSleeve = (point: { x: number; y: number }) =>
+    point.x >= SLEEVE.LEFT &&
+    point.x <= SLEEVE.RIGHT_EDGE_X &&
+    point.y >= SLEEVE.TOP &&
+    point.y <= SLEEVE.TOP + SLEEVE.SIZE
 
-    for (let angle = CORE_ARM.START_ANGLE; angle <= CORE_ARM.END_ANGLE; angle += 0.5) {
-      for (const point of alongArm(armBearingDeg(angle))) {
-        expect(insideSleeve(point)).toBe(false)
-      }
-    }
+  it('keeps the park entirely off the cover', () => {
     for (const point of alongArm(ARM.PARK_BEARING_DEG)) {
       expect(insideSleeve(point)).toBe(false)
     }
   })
+
+  it('stays clear of the cover across the whole sweep', () => {
+    // This was the one thing in the layout nobody chose and nobody wanted.
+    // With the sleeve over half the disc its right edge *is* the record's
+    // centre, and the arm has to reach the inner groove, which is near that
+    // centre -- so the stylus used to finish the side a whisker over the
+    // jacket, drawing a needle on printed card.
+    //
+    // `ARM_NUDGE_X` fixed it as a side effect: the clearance it buys at the
+    // rim is bought here too, and the margin at the tightest point went from
+    // about -0.7px to the figure below. Asserted across the sweep rather than
+    // at the ends, because the tightest angle is not necessarily either end.
+    expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 6)
+
+    let tightest = Infinity
+    for (let angle = CORE_ARM.START_ANGLE; angle <= CORE_ARM.END_ANGLE; angle += 0.5) {
+      expect(insideSleeve(stylusAt(angle))).toBe(false)
+      tightest = Math.min(tightest, stylusAt(angle).x - SLEEVE.RIGHT_EDGE_X)
+    }
+    expect(tightest).toBeGreaterThan(0)
+    // Pinned: the margin is thin, and the overlap, the label and the nudge all
+    // move it. If one of them eats this, the needle is on the artwork again.
+    expect(tightest).toBeGreaterThan(ARM_NUDGE_X * 0.75)
+  })
 })
 
 describe('fitting the box to a window', () => {
-  it('is exact at the reference size', () => {
-    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
-    expect(fit.scale).toBe(1)
-    expect(fit.x).toBe(0)
-    expect(fit.y).toBe(0)
+  const SIZES = [
+    [BOX.WIDTH, BOX.HEIGHT],
+    [640, 520],
+    [1920, 1200],
+    [1100, 700],
+    [2560, 900],
+  ] as const
+
+  /** Where a design-box x lands on screen. */
+  const onScreen = (fit: { scale: number; x: number; y: number }) => ({
+    left: fit.x + CONTENT.left * fit.scale,
+    right: fit.x + CONTENT.right * fit.scale,
+    top: fit.y + CONTENT.top * fit.scale,
+    bottom: fit.y + CONTENT.bottom * fit.scale,
   })
 
-  it('scales uniformly and centres, so the record is never an ellipse', () => {
-    for (const [width, height] of [
-      [640, 520],
-      [1920, 1200],
-      [1100, 700],
-      [2560, 900],
-    ] as const) {
+  it('zooms by SCENE_SCALE at the reference size, and stays centred', () => {
+    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
+    expect(fit.scale).toBe(SCENE_SCALE)
+    // The box overflows on purpose, so the offsets are negative and equal on
+    // both sides -- which is the whole of "centred".
+    expect(fit.x).toBeCloseTo((BOX.WIDTH - BOX.WIDTH * SCENE_SCALE) / 2, 9)
+    expect(fit.y).toBeCloseTo((BOX.HEIGHT - BOX.HEIGHT * SCENE_SCALE) / 2, 9)
+    expect(fit.x).toBeLessThan(0)
+  })
+
+  it('scales uniformly, so the record is never an ellipse', () => {
+    for (const [width, height] of SIZES) {
       const fit = fitBox(width, height)
       expect(fit.scale).toBeGreaterThan(0)
-      expect(BOX.WIDTH * fit.scale).toBeLessThanOrEqual(width + 0.001)
-      expect(BOX.HEIGHT * fit.scale).toBeLessThanOrEqual(height + 0.001)
-      expect(fit.x).toBeGreaterThanOrEqual(0)
-      expect(fit.y).toBeGreaterThanOrEqual(0)
-      // One of the two axes is filled exactly.
+      // One axis of the *box* is filled exactly, before the zoom.
+      const unzoomed = fit.scale / SCENE_SCALE
       const filled =
-        Math.abs(BOX.WIDTH * fit.scale - width) < 0.001 ||
-        Math.abs(BOX.HEIGHT * fit.scale - height) < 0.001
+        Math.abs(BOX.WIDTH * unzoomed - width) < 0.001 ||
+        Math.abs(BOX.HEIGHT * unzoomed - height) < 0.001
       expect(filled).toBe(true)
     }
   })
 
+  it('keeps the arrangement on screen at every size, zoom and all', () => {
+    // The box is allowed off the window; this is what is not. Both resting
+    // arrangements are inside CONTENT, so this covers cover-in-front and
+    // cover-behind alike.
+    for (const [width, height] of SIZES) {
+      const rect = onScreen(fitBox(width, height))
+      expect(rect.left).toBeGreaterThanOrEqual(0)
+      expect(rect.top).toBeGreaterThanOrEqual(0)
+      expect(rect.right).toBeLessThanOrEqual(width + 0.001)
+      expect(rect.bottom).toBeLessThanOrEqual(height + 0.001)
+    }
+  })
+
+  it('has room left before the arrangement would touch the edge', () => {
+    // How much bigger the scene could go. Pinned so that raising SCENE_SCALE
+    // past what the composition can take fails here rather than in the window.
+    const halfWidth = Math.max(BOX.WIDTH / 2 - CONTENT.left, CONTENT.right - BOX.WIDTH / 2)
+    const halfHeight = Math.max(BOX.HEIGHT / 2 - CONTENT.top, CONTENT.bottom - BOX.HEIGHT / 2)
+    expect(BOX.WIDTH / 2 / halfWidth).toBeGreaterThan(SCENE_SCALE)
+    expect(BOX.HEIGHT / 2 / halfHeight).toBeGreaterThan(SCENE_SCALE)
+  })
+
+  it('pins the card swap leaving the window at this zoom', () => {
+    // Not a thing anyone chose, and the one cost of the zoom. The cover slides
+    // a clear disc-width left at the top of the swap -- further out than any
+    // resting state -- and the box's left margin is not deep enough to pay for
+    // that at SCENE_SCALE as well. It is on screen at rest and clipped only
+    // during the move.
+    //
+    // The ceiling that would keep it in is about 1.08, so this is a real
+    // trade, not a rounding error. Recorded here so it is a decision and not a
+    // surprise: raising the zoom makes it worse, and the levers are the zoom
+    // itself or letting the record share the travel.
+    const fit = fitBox(BOX.WIDTH, BOX.HEIGHT)
+    expect(SWAP_REACH_LEFT).toBeGreaterThan(0) // still inside the design box
+    expect(fit.x + SWAP_REACH_LEFT * fit.scale).toBeLessThan(0) // but off the window
+  })
+
   it('survives a window with no size yet', () => {
-    expect(fitBox(0, 0).scale).toBe(1)
-    expect(fitBox(Number.NaN, Number.NaN).scale).toBe(1)
+    expect(fitBox(0, 0).scale).toBe(SCENE_SCALE)
+    expect(fitBox(Number.NaN, Number.NaN).scale).toBe(SCENE_SCALE)
   })
 })

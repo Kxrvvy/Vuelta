@@ -10,7 +10,8 @@
  *   main     spec §12's View A, unchanged: the whole machine, centred.
  *   lyrics   the machine to the left, a column of synced lyrics beside it.
  *   closeup  a different skin entirely -- a sleeve and a record lying on
- *            paper, drawn in DOM. The machine is not in it at all.
+ *            paper, drawn in DOM, with the machine shrunk to a preview in
+ *            the top-left corner.
  *
  * It also owns the two numbers both halves need: how much of the right-hand
  * side the panel is using, and how much of the bottom the bar is. CSS sizes
@@ -114,8 +115,9 @@ export function Stage({
   const paneOpen = library.pane !== 'none'
   const closePane = library.close
 
-  // The flat-lay is a separate skin, and it has no machine in it -- so, like
-  // the close-up before it, it only means anything with the lid up. With the
+  // The flat-lay is a separate skin, and the machine is only a thumbnail in
+  // it -- so, like the close-up before it, it only means anything with the lid
+  // up. With the
   // lid shut the front pose is what you get, in every look, which is what
   // keeps "closing the lid is the stop gesture" true here too.
   const flatlayShown = view === 'closeup' && sync.lidOpen
@@ -161,6 +163,17 @@ export function Stage({
   // of chrome doing one job is one too many.
   const barShown = (chromeShown || paneOpen) && sync.lidOpen
 
+  // The settings corner lives in the shell, which wraps the screen switch and
+  // so sits above this — it cannot be handed a prop. The flag goes on the
+  // document and the stylesheet picks it up, so the corner comes and goes with
+  // the browser bar instead of sitting over a dismissed scene on its own.
+  useEffect(() => {
+    document.body.dataset.chrome = barShown ? 'shown' : 'hidden'
+    return () => {
+      delete document.body.dataset.chrome
+    }
+  }, [barShown])
+
   // One measurement for whichever column is mounted. The hook takes a
   // callback ref precisely so it can follow the swap.
   const [rightRef, rightReserve] = useEdgeReserve<HTMLElement>('right')
@@ -174,10 +187,17 @@ export function Stage({
 
   return (
     <div className="stage">
-      {/* Hidden rather than unmounted while the flat-lay is up. Tearing the
-          Canvas down would throw away the generated environment map and every
-          texture, and rebuild both on the way back. */}
-      <div className="stage__machine" style={flatlayShown ? { display: 'none' } : undefined}>
+      {/* Never unmounted. Tearing the Canvas down would throw away the
+          generated environment map and every texture, and rebuild both on the
+          way back.
+
+          Under the flat-lay it used to be `display: none`. Now it shrinks into
+          the top-left corner instead and becomes the preview of the machine --
+          which is the same canvas, the same camera and the same lid, just
+          given a small box to frame itself in. That is why there is no second
+          viewport and no second scene: the only thing that changes is the size
+          of the element the renderer is already drawing into. */}
+      <div className={flatlayShown ? 'stage__machine stage__machine--preview' : 'stage__machine'}>
         <Turntable
           state={sync.stateRef}
           actions={sync.actions}
@@ -188,6 +208,9 @@ export function Stage({
           // sits centred the moment it fades. The rect is still measured
           // whatever the opacity; it is the gating that is conditional.
           reserveRightPx={reserveRight}
+          // In the corner preview the dark field comes off, so the machine
+          // sits on the paper rather than on a card.
+          preview={flatlayShown}
           lidOpen={sync.lidOpen}
           onOpenLid={sync.openLid}
           onCloseLid={sync.closeLid}

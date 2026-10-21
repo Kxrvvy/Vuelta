@@ -43,8 +43,119 @@ body {
 
 .shell {
   height: 100%;
+  /* One row, still a grid: the screens below size themselves against a 1fr
+     track, and a plain block would let them collapse to their content. */
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
+  position: relative;
+}
+
+/* Below the corner, above everything else: it catches the click that closes
+   the menu so nothing underneath sees it. */
+.settings__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+/* The settings corner. Above the scene, including the flat-lay's arm, which
+   sits at z-index 4 in the same stacking context. */
+.settings {
+  position: absolute;
+  top: 0.85rem;
+  right: 1rem;
+  z-index: 50;
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+  /* The same fade as the browser bar, so the two come and go together. */
+  transition: opacity 260ms ease;
+}
+
+/* Dismissing the chrome takes the corner with it. The attribute is only set
+   while a Stage is mounted, so the setup and no-device screens — which have
+   no chrome gesture — keep their settings button unconditionally. */
+body[data-chrome='hidden'] .settings {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Dark chrome on a light scene, like the browser bar along the bottom — the
+   two looks' palettes meet here either way, and matching the bar is the least
+   surprising place for them to do it. */
+.settings__button {
+  width: 2rem;
+  height: 2rem;
+  /* The global button rule sets 0.5rem 1.1rem, and with border-box that is
+     wider than the button itself: the content box collapses to nothing, the
+     grid track is laid out after the left padding, and the icon ends up half
+     its own width right of centre. An icon-only button carries no padding. */
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(22, 19, 17, 0.82);
+  backdrop-filter: blur(14px);
+  /* Was --muted, which is quiet against the chip on any ground. The corner is
+     the only control on screen in the flat-lay when the bar is dismissed, so
+     it should be legible without being loud. */
+  color: #cfc6b8;
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.settings__button:hover,
+.settings__button[aria-expanded='true'] {
+  color: var(--text);
+  background: rgba(32, 28, 25, 0.9);
+}
+
+.settings__menu {
+  min-width: 11rem;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(22, 19, 17, 0.94);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.settings__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+}
+
+.settings__note {
+  color: var(--muted);
+}
+
+.settings__note--warn {
+  color: var(--danger);
+}
+
+.settings__item {
+  margin-top: 0.15rem;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings__item:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .screen {
@@ -202,18 +313,6 @@ input[type='text']:focus {
   user-select: text;
 }
 
-.footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.7rem 1.25rem;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
 .notice {
   padding: 0.7rem 0.9rem;
   border-radius: 6px;
@@ -282,6 +381,54 @@ input[type='text']:focus {
 .stage__machine {
   position: absolute;
   inset: 0;
+}
+
+/* The machine, shrunk into the corner of the flat-lay: the same canvas and
+   camera, given a small box to frame themselves in.
+
+   It has no field behind it -- `Staging` leaves its background off here -- so
+   the machine stands on the paper rather than on a dark card. Nothing else in
+   the scene paints a backdrop, because the unit floats and has no ground
+   plane, so the frame clears straight through to the page.
+
+   With the card gone it takes no clicks at all, box included. A card was an
+   object lying on the paper and absorbed its own click, the way the disc and
+   the cover do; an invisible box is not an object, and swallowing clicks
+   there would leave a dead rectangle in the corner of a page that otherwise
+   responds everywhere. So the paper under it behaves like paper.
+
+   Above the flat-lay, which has no z-index of its own, and below the browser
+   bar and the settings corner. */
+.stage__machine--preview {
+  inset: auto;
+  top: 18px;
+  left: 18px;
+  /* What has to clear the sleeve is the *machine*, not the box: with no field
+     behind it, the box's empty margins lie over the cover without anything
+     showing, and at this size they do. The machine's own ink is 109x103 of
+     the 237x140, centred, and every pixel of it lands on bare paper in both
+     resting arrangements.
+
+     Checked by difference -- shoot the frame with the preview hidden, shoot it
+     again with it shown, and ask what each changed pixel was drawn over. A
+     box-against-box test says this overlaps and is wrong: the cover behind is
+     a square turned four degrees, so the corners of its rect are bare paper
+     and a rect overlap there covers nothing. */
+  width: 237px;
+  height: 140px;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* react-three-fiber sets `pointer-events: auto` *inline* on its own event
+   container, so this cannot be done by setting `none` on the box above and
+   letting it inherit -- an inline declaration outranks that. Without it the
+   thumbnail is live, and a click on it raycasts into the real scene and works
+   the lid. !important is the only thing that beats an inline style, so it is
+   the right tool here rather than a shortcut. */
+.stage__machine--preview * {
+  pointer-events: none !important;
 }
 
 .panel {
@@ -911,6 +1058,11 @@ input[type='text']:focus {
 .lyrics__transport button {
   width: 2.1rem;
   height: 2.1rem;
+  /* The global button rule's padding is wider than this button. Left on, the
+     content box collapses, the grid track is laid out after the left padding,
+     and the glyph sits off to the right and low — the same fault the settings
+     gear had. Any button given an explicit size has to clear it. */
+  padding: 0;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -949,15 +1101,29 @@ input[type='text']:focus {
   --ink: #2a2724;
   --ink-soft: #3d3936;
   --ink-muted: #6b6762;
-  --disc: #42413c;
-  --disc-groove: #4a4944;
+  /* Vinyl is far darker than a dark grey and never flat: almost all of what
+     you see on a record is reflection, not colour. Still not black — nothing
+     in this scene is. */
+  --disc: #0c0c0e;
+  /* Far enough off the base to be seen as lines rather than as a texture. */
+  --disc-groove: #242428;
+  /* The smooth lands — the lead-in at the rim and the run-out by the label.
+     No grooves to scatter the light, so they come back glossier. */
+  --disc-land: #17171a;
   --metal: #c8c4c6;
   --metal-light: #f0eeef;
   --metal-dark: #9c989b;
   --housing: #f2efea;
-  --label: #272320;
-  --label-text: #e8e4df;
-  --label-muted: #a8a39d;
+  /* A printed paper label: cream stock, dark ink. It was dark with pale text,
+     which is a sticker rather than a pressing. */
+  --label: #e9e2d2;
+  --label-text: #16130f;
+  --label-muted: #4f483d;
+  /* The arm's cast parts. Black, with the tube left in bare metal — but far
+     enough off the vinyl to be seen against it, which #17171a on #0c0c0e was
+     not: the headshell simply disappeared once it was over the disc. */
+  --arm-dark: #232329;
+  --arm-edge: rgba(255, 255, 255, 0.26);
   /* One shadow hue for the whole scene, so everything is lit by one lamp. */
   --cast: 40, 36, 32;
 }
@@ -1007,6 +1173,16 @@ input[type='text']:focus {
 
 /* ---- the record ---------------------------------------------------------- */
 
+/* §6: the armboard. No z-index at all, which is the point — the record and
+   the cover both carry one, so this paints beneath them whichever of the two
+   is on top. */
+.flatlay__board {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(80, 76, 70, 0.08);
+  will-change: transform;
+}
+
 /* The sliding group. §9's swap moves this, and so does the card move.
    The two offsets add; the frame loop writes one transform for both. */
 .flatlay__record {
@@ -1020,26 +1196,37 @@ input[type='text']:focus {
   inset: 0;
   border-radius: 50%;
   background-color: var(--disc);
-  /* §4, topmost layer first: a solid ring that leaves the grooves showing only
-     between the run-out and the lead-in, then the groove rings themselves. */
+  /* Topmost layer first.
+     1. The rolled edge: a record's rim is not a cut cylinder, it is rounded,
+        so a hairline catches the light just inside it and the last pixel or
+        two falls away dark.
+     2. The lands, which leave the grooves showing only between the run-out
+        and the lead-in, and are a touch glossier for having no grooves.
+     3. The grooves themselves. */
   background-image:
     radial-gradient(
       circle at 50% 50%,
-      var(--disc) 0 var(--inner),
+      rgba(0, 0, 0, 0) 0 calc(100% - 4px),
+      rgba(255, 255, 255, 0.07) calc(100% - 4px) calc(100% - 2px),
+      rgba(0, 0, 0, 0.3) calc(100% - 2px)
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      var(--disc-land) 0 var(--inner),
       rgba(0, 0, 0, 0) var(--inner) var(--outer),
-      var(--disc) var(--outer) 100%
+      var(--disc-land) var(--outer) 100%
     ),
     repeating-radial-gradient(
       circle at 50% 50%,
-      var(--disc) 0 1px,
-      var(--disc-groove) 1px 2px
+      var(--disc) 0 calc(var(--groove) * 0.62),
+      var(--disc-groove) calc(var(--groove) * 0.62) var(--groove)
     );
   /* §4: 1px rim highlight on the upper-left arc, 1px darker on the lower-right,
      and a drop shadow on the same light as the sleeve but softer and wider. */
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.1),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.26),
-    8px 14px 40px rgba(var(--cast), 0.16);
+    inset 1px 1px 0 rgba(255, 255, 255, 0.12),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.32),
+    8px 14px 40px rgba(var(--cast), 0.18);
   cursor: pointer;
 }
 
@@ -1069,11 +1256,37 @@ input[type='text']:focus {
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  background: linear-gradient(
-    132deg,
-    rgba(255, 255, 255, 0.085) 0%,
-    rgba(255, 255, 255, 0.03) 26%,
-    rgba(255, 255, 255, 0) 48%
+  /* Two lobes, not one, and not pointed at the lamp.
+     Grooves are a circular diffraction grating, so the highlight does not sit
+     where the light comes from: it forms two arcs about 90 degrees either side
+     of it. The lamp is at the upper left (315deg, where 0 is twelve o'clock
+     and the angle runs clockwise), which puts the arcs at 45 and 225.
+     That is also the half of the disc you can see — the sleeve covers the
+     upper left — so aiming a highlight at the lamp hid it behind the cover,
+     which is exactly what the first attempt did. */
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0.115) 45deg,
+    rgba(255, 255, 255, 0) 92deg,
+    rgba(255, 255, 255, 0) 182deg,
+    rgba(255, 255, 255, 0.062) 225deg,
+    rgba(255, 255, 255, 0) 270deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  /* A highlight dies before it reaches the label and again at the rim, where
+     the surface turns away from the lamp. */
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 0) 0 var(--inner),
+    rgba(0, 0, 0, 1) calc(var(--inner) + 16px) calc(var(--outer) - 8px),
+    rgba(0, 0, 0, 0) var(--outer)
+  );
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 0) 0 var(--inner),
+    rgba(0, 0, 0, 1) calc(var(--inner) + 16px) calc(var(--outer) - 8px),
+    rgba(0, 0, 0, 0) var(--outer)
   );
 }
 
@@ -1087,52 +1300,64 @@ input[type='text']:focus {
   border-radius: 50%;
   background: var(--label);
   overflow: hidden;
+  /* Paper on vinyl: a hair of shadow where the one sits on the other. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-/* §5: a hairline ring at ~0.88 of the label radius. */
-.flatlay__label::after {
-  content: '';
+/* Printed on the label, so it turns with the record. */
+.flatlay__label-print {
   position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  border: 1px solid rgba(232, 228, 223, 0.22);
-  pointer-events: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-/* §5: catalogue-number text. Texture, not information — and because it rides
-   the rotating layer, it is also what makes the spin visible. */
-.flatlay__label-cat {
+.flatlay__label-arc {
+  font-size: 6.4px;
+  letter-spacing: 0.1em;
+  fill: var(--label-muted);
+}
+
+/* §8's barcode, in the reference's spot under the artist. Texture, not
+   information — a record label has one and the eye expects it. */
+.flatlay__label-code {
   position: absolute;
-  bottom: 11%;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 6px;
-  letter-spacing: 0.16em;
-  color: var(--label-text);
-  opacity: 0.35;
+  left: 50%;
+  bottom: 17%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 7px;
+  opacity: 0.72;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--label-text) 0 1px,
+    rgba(0, 0, 0, 0) 1px 2px,
+    var(--label-text) 2px 2.6px,
+    rgba(0, 0, 0, 0) 2.6px 4px,
+    var(--label-text) 4px 5px,
+    rgba(0, 0, 0, 0) 5px 6.4px
+  );
 }
 
-/* The counter-rotating group: the inverse of the disc's rotation, so the text
-   stays upright while the record turns. */
-.flatlay__label-upright {
+/* Title and artist. They turn with the record like everything else printed on
+   it; the gap in the middle is the spindle hole's — title above it, artist
+   below, as a pressing sets them. */
+.flatlay__label-text {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 0 15%;
+  gap: var(--hole-gap);
+  padding: 0 13%;
   text-align: center;
-  will-change: transform;
 }
 
 .flatlay__label-title {
-  font-size: 11px;
-  line-height: 1.18;
-  font-stretch: condensed;
-  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 700;
   color: var(--label-text);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1142,9 +1367,9 @@ input[type='text']:focus {
 }
 
 .flatlay__label-artist {
-  font-size: 9px;
+  font-size: 10.5px;
   line-height: 1.2;
-  color: var(--label-muted);
+  color: var(--label-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1156,7 +1381,11 @@ input[type='text']:focus {
   position: absolute;
   border-radius: 50%;
   background: var(--paper);
-  box-shadow: inset 0 1px 1px rgba(var(--cast), 0.45);
+  /* A punched hole in paper over a punched hole in vinyl: a dark ring where
+     the stock is cut, and the deck showing through the middle. */
+  box-shadow:
+    0 0 0 2px rgba(22, 19, 15, 0.22),
+    inset 0 1px 1.5px rgba(var(--cast), 0.55);
 }
 
 /* ---- the sleeve ---------------------------------------------------------- */
@@ -1267,27 +1496,10 @@ input[type='text']:focus {
   cursor: grabbing;
 }
 
-/* §6: the cue control. A real button, not decoration — it is the cue lever.
-   It belongs to the arm, so it travels with the record during a card move. */
-.flatlay__cue {
-  position: absolute;
-  z-index: 3;
-  border: 0;
-  padding: 0;
-  border-radius: 12px;
-  background: #8b8884;
-  display: grid;
-  place-items: center;
+/* The top of the arm — housing and counterweight — starts and stops the
+   record. It replaces the cue button that sat beside the bearing: the gesture
+   belongs on the arm itself, which is where a cue lever is. */
+.flatlay__arm-cue {
+  pointer-events: all;
   cursor: pointer;
-  box-shadow: 2px 4px 10px rgba(var(--cast), 0.2);
-  transition: background 140ms ease-out;
-}
-
-.flatlay__cue:hover {
-  background: #7d7a76;
-}
-
-.flatlay__cue-ring {
-  border-radius: 50%;
-  border: 7px solid #fff;
 }

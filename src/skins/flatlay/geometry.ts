@@ -35,11 +35,34 @@
 /** The box every number below is measured in. */
 export const BOX = { WIDTH: 1280, HEIGHT: 800 } as const
 
+/**
+ * How much larger than the window the design box is drawn.
+ *
+ * A zoom, and deliberately the only way the scene's size is set: every number
+ * below keeps the value the spec gives it, and the whole composition -- cover,
+ * record, label, arm, board, shadows, hairlines -- grows by one multiplier at
+ * the very end. Nothing moves relative to anything else, so none of the
+ * geometry here has to know about it.
+ *
+ * The box therefore overflows the window, and is *meant* to. What has to stay
+ * on screen is `CONTENT`, which is a good deal smaller than the box: the
+ * arrangement is centred and the box has wide empty margins, and this spends
+ * them. See the check beside `CONTENT` for how much is left.
+ */
+export const SCENE_SCALE = 1.2
+
 const DEG = Math.PI / 180
 
 export const SLEEVE = {
   SIZE: 440,
-  LEFT: 70,
+  /**
+   * Solved, not placed — see `SLEEVE_LEFT` below, which centres the whole
+   * arrangement in the box. A getter because that solve needs the arm, and
+   * the arm needs these dimensions.
+   */
+  get LEFT() {
+    return SLEEVE_LEFT
+  },
   /** Vertically centred. */
   get TOP() {
     return (BOX.HEIGHT - this.SIZE) / 2
@@ -60,44 +83,78 @@ export const SLEEVE = {
 /**
  * How much of the record's diameter the sleeve covers when it is at rest.
  *
- * The signature of the layout, and the one number the slide is measured from:
- * at rest 35% is tucked, which is §9's "~65% clears the sleeve edge" seen from
- * the other side.
+ * The signature of the layout, and the one number everything else is measured
+ * from: half the disc is behind the jacket, and the same half stays behind it
+ * whichever of the two is on top. At a half the record's centre — and so the
+ * spindle — sits exactly on the sleeve's right edge.
+ *
+ * It was 0.35, which is §9's "~65% clears the sleeve edge". The cost of a half
+ * is the label: at 0.35 a sliver of it was behind the cover, at 0.5 it is the
+ * whole left half, so the title and artist are only fully legible with the
+ * record in front.
  */
-export const TUCK_FRACTION = 0.35
+export const TUCK_FRACTION = 0.5
+
+/**
+ * And how much it covers once it is behind the record: a quarter.
+ *
+ * The cover does not sit in the same place on both sides of the stack. In
+ * front it hides half the disc, which is the arrangement the layout is drawn
+ * around; behind, it draws back to a quarter, so the record it is now under
+ * is mostly clear of it and the label is readable.
+ *
+ * Both arrangements are centred in the box, which is what makes the move
+ * symmetrical: the widths differ by half the disc's radius, so the cover goes
+ * left by half of that and the record and arm go right by the same.
+ */
+export const TUCK_FRACTION_BACK = 0.25
+
+/**
+ * How much smaller the record is than the jacket it comes out of.
+ *
+ * A real 12" LP is 302mm in a 315mm sleeve — about 4% under. They were exactly
+ * the same size here, which is the one proportion that gives the trick away:
+ * a disc flush with its jacket does not look like it could ever go back in.
+ *
+ * The whole record scales, not just its rim, so the label, the hole and the
+ * two smooth lands keep the proportions they were drawn with.
+ */
+const RECORD_SCALE = 0.95
 
 export const RECORD = {
-  RADIUS: 220,
-  /** §5: label circle ⌀165. */
-  LABEL_RADIUS: 82.5,
+  RADIUS: (SLEEVE.SIZE / 2) * RECORD_SCALE,
+  /**
+   * §5's label was ⌀165 — 37% of the disc. A pressing's label is a good deal
+   * larger than that, nearly half the diameter, and at 37% there was not much
+   * room on it for anything but the title.
+   */
+  LABEL_RADIUS: ((440 / 2) * RECORD_SCALE) * 0.45,
   /** §5: spindle hole ⌀12, punched through to the paper. */
-  SPINDLE_RADIUS: 6,
+  SPINDLE_RADIUS: 6 * RECORD_SCALE,
   /** §4: a wider smooth band at the rim, with no ring texture. */
-  LEAD_IN: 14,
+  LEAD_IN: 14 * RECORD_SCALE,
   /** §4: smooth band just outside the label. */
-  RUN_OUT: 10,
-  /** §4: "ring period ~2px. The grooves should be felt, not counted." */
-  GROOVE_PERIOD: 2,
+  RUN_OUT: 10 * RECORD_SCALE,
+  /**
+   * The spacing of the groove rings, in design pixels.
+   *
+   * The design asked for ~2px, "felt, not counted", and what shipped could
+   * not be seen at all. Measured rather than guessed, against the real
+   * stylesheet: the cause was mostly *contrast* — the rings were nine levels
+   * off the base, which at this size is a grey wash — and only partly the
+   * spacing.
+   *
+   * The spacing still matters. The box is scaled to the window, about 0.945
+   * at the reference size, so a 2px period lands two sub-pixel bands on the
+   * grid and they beat against it: rings resolve, but unevenly, in merged
+   * runs. At 4 each band clears a device pixel and the spacing stays regular.
+   *
+   * A real LP's grooves are far finer than either figure, and far finer than
+   * a screen can draw. Past a point, accuracy is just grey.
+   */
+  GROOVE_PERIOD: 4,
   CENTER_Y: BOX.HEIGHT / 2,
 } as const
-
-/**
- * Where the record sits at rest, derived so that exactly `TUCK_FRACTION` of it
- * is behind the sleeve.
- */
-export const RECORD_CENTER_X =
-  SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS
-
-/**
- * Where the record sits when it is completely hidden.
- *
- * The sleeve and the record are both 440px across, so "fully behind it" is
- * exactly concentric -- there is no fudge factor to tune.
- */
-export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
-
-/** §9's travel: 286px. */
-export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
 
 /** The playable band, as radii from the record's centre. */
 export const GROOVE = {
@@ -105,16 +162,38 @@ export const GROOVE = {
   INNER: RECORD.LABEL_RADIUS + RECORD.RUN_OUT,
 } as const
 
+/**
+ * How much of its drawn length the arm keeps.
+ *
+ * Applies to the two measurements that run along the arm — the tube and the
+ * headshell — and so to the reach, which is what `solveArm` works from. The
+ * widths are untouched: this shortens the arm, it does not scale it.
+ *
+ * Everything downstream follows on its own. The pivot comes in to 1.17x the
+ * disc's radius from 1.23x, the arrangement is narrower and so re-centres,
+ * and the park still lands 306px from the spindle against a 209px disc.
+ */
+const ARM_LENGTH_SCALE = 0.9
+
 export const ARM = {
   /** §6: slim brushed aluminium cylinder. */
-  TUBE_LENGTH: 290,
+  TUBE_LENGTH: 290 * ARM_LENGTH_SCALE,
   TUBE_WIDTH: 9,
   /** §6: angled ~20° off the tube axis. The arm visibly bends here. */
-  HEADSHELL_LENGTH: 46,
+  HEADSHELL_LENGTH: 46 * ARM_LENGTH_SCALE,
   HEADSHELL_WIDTH: 26,
   HEADSHELL_OFFSET_DEG: 20,
   /** §6: a hairline circle, the only visible mechanism in the scene. */
-  BEARING_DIAMETER: 95,
+  /**
+   * The armboard: the soft plate the pivot assembly sits on.
+   *
+   * Its width is the arrangement's right-hand edge — further out than the
+   * record's rim or the arm at any angle — so it is what the layout centres
+   * against, and slimming it moves everything. Width and height are separate
+   * because it is not a circle: it was 95 square-ish and read as a disc.
+   */
+  BOARD_WIDTH: 78,
+  BOARD_HEIGHT: 110,
   HOUSING_WIDTH: 46,
   HOUSING_HEIGHT: 38,
   COUNTERWEIGHT: 30,
@@ -143,7 +222,16 @@ const STYLUS_LOCAL = {
   y: ARM.HEADSHELL_LENGTH * Math.sin(ARM.HEADSHELL_OFFSET_DEG * DEG),
 } as const
 
-/** Pivot to stylus. Shorter than tube + headshell, because of the bend. */
+/**
+ * The pivot assembly's extent in the arm's own frame — the column, the
+ * counterweight beside it and the cap on top, taken together.
+ *
+ * Mirrors the rectangles FlatLay draws. It lives here, above everything that
+ * reads it, because the armboard is placed against it and the board's position
+ * feeds the layout: the assembly is not centred on the pivot (a counterweight
+ * sits behind the bearing by definition), so a board centred on the pivot
+ * leaves the metalwork in one corner of it.
+ */
 export const ARM_REACH = Math.hypot(STYLUS_LOCAL.x, STYLUS_LOCAL.y)
 
 /**
@@ -158,9 +246,13 @@ export const STYLUS_OFFSET_DEG = (Math.atan2(STYLUS_LOCAL.y, STYLUS_LOCAL.x) * 1
 /**
  * Direction from the record's centre to the pivot, as the spec draws it:
  * up and to the right. Only the *distance* is solved; this bearing is kept.
+ *
+ * A literal rather than `atan2` of the spec's own pivot against the record's
+ * centre, which is how it was first worked out: the centre is now solved from
+ * this bearing, so measuring the bearing from the centre would be circular.
+ * It is the angle from (576, 400) to the spec's (1105, 180).
  */
-export const PIVOT_BEARING_DEG =
-  (Math.atan2(180 - RECORD.CENTER_Y, 1105 - RECORD_CENTER_X) * 180) / Math.PI
+export const PIVOT_BEARING_DEG = -22.58
 
 /** Radius from the record's centre that a stylus at `alphaDeg` off the pivot line reaches. */
 function radiusAt(pivotDistance: number, reach: number, alphaDeg: number): number {
@@ -248,24 +340,155 @@ export function solveArm(options: {
   }
 }
 
+/**
+ * ARM.END_ANGLE - ARM.START_ANGLE from core, written out rather than imported:
+ * this module is the skin's own geometry and must not depend on the contract
+ * to compute a shape.
+ */
+const ARM_SWEEP_DEG = 22
+
 export const ARM_SOLUTION = solveArm({
   reach: ARM_REACH,
   outer: GROOVE.OUTER,
   inner: GROOVE.INNER,
-  // ARM.END_ANGLE - ARM.START_ANGLE from core, written out rather than
-  // imported: this module is the skin's own geometry and must not depend on
-  // the contract to compute a shape.
-  sweepDeg: 22,
+  sweepDeg: ARM_SWEEP_DEG,
 })
 
-export const PIVOT = {
-  x: RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
-  y: RECORD.CENTER_Y + ARM_SOLUTION.pivotDistance * Math.sin(PIVOT_BEARING_DEG * DEG),
+/** How far right of the record's centre the pivot sits. */
+const PIVOT_DX = ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG)
+
+/**
+ * A little further right than the solve puts it, to open the gap at the rim.
+ *
+ * The solve fixes the pivot's *distance* from the record's centre, so this is
+ * the one measurement here that is not derived — it is slack being spent, and
+ * the band it is spent out of is the lead-in.
+ *
+ * Sliding the arm sideways moves the stylus off the radius it is meant to land
+ * on, and the cost is almost all at the start of a side: at 12px the stylus
+ * sets down at r 201.5 instead of 195.7, which is 5.8px out into a 13.3px
+ * lead-in and still 7.5px inside the rim. At the end of the side it finishes
+ * 0.7px short of the inner groove — nothing. So the arm now sets its needle
+ * down in the run-in land and tracks into the first groove, which is what
+ * happens on a deck anyway; an arm that lands dead on the first groove was the
+ * more exact of the two and the less true.
+ *
+ * The ceiling is about 27px, where the lead-in is used up and the stylus would
+ * touch the rim. This spends a little under half of it.
+ *
+ * It widens the arrangement, so `layoutFor` re-centres: the cards go left by
+ * half of it and the arm right by the other half, and the clearance between
+ * the disc and the armboard grows by the whole of it.
+ */
+export const ARM_NUDGE_X = 12
+
+/**
+ * Screen bearing from the pivot to the record's centre.
+ *
+ * The identity, not an atan2 of the two positions: the pivot is placed from
+ * the centre along `PIVOT_BEARING_DEG`, so looking back is the same bearing
+ * turned around. Measuring it from the positions instead makes a cycle — the
+ * centre is solved from the layout, the layout needs the armboard, and the
+ * board is placed against this.
+ */
+const PIVOT_TO_CENTER_DEG = PIVOT_BEARING_DEG + 180
+
+const ASSEMBLY_BOX = { x0: -36, x1: 22, y0: -12, y1: 50 } as const
+
+/** Pivot to stylus. Shorter than tube + headshell, because of the bend. */
+
+export type Layout = {
+  /** The sleeve's left edge. */
+  coverLeft: number
+  recordCenterX: number
+  /** Sleeve's left edge to the outside of the bearing circle. */
+  width: number
+}
+
+/**
+ * Where everything goes for a given overlap, with the arrangement centred.
+ *
+ * The width runs from the sleeve's left edge to the outside of the bearing
+ * circle — its rightmost point, further out than either the record's rim or
+ * the counterweight at any angle — and is independent of where the thing is
+ * put, which is what lets this solve for a position rather than be told one.
+ *
+ * The sleeve used to sit at x=70, chosen by eye against the two cards. The arm
+ * reaches a long way past the record, so the arrangement is much wider than
+ * the cards suggest and that left a third of the frame empty on the right.
+ */
+function layoutFor(tuck: number): Layout {
+  const recordFromCoverLeft = SLEEVE.SIZE - tuck * RECORD.RADIUS * 2 + RECORD.RADIUS
+  const width =
+    recordFromCoverLeft + PIVOT_DX + ARM_NUDGE_X + boardOffset().x + ARM.BOARD_WIDTH / 2
+  const coverLeft = (BOX.WIDTH - width) / 2
+  return { coverLeft, recordCenterX: coverLeft + recordFromCoverLeft, width }
+}
+
+/** The cover in front, hiding half the disc. The layout everything is drawn at. */
+export const LAYOUT_FRONT = layoutFor(TUCK_FRACTION)
+
+/** The cover behind, drawn back to a quarter. */
+export const LAYOUT_BACK = layoutFor(TUCK_FRACTION_BACK)
+
+/**
+ * What each object does when the cover goes behind, relative to where it is
+ * drawn. Equal and opposite, because both arrangements are centred.
+ */
+export const BACK_SHIFT = {
+  COVER: LAYOUT_BACK.coverLeft - LAYOUT_FRONT.coverLeft,
+  /** The arm travels with the record, so the stylus keeps its groove. */
+  RECORD: LAYOUT_BACK.recordCenterX - LAYOUT_FRONT.recordCenterX,
 } as const
 
-/** Screen bearing from the pivot to the record's centre. */
-const PIVOT_TO_CENTER_DEG =
-  (Math.atan2(RECORD.CENTER_Y - PIVOT.y, RECORD_CENTER_X - PIVOT.x) * 180) / Math.PI
+const SLEEVE_LEFT = LAYOUT_FRONT.coverLeft
+
+/**
+ * Where the record sits at rest, derived so that exactly `TUCK_FRACTION` of it
+ * is behind the sleeve.
+ */
+export const RECORD_CENTER_X = LAYOUT_FRONT.recordCenterX
+
+/**
+ * Where the record sits when it is completely hidden.
+ *
+ * Concentric with the sleeve, which now covers it with a little to spare --
+ * the record is 5% the smaller of the two.
+ */
+export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
+
+/** §9's travel: 286px. */
+export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
+
+/**
+ * Where the armboard's centre goes, relative to the pivot.
+ *
+ * The assembly's own centre, rotated into the frame — so the board sits under
+ * the metalwork rather than under the bearing. Taken at the middle of the
+ * sweep: the assembly turns with the arm, and a board that chased it would be
+ * a mounting plate sliding about the deck. Across 22 degrees the drift either
+ * side of this is a few pixels.
+ */
+function boardOffset(): { x: number; y: number } {
+  const cx = (ASSEMBLY_BOX.x0 + ASSEMBLY_BOX.x1) / 2
+  const cy = (ASSEMBLY_BOX.y0 + ASSEMBLY_BOX.y1) / 2
+  const mid = (ARM_SWEEP_DEG / 2 - ARM_SOLUTION.offsetDeg + PIVOT_TO_CENTER_DEG) * DEG
+  return {
+    x: cx * Math.cos(mid) - cy * Math.sin(mid),
+    y: cx * Math.sin(mid) + cy * Math.cos(mid),
+  }
+}
+
+export const BOARD_OFFSET = boardOffset()
+
+/** The outside of the armboard: the arrangement's right-hand edge. */
+export const COMPOSITION_RIGHT_X =
+  RECORD_CENTER_X + PIVOT_DX + ARM_NUDGE_X + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2
+
+export const PIVOT = {
+  x: RECORD_CENTER_X + PIVOT_DX + ARM_NUDGE_X,
+  y: RECORD.CENTER_Y + ARM_SOLUTION.pivotDistance * Math.sin(PIVOT_BEARING_DEG * DEG),
+} as const
 
 /**
  * Where the *stylus* points for a given `armAngle`, as a screen bearing.
@@ -310,6 +533,7 @@ export function armAngleAtPoint(point: { x: number; y: number }): number {
 /** The arm's parts in its own frame, for the SVG to draw along +x. */
 export const ARM_LOCAL = {
   stylus: STYLUS_LOCAL,
+  assembly: ASSEMBLY_BOX,
   /** Where the tube ends and the headshell begins. */
   bend: { x: ARM.TUBE_LENGTH, y: 0 },
   /** The counterweight sits behind the pivot, opposite the stylus. */
@@ -317,61 +541,101 @@ export const ARM_LOCAL = {
 } as const
 
 /**
- * The card move: how far each object travels while the cover changes places in
- * the stack.
+ * The card move: how far the cover travels while it changes places in the
+ * stack.
  *
- * Both move, in opposite directions, and they have to clear each other -- the
- * stacking order flips while they are apart, so it is never seen as a pop
- * inside the overlap band. The cover alone cannot do it: 154px of it is behind
- * the record and there are only 70px of frame to its left.
+ * **Only the cover moves.** It slides clear of the record, trades places with
+ * it out there where nothing is overlapping, and slides home; the record does
+ * not stir, and the tonearm therefore does not either, so the stylus stays on
+ * the groove it is playing without anything having to travel with it.
  *
- * The record takes the larger share because it has the room, and **the arm
- * travels with it**. That keeps the stylus on the groove it is playing, which
- * was the whole reason the old rule said the record must never move.
+ * It could not always. With the sleeve at the left edge of the frame there was
+ * less room beside it than the overlap was wide, so the record had to give way
+ * too and take the arm with it. Centring the arrangement gave the cover the
+ * room to do the whole move itself, and a card you push out and tuck under is
+ * one object moving, not two.
  */
+/** How much daylight to leave between the two when they are apart. */
+const SWAP_AIR = 16
+
 export const SWAP = {
-  /** Left, as far as the frame allows. */
-  COVER_SHIFT: -62,
-  /** Right, with the tonearm and the cue control. */
-  RECORD_SHIFT: 108,
+  /**
+   * How far the cover lies over once it is behind the record, in degrees.
+   *
+   * Negative is anticlockwise on screen, which lifts the upper *right* corner
+   * and drops the upper left — a sleeve pushed under something and left askew,
+   * rather than one squared up to the frame. Only the back of the stack gets
+   * it; the front sits square.
+   */
+  BACK_TILT_DEG: -4,
+  /**
+   * Far enough left to be wholly clear of the record, plus a little air.
+   *
+   * Derived, not chosen: it is whatever the overlap happens to be. A fixed
+   * number was right until the overlap grew to half the disc, at which point
+   * the cover stopped clearing and the flip would have shown as a pop inside
+   * the band — which is the one thing the hold in the middle exists to
+   * prevent.
+   */
+  COVER_SHIFT: -(TUCK_FRACTION * RECORD.RADIUS * 2 + SWAP_AIR),
 } as const
 
 /** Gap between the two at full travel. Must be positive, or the flip shows. */
 export const SWAP_CLEARANCE =
-  SWAP.RECORD_SHIFT - SWAP.COVER_SHIFT - TUCK_FRACTION * RECORD.RADIUS * 2
+  Math.abs(SWAP.COVER_SHIFT) - TUCK_FRACTION * RECORD.RADIUS * 2
 
-/** §6: the cue control, just right of the bearing base and level with it. */
-export const CUE = {
-  SIZE: 52,
-  CORNER_RADIUS: 12,
-  get CENTER_X() {
-    return PIVOT.x + ARM.BEARING_DIAMETER / 2 + 18 + this.SIZE / 2
-  },
-  get CENTER_Y() {
-    return PIVOT.y
-  },
-  RING_DIAMETER: 26,
-  RING_STROKE: 7,
+/**
+ * The arrangement's own bounds, as against the design box's.
+ *
+ * The box has wide empty margins -- the composition is centred and much
+ * narrower than 1280 -- and `SCENE_SCALE` is spent out of them. So the box is
+ * allowed off the window; this rect is not.
+ *
+ * It is the union of **both resting arrangements**, cover in front and cover
+ * behind, with an allowance for the back one's tilt: a square turned four
+ * degrees pokes out past its own edges, and this is the corner that does it.
+ *
+ * It does *not* cover the card swap's full travel. The cover slides a clear
+ * disc-width left at the top of that move, which reaches further out than any
+ * resting state does -- see the test that pins where it lands.
+ */
+const TILT_ALLOWANCE =
+  (SLEEVE.SIZE / 2) *
+    (Math.cos(SWAP.BACK_TILT_DEG * DEG) + Math.abs(Math.sin(SWAP.BACK_TILT_DEG * DEG))) -
+  SLEEVE.SIZE / 2
+
+const BOARD_TOP = PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2
+const BOARD_BOTTOM = PIVOT.y + BOARD_OFFSET.y + ARM.BOARD_HEIGHT / 2
+
+export const CONTENT = {
+  left: Math.min(LAYOUT_FRONT.coverLeft, LAYOUT_BACK.coverLeft - TILT_ALLOWANCE),
+  right: Math.max(
+    COMPOSITION_RIGHT_X,
+    LAYOUT_BACK.coverLeft + LAYOUT_BACK.width,
+    LAYOUT_BACK.recordCenterX + RECORD.RADIUS,
+  ),
+  top: Math.min(SLEEVE.TOP - TILT_ALLOWANCE, RECORD.CENTER_Y - RECORD.RADIUS, BOARD_TOP),
+  bottom: Math.max(
+    SLEEVE.TOP + SLEEVE.SIZE + TILT_ALLOWANCE,
+    RECORD.CENTER_Y + RECORD.RADIUS,
+    BOARD_BOTTOM,
+    // The park, which hangs below everything else in the scene.
+    PIVOT.y + ARM_REACH,
+  ),
 } as const
 
-/** §8: the transport pill, floating at bottom centre. */
-export const PILL = {
-  HEIGHT: 56,
-  CENTER_Y: 735,
-  get CENTER_X() {
-    return BOX.WIDTH / 2
-  },
-} as const
-
-/** §8: the standalone round button at the far bottom right, and the gear. */
-export const CORNER_BUTTON = { SIZE: 44, MARGIN: 28 } as const
-export const GEAR = { SIZE: 22, MARGIN: 26 } as const
+/** Where the cover's leading edge reaches at the top of the card swap. */
+export const SWAP_REACH_LEFT = LAYOUT_FRONT.coverLeft + SWAP.COVER_SHIFT - TILT_ALLOWANCE
 
 /**
  * How much to scale the design box to fill a window, and where to put it.
  *
  * One uniform scale, never a stretch: the composition is specified at one
  * aspect and a non-uniform fit would make the record an ellipse.
+ *
+ * `SCENE_SCALE` is folded in here rather than applied by the skin, so that the
+ * offsets re-centre the box at its new size. Applied afterwards it would scale
+ * about the box's top-left corner and slide the whole scene down and right.
  */
 export type BoxFit = {
   scale: number
@@ -383,7 +647,7 @@ export type BoxFit = {
 export function fitBox(width: number, height: number): BoxFit {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : BOX.WIDTH
   const safeHeight = Number.isFinite(height) && height > 0 ? height : BOX.HEIGHT
-  const scale = Math.min(safeWidth / BOX.WIDTH, safeHeight / BOX.HEIGHT)
+  const scale = Math.min(safeWidth / BOX.WIDTH, safeHeight / BOX.HEIGHT) * SCENE_SCALE
   return {
     scale,
     x: (safeWidth - BOX.WIDTH * scale) / 2,

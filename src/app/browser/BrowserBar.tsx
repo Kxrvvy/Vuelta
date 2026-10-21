@@ -23,6 +23,7 @@ import {
 } from '../../core/contract.js'
 import { mmss } from '../../core/format.js'
 import type { Library, Load } from '../useLibrary.js'
+import { Play } from '../transport/icons.js'
 
 export function BrowserBar({
   ref,
@@ -278,7 +279,7 @@ function PlaylistRow({
         disabled={busy}
         onClick={onPlay}
       >
-        ▶
+        <Play />
       </button>
     </li>
   )

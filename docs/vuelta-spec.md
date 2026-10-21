@@ -190,7 +190,7 @@ Applies to: play, pause, next, previous, seek, volume.
 
 **One track = one record.** The arm sweep maps to that one track's duration.
 
-**The centre label is a printed record label, not the album art.** Title, artist, a hairline ring, a catalogue number and a punched spindle hole; it counter-rotates so the text stays upright while the disc turns.
+**The centre label is a printed record label, not the album art.** Cream stock with dark ink, a good deal larger than §9 first drew it — 45% of the disc, near a real pressing's, where 37% left no room for anything but the title. The title sits above the spindle hole and the artist below it, as a pressing sets them; the small print curves around the label and a barcode sits under the artist. **Everything printed on it turns with it.** The title and artist were counter-rotated so they stayed readable while the disc spun, and that was wrong: it left the centre of the record dead still, and a record whose middle does not move does not read as a record no matter what the rim is doing. The grooves are concentric and give nothing away, so the label is the only thing that can show the thing is turning. Legibility was the wrong thing to optimise for — the title is on the browser bar, where it can be read without chasing it.
 
 This replaces the original rule, which put the album art in the label. The art now lives on the **sleeve** in the flat-lay (§12), where it is large and legible. Duplicating it inside a 165px circle made the scene read as a media player rather than as two objects on a desk, and it meant the same image appeared twice in one frame. In the machine looks, which have no sleeve, the label keeps the art.
 
@@ -220,11 +220,21 @@ armAngle = START + (progressMs / durationMs) × (END − START)
 - Hold `Shift` to slow the angle-to-time mapping for fine control
 - **Commit `seek` on drag release only.** Never fire continuously during the drag.
 
+**Scene size.** The flat-lay is drawn at `SCENE_SCALE` (1.2) — one multiplier folded into `fitBox`, applied to the whole design box at the very end. Every other number in the layout keeps the value given here, and nothing moves relative to anything else; the cover, the record, the label, the arm, the shadows and the hairlines all grow together. The box is therefore larger than the window and is meant to be: what must stay on screen is `CONTENT`, the arrangement's own bounds, which is a good deal smaller than the box and has headroom to about 1.52. The exception is the card swap, whose travel reaches further left than any resting state and lands about 71px off the window at this zoom — on screen at rest, clipped only during the move.
+
+**The machine preview.** The close-up carries a 237×140 preview of the machine, lid and all, in its top-left corner. It is not a second scene, a second camera or a picture: the 3D canvas is never unmounted when the flat-lay is up, so it is simply given a small box to frame itself in.
+
+It has **no field behind it**. `Staging` takes a `transparent` prop and leaves its background attachment off here, so the machine stands on the flat-lay's paper rather than on a dark card; nothing else in the scene paints a backdrop, because the unit floats and has no ground plane. Two thirds of the box is bare paper as a result, which is also why what must clear the sleeve is the machine's own ink (109×103) rather than the box. That has to be measured per pixel and by difference — hide the preview, shoot, show it, shoot again, and ask what each changed pixel was drawn over — because the cover behind is a square turned four degrees, so the corners of its bounding rect are bare paper and a rect-against-rect test reports an overlap that covers nothing.
+
+It is wholly inert. Its contents take no clicks, so the deck you can operate is the one on the paper, and the box passes clicks through to that paper as well: a card was an object lying on the page and absorbed its own click the way the disc and the cover do, but an invisible box is not an object, and swallowing clicks there would leave a dead rectangle in the corner.
+
 **Rest position.** In the machine looks the arm rests in its cradle at `REST_ANGLE`. In the flat-lay it parks **vertically, straight down from the pivot and entirely clear of the disc**.
 
 The park is a *pose*, not a bearing on the groove band. The skin draws any `armAngle` at or below `START_ANGLE` as the park and eases between the two, which is what lets `REST_ANGLE` keep meaning "parked" in core without being re-tuned per skin.
 
 **The flat-lay's arm geometry is solved, not placed.** Given the stylus reach, the outer and inner groove radii and the 22° sweep, there is exactly one pivot distance that lands `armAngle` 0 on the outer groove and 22 on the inner; `solveArm` in `skins/flatlay/geometry.ts` bisects for it. It has to be solved because the obvious placement does not work: a pivot far enough out to look right leaves the stylus unable to reach the inner groove at all, and forcing it demands an arm half the width of the window. The solved pivot sits about 1.36× the disc radius from the spindle, which is close to a real 12" deck's 1.38.
+
+**And then nudged.** `ARM_NUDGE_X` slides the finished arm and its board 12px further right than the solve puts them, to open the gap at the rim. It is the one measurement in that module that is not derived, and the slack it spends is the **lead-in**: the stylus sets down at r 201.5 rather than 195.7, which is 5.8px into a 13.3px band of smooth land and still 7.5px inside the rim, and at the far end it finishes 0.7px short of the inner groove. So the arm now puts its needle down in the run-in and tracks into the first groove, which is what happens on a deck anyway. The ceiling is about 27px, where the lead-in runs out and the stylus would touch the edge. It widens the arrangement, so `layoutFor` re-centres and the cards give up half of it — the clearance between disc and armboard grows by the whole 12.
 
 **Platter:** spins down with easing on pause, spins up on resume. Never an instant stop.
 
@@ -351,8 +361,20 @@ fade with the click gesture: it is the content of that view, not chrome over it.
 
 **3 — Close-up.** A flat-lay, from directly overhead: an album sleeve and a record lying on a sheet
 of warm paper, with a tonearm across the record, and **no turntable in the view at all** — not even
-a picture of one. The record is half pulled out of its jacket: 35% of the disc sits behind the
-sleeve, which is the signature of the layout and the one measurement everything else derives from.
+a picture of one. The record is half pulled out of its jacket, and exactly half: the sleeve covers
+50% of the disc, which is the signature of the layout and the one measurement everything else
+derives from — the cover's travel during a swap included. At a half the record's centre, and so the
+spindle, sits precisely on the sleeve's right edge.
+
+**The cover does not cover the same amount on both sides of the stack.** In front it hides half the
+disc; behind it draws back to a **quarter**, so the record it is now under is mostly clear of it and
+the label — the only place the title and artist appear in this look — reads properly. Half of the
+label is behind the jacket while the cover is in front, which is the cost of the half overlap and
+the reason the quarter exists.
+
+Both arrangements are centred in the box, and that is what makes the move symmetrical: the two
+widths differ by half the disc's radius, so the cover gives up exactly what the record takes —
+about 52px each way.
 
 **It is a second skin, not a second camera.** `skins/flatlay/` draws it in DOM and SVG;
 `skins/3d/` keeps the other two looks. That is a reversal: it began as one scene rendered through
@@ -371,7 +393,7 @@ into the air. And handing any `useFrame` a priority stopped R3F rendering by its
 viewport module drew every frame in every look.
 
 None of that exists now. The scene the spec describes is flat, lit and specified entirely in CSS
-values — px shadow offsets, 1px hairlines, a 2px groove period — so drawing it in DOM is both more
+values — px shadow offsets, 1px hairlines, a groove period — so drawing it in DOM is both more
 faithful and very much smaller. Switching to it hides the canvas rather than unmounting it, so the
 generated environment map and the textures survive the round trip.
 
@@ -379,18 +401,81 @@ generated environment map and the textures survive the round trip.
 Nothing reflows and nothing is stretched, which is what lets every pixel value in the design hold
 exactly and keeps the record a circle at any window size.
 
+**Centred by derivation.** The sleeve's left edge is solved for, not chosen: the arrangement's
+width is fixed by the tuck and the arm's reach, and the left edge is whatever puts that width in
+the middle of the box. It needs solving because the arm reaches a long way past the record — the
+outside of the bearing circle is the right-hand edge, not the record's rim — so an arrangement
+centred on the two cards by eye sits well to the left, with about a third of the frame empty
+beside it. That is exactly what it did at first.
+
 **The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
 soft vignette; the sleeve with its art bleeding to all four edges, a 2px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
-disc in a dark warm grey, `#42413C`, never black, with low-contrast groove rings, a smooth lead-in
-at the rim and run-out by the label, and a static sheen that stays where the lamp is while the disc
-turns under it. Nothing in the scene is pure black.
+disc, which has its own section below. Nothing in the scene is pure black.
 
-**The arm.** Slim and machined rather than a bar: a hairline bearing circle, a white pivot housing,
-a counterweight behind it, a brushed aluminium tube with a gradient across its width, and a
-headshell angled 20° off the tube axis with the stylus at its tip. The bend is in the geometry as
+**The record is 5% smaller than its sleeve**, the way a 302mm LP is smaller than its 315mm jacket.
+They were exactly the same size at first, and that is the one proportion that gives the trick away:
+a disc flush with its jacket does not look like it could ever go back in. The whole record scales
+with it — label, spindle hole and the two smooth lands — so the proportions it was drawn with
+survive.
+
+**The vinyl.** `#42413C` was the colour the design called for and it read as dark plastic, because
+almost everything you see on a record is reflection rather than colour. What it takes:
+
+- A near-black base, `#0c0c0e`, with the groove rings a shade off it. Built against a reference
+  photograph of a pressing: next to one, `#26252b` read as dark grey plastic.
+- **Groove rings you can actually see.** The design asked for a ~2px period at very low contrast —
+  "felt, not counted" — and what that produced could not be made out at all. Measured against the
+  real stylesheet, the cause was mostly contrast: nine levels off the base is a grey wash at this
+  size. Spacing mattered too, but differently than it looked: at 2px, with the box scaled to the
+  window, the bands land sub-pixel and beat against the grid, so the rings resolve in uneven
+  merged runs. A wider period keeps them regular. A real LP's grooves are finer than either
+  figure and finer than a screen can draw — past a point, accuracy is just grey.
+- **Two specular arcs, and not pointed at the lamp.** Grooves are a circular diffraction grating,
+  so the highlight does not sit where the light comes from — it forms two arcs about 90° either
+  side of it. With the lamp at the upper left the arcs fall upper-right and lower-left. Aiming one
+  at the lamp instead puts it behind the sleeve, which covers the disc's upper left; the first
+  attempt here did exactly that, and the highlight was invisible until the pixels were read back.
+- **Smooth lands that are glossier than the grooves.** The lead-in at the rim and the run-out by
+  the label have nothing to scatter the light, so they come back a shade lighter.
+- **A rolled edge.** A record's rim is rounded, not a cut cylinder: a hairline catches the light
+  just inside it and the last pixel or two falls away dark.
+
+The arcs are static. The disc turns under them, which is what a real record does — the groove
+pattern is rotationally symmetric, so the highlight belongs to the lamp and not to the record.
+
+**The arm**, drawn part for part off the reference. A soft armboard behind it; then the pivot
+assembly in three overlapping pieces — the column the tube comes out of, a counterweight beside it
+carrying a band of light **across** the casting, and a smaller block standing proud on top. A bare
+aluminium tube, nearly white down its centre line and the only light thing on the arm, running into
+a cast collar at each end. Then a rounded black headshell angled 20° off the tube axis, with the
+stylus a short stub off its far corner.
+
+The band of light is worth saying out loud: it runs across the block, perpendicular to the tube,
+and drawn along the tube instead it reads as a stripe painted down the casting rather than as a
+machined face catching the lamp. It was drawn that way first.
+
+The cast parts carry a lit edge, which is not decoration. At `#17171a` on a `#0c0c0e` disc the
+headshell simply disappeared the moment it passed over the vinyl — the silhouette has to be drawn,
+because the value difference will not do it. The bend is in the geometry as
 well as the drawing — a headshell rotated only for looks puts its tip 16px off the arm's axis,
 which at this scale is most of the run-out band.
+
+**The arm is the transport.** Its top — the housing and counterweight — is the play/pause control,
+and there is no separate cue button; one sat beside the bearing for a while and the gesture belongs
+on the arm, which is where a cue lever is. The tube below it is the drag handle, and the two
+targets start clear of one another so a grab never lands on the button or the other way round.
+
+**Putting the needle down starts the record.** A drag that ends on the groove commits its seek and
+then plays. That is what a real deck does, and it also settles something pause introduced: with the
+arm parking on pause, a scrub while paused used to end with the arm travelling straight back to its
+rest position the moment you let go. Now it stays where you put it, and the record starts.
+
+**The cover lies askew when it is behind.** Four degrees anticlockwise, so its upper right corner
+rides higher than its upper left — a sleeve pushed under something and left where it fell, rather
+than one squared up to the frame. Only the back of the stack is tilted; whichever card is in front
+sits straight, and the tilt eases on with the change of depth rather than snapping once the move
+has landed.
 
 **Clicking the cover sends it behind the record, or brings it back in front.** Neither one changes
 place: positions are identical before and after, and all that changes is which is on top. The move
@@ -398,13 +483,23 @@ is the one you would make with a card — the two slide apart, trade places in t
 nothing is overlapping, and slide home — three ordered phases over about 600ms, in
 `core/cardSwap.ts` so its shape can be stepped in a test.
 
-**Both of them move, and the arm goes with the record.** The cover cannot do it alone: 154px of it
-is behind the record and there are only 70px of frame to its left, so it can never get clear. The
-record takes the larger share because it has the room to its right, and the tonearm and the cue
-control travel with it — which is what keeps the stylus on the groove it is playing, and was the
-whole reason the earlier rule said the record must never move. They end up 16px clear of each
-other, which is what lets the stacking flip during the hold rather than as a pop inside the
-overlap.
+**The cover moves, and then the disc adjusts.** Two beats, not one. The cover slides clear of the
+record, trades places with it and takes up its new position — all during the hold, where nothing
+overlaps — and only once the stacking has flipped does the record ease across to the other layout,
+taking the tonearm with it so the stylus keeps the groove it is playing. The record's half is
+damped rather than timed, which is what makes it read as settling rather than as a second slide.
+
+The cover's clearance travel moves *toward* its fixed clearance position rather than adding to
+wherever it has drawn back to. Both are at full value at the end of the hold, so adding them took
+the cover 13px off the left edge of the box — visible only as a clipped corner, and only at the
+reference width where the design box fills the window exactly.
+
+It could not always. With the sleeve at the left edge of the frame there was less room beside it
+than the overlap was wide, so the cover could never get clear on its own and the record had
+to give way too — taking the arm with it, which is what kept the stylus on its groove then. Centring
+the arrangement gave the cover the room to do the whole move itself, and the record and the arm now
+hold still. The cover ends 16px clear of the record, which is what lets the stacking flip during
+the hold rather than as a pop inside the overlap band.
 
 The arm is drawn above both cards. The move raises the record above the cover, and anything at a
 lower layer than that is painted over by it — the arm included, which is a thing to get wrong once.
@@ -423,8 +518,8 @@ it was still wrong: two pieces of chrome doing one job means two places to chang
 changes, and the view switcher ended up somewhere it was not in either of the other looks. One bar.
 
 The one thing that had to come with it: **everything lying on the paper absorbs its own click**.
-The chrome gesture is a click that reaches the field, so the disc, the cover, the arm and the cue
-all stop propagation — otherwise play/pause would summon or dismiss the bar every time, and the
+The chrome gesture is a click that reaches the field, so the disc, the cover and the arm all stop
+propagation — otherwise play/pause would summon or dismiss the bar every time, and the
 cover could not be turned over without the chrome flickering.
 
 **Still to come — Console (M5).** Split layout: front elevation on the left with grille, volume knob

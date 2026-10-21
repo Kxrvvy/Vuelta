@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Actions, RenderState, TrackSummary } from '../../core/contract.js'
 import { activeLyricIndex, type LyricLine } from '../../core/lyrics.js'
 import type { LyricsLoad } from './useLyrics.js'
+import { Next, Pause, Play, Previous } from '../transport/icons.js'
 
 export function LyricsColumn({
   ref,
@@ -108,7 +109,7 @@ export function LyricsColumn({
 
       <div className="lyrics__transport">
         <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
-          ⏮
+          <Previous />
         </button>
         <button
           type="button"
@@ -116,10 +117,10 @@ export function LyricsColumn({
           aria-label={isPlaying ? 'Pause' : 'Play'}
           onClick={() => (isPlaying ? actions.pause() : actions.play())}
         >
-          {isPlaying ? '⏸' : '▶'}
+          {isPlaying ? <Pause /> : <Play />}
         </button>
         <button type="button" aria-label="Next track" onClick={() => actions.next()}>
-          ⏭
+          <Next />
         </button>
       </div>
     </aside>
