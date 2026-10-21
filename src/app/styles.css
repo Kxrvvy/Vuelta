@@ -43,8 +43,93 @@ body {
 
 .shell {
   height: 100%;
+  /* One row, still a grid: the screens below size themselves against a 1fr
+     track, and a plain block would let them collapse to their content. */
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
+  position: relative;
+}
+
+/* The settings corner. Above the scene, including the flat-lay's arm, which
+   sits at z-index 4 in the same stacking context. */
+.settings {
+  position: absolute;
+  top: 0.85rem;
+  right: 1rem;
+  z-index: 50;
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
+/* Dark chrome on a light scene, like the browser bar along the bottom — the
+   two looks' palettes meet here either way, and matching the bar is the least
+   surprising place for them to do it. */
+.settings__button {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(22, 19, 17, 0.82);
+  backdrop-filter: blur(14px);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.settings__button:hover,
+.settings__button[aria-expanded='true'] {
+  color: var(--text);
+  background: rgba(32, 28, 25, 0.9);
+}
+
+.settings__menu {
+  min-width: 11rem;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(22, 19, 17, 0.94);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.settings__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+}
+
+.settings__note {
+  color: var(--muted);
+}
+
+.settings__note--warn {
+  color: var(--danger);
+}
+
+.settings__item {
+  margin-top: 0.15rem;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings__item:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .screen {
@@ -200,18 +285,6 @@ input[type='text']:focus {
 .uri code {
   flex: 1;
   user-select: text;
-}
-
-.footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.7rem 1.25rem;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 0.82rem;
-  color: var(--muted);
 }
 
 .notice {

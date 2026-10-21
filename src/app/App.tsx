@@ -180,24 +180,26 @@ export function App() {
 
   return (
     <Shell
-      status={
+      settings={
         <>
-          <span className="row" style={{ gap: '0.5rem' }}>
+          <span className="settings__status">
             <span className={app.phase === 'playing' ? 'dot dot--live' : 'dot'} />
             {statusLabel(app.phase)}
-            {sync.readout.deviceName ? ` · ${sync.readout.deviceName}` : ''}
           </span>
-          <span className="row" style={{ gap: '0.9rem' }}>
-            {!setup.secureStorageAvailable ? (
-              <span style={{ color: 'var(--danger)' }}>Secure storage unavailable</span>
-            ) : null}
-            {setup.portIsFallback ? <span>Port {setup.redirectPort}</span> : null}
-            {app.phase !== 'setup' ? (
-              <button type="button" className="link" onClick={() => void startOver()}>
-                Sign out
-              </button>
-            ) : null}
-          </span>
+          {sync.readout.deviceName ? (
+            <span className="settings__note">{sync.readout.deviceName}</span>
+          ) : null}
+          {!setup.secureStorageAvailable ? (
+            <span className="settings__note settings__note--warn">Secure storage unavailable</span>
+          ) : null}
+          {setup.portIsFallback ? (
+            <span className="settings__note">Port {setup.redirectPort}</span>
+          ) : null}
+          {app.phase !== 'setup' ? (
+            <button type="button" className="settings__item" onClick={() => void startOver()}>
+              Sign out
+            </button>
+          ) : null}
         </>
       }
     >
