@@ -36,6 +36,7 @@ import {
   RECORD,
   RECORD_CENTER_X,
   BACK_SHIFT,
+  BOARD_OFFSET,
   RECORD_TRAVEL,
   SLEEVE,
   SWAP,
@@ -521,8 +522,8 @@ export function FlatLay({
             {/* §6: the bearing base — a hairline circle, and the only visible
                 mechanism in the scene. It does not turn with the arm. */}
             <rect
-              x={PIVOT.x - ARM.BOARD_WIDTH / 2}
-              y={PIVOT.y - ARM.BOARD_HEIGHT / 2}
+              x={PIVOT.x + BOARD_OFFSET.x - ARM.BOARD_WIDTH / 2}
+              y={PIVOT.y + BOARD_OFFSET.y - ARM.BOARD_HEIGHT / 2}
               width={ARM.BOARD_WIDTH}
               height={ARM.BOARD_HEIGHT}
               rx={ARM.BOARD_WIDTH * 0.4}

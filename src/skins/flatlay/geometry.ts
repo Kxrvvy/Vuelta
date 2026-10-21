@@ -193,7 +193,16 @@ const STYLUS_LOCAL = {
   y: ARM.HEADSHELL_LENGTH * Math.sin(ARM.HEADSHELL_OFFSET_DEG * DEG),
 } as const
 
-/** Pivot to stylus. Shorter than tube + headshell, because of the bend. */
+/**
+ * The pivot assembly's extent in the arm's own frame — the column, the
+ * counterweight beside it and the cap on top, taken together.
+ *
+ * Mirrors the rectangles FlatLay draws. It lives here, above everything that
+ * reads it, because the armboard is placed against it and the board's position
+ * feeds the layout: the assembly is not centred on the pivot (a counterweight
+ * sits behind the bearing by definition), so a board centred on the pivot
+ * leaves the metalwork in one corner of it.
+ */
 export const ARM_REACH = Math.hypot(STYLUS_LOCAL.x, STYLUS_LOCAL.y)
 
 /**
@@ -302,18 +311,37 @@ export function solveArm(options: {
   }
 }
 
+/**
+ * ARM.END_ANGLE - ARM.START_ANGLE from core, written out rather than imported:
+ * this module is the skin's own geometry and must not depend on the contract
+ * to compute a shape.
+ */
+const ARM_SWEEP_DEG = 22
+
 export const ARM_SOLUTION = solveArm({
   reach: ARM_REACH,
   outer: GROOVE.OUTER,
   inner: GROOVE.INNER,
-  // ARM.END_ANGLE - ARM.START_ANGLE from core, written out rather than
-  // imported: this module is the skin's own geometry and must not depend on
-  // the contract to compute a shape.
-  sweepDeg: 22,
+  sweepDeg: ARM_SWEEP_DEG,
 })
 
 /** How far right of the record's centre the pivot sits. */
 const PIVOT_DX = ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG)
+
+/**
+ * Screen bearing from the pivot to the record's centre.
+ *
+ * The identity, not an atan2 of the two positions: the pivot is placed from
+ * the centre along `PIVOT_BEARING_DEG`, so looking back is the same bearing
+ * turned around. Measuring it from the positions instead makes a cycle — the
+ * centre is solved from the layout, the layout needs the armboard, and the
+ * board is placed against this.
+ */
+const PIVOT_TO_CENTER_DEG = PIVOT_BEARING_DEG + 180
+
+const ASSEMBLY_BOX = { x0: -36, x1: 22, y0: -12, y1: 50 } as const
+
+/** Pivot to stylus. Shorter than tube + headshell, because of the bend. */
 
 export type Layout = {
   /** The sleeve's left edge. */
@@ -337,7 +365,7 @@ export type Layout = {
  */
 function layoutFor(tuck: number): Layout {
   const recordFromCoverLeft = SLEEVE.SIZE - tuck * RECORD.RADIUS * 2 + RECORD.RADIUS
-  const width = recordFromCoverLeft + PIVOT_DX + ARM.BOARD_WIDTH / 2
+  const width = recordFromCoverLeft + PIVOT_DX + boardOffset().x + ARM.BOARD_WIDTH / 2
   const coverLeft = (BOX.WIDTH - width) / 2
   return { coverLeft, recordCenterX: coverLeft + recordFromCoverLeft, width }
 }
@@ -377,17 +405,35 @@ export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
 /** §9's travel: 286px. */
 export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
 
+/**
+ * Where the armboard's centre goes, relative to the pivot.
+ *
+ * The assembly's own centre, rotated into the frame — so the board sits under
+ * the metalwork rather than under the bearing. Taken at the middle of the
+ * sweep: the assembly turns with the arm, and a board that chased it would be
+ * a mounting plate sliding about the deck. Across 22 degrees the drift either
+ * side of this is a few pixels.
+ */
+function boardOffset(): { x: number; y: number } {
+  const cx = (ASSEMBLY_BOX.x0 + ASSEMBLY_BOX.x1) / 2
+  const cy = (ASSEMBLY_BOX.y0 + ASSEMBLY_BOX.y1) / 2
+  const mid = (ARM_SWEEP_DEG / 2 - ARM_SOLUTION.offsetDeg + PIVOT_TO_CENTER_DEG) * DEG
+  return {
+    x: cx * Math.cos(mid) - cy * Math.sin(mid),
+    y: cx * Math.sin(mid) + cy * Math.cos(mid),
+  }
+}
+
+export const BOARD_OFFSET = boardOffset()
+
 /** The outside of the armboard: the arrangement's right-hand edge. */
-export const COMPOSITION_RIGHT_X = RECORD_CENTER_X + PIVOT_DX + ARM.BOARD_WIDTH / 2
+export const COMPOSITION_RIGHT_X =
+  RECORD_CENTER_X + PIVOT_DX + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2
 
 export const PIVOT = {
   x: RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
   y: RECORD.CENTER_Y + ARM_SOLUTION.pivotDistance * Math.sin(PIVOT_BEARING_DEG * DEG),
 } as const
-
-/** Screen bearing from the pivot to the record's centre. */
-const PIVOT_TO_CENTER_DEG =
-  (Math.atan2(RECORD.CENTER_Y - PIVOT.y, RECORD_CENTER_X - PIVOT.x) * 180) / Math.PI
 
 /**
  * Where the *stylus* points for a given `armAngle`, as a screen bearing.
@@ -432,6 +478,7 @@ export function armAngleAtPoint(point: { x: number; y: number }): number {
 /** The arm's parts in its own frame, for the SVG to draw along +x. */
 export const ARM_LOCAL = {
   stylus: STYLUS_LOCAL,
+  assembly: ASSEMBLY_BOX,
   /** Where the tube ends and the headshell begins. */
   bend: { x: ARM.TUBE_LENGTH, y: 0 },
   /** The counterweight sits behind the pivot, opposite the stylus. */

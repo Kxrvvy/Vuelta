@@ -161,6 +161,17 @@ export function Stage({
   // of chrome doing one job is one too many.
   const barShown = (chromeShown || paneOpen) && sync.lidOpen
 
+  // The settings corner lives in the shell, which wraps the screen switch and
+  // so sits above this — it cannot be handed a prop. The flag goes on the
+  // document and the stylesheet picks it up, so the corner comes and goes with
+  // the browser bar instead of sitting over a dismissed scene on its own.
+  useEffect(() => {
+    document.body.dataset.chrome = barShown ? 'shown' : 'hidden'
+    return () => {
+      delete document.body.dataset.chrome
+    }
+  }, [barShown])
+
   // One measurement for whichever column is mounted. The hook takes a
   // callback ref precisely so it can follow the swap.
   const [rightRef, rightReserve] = useEdgeReserve<HTMLElement>('right')

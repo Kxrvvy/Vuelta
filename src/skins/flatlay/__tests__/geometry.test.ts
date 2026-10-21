@@ -9,6 +9,7 @@ import {
   armAngleAtPoint,
   armBearingDeg,
   BACK_SHIFT,
+  BOARD_OFFSET,
   BOX,
   COMPOSITION_RIGHT_X,
   LAYOUT_BACK,
@@ -99,7 +100,22 @@ describe('the flat-lay layout', () => {
     // If this ever stopped being true the centring above would be measuring
     // the wrong thing, and nothing else would notice.
     expect(COMPOSITION_RIGHT_X).toBeGreaterThan(RECORD_CENTER_X + RECORD.RADIUS)
-    expect(COMPOSITION_RIGHT_X).toBeCloseTo(PIVOT.x + ARM.BOARD_WIDTH / 2, 6)
+    expect(COMPOSITION_RIGHT_X).toBeCloseTo(
+      PIVOT.x + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2,
+      6,
+    )
+  })
+
+  it('sits the armboard under the metalwork, not under the bearing', () => {
+    // The assembly is behind and beside the pivot — a counterweight has to be —
+    // so a board centred on the pivot leaves it in one corner. The board is
+    // offset onto the assembly instead.
+    expect(BOARD_OFFSET.x).not.toBeCloseTo(0, 1)
+    expect(BOARD_OFFSET.y).not.toBeCloseTo(0, 1)
+    // And it still contains the pivot, or the arm would appear to float free
+    // of its own mounting.
+    expect(Math.abs(BOARD_OFFSET.x)).toBeLessThan(ARM.BOARD_WIDTH / 2)
+    expect(Math.abs(BOARD_OFFSET.y)).toBeLessThan(ARM.BOARD_HEIGHT / 2)
   })
 
   it('keeps the armboard taller than it is wide', () => {

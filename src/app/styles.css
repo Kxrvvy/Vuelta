@@ -68,6 +68,16 @@ body {
   display: grid;
   justify-items: end;
   gap: 0.5rem;
+  /* The same fade as the browser bar, so the two come and go together. */
+  transition: opacity 260ms ease;
+}
+
+/* Dismissing the chrome takes the corner with it. The attribute is only set
+   while a Stage is mounted, so the setup and no-device screens — which have
+   no chrome gesture — keep their settings button unconditionally. */
+body[data-chrome='hidden'] .settings {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Dark chrome on a light scene, like the browser bar along the bottom — the
