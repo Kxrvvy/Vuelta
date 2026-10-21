@@ -190,7 +190,7 @@ Applies to: play, pause, next, previous, seek, volume.
 
 **One track = one record.** The arm sweep maps to that one track's duration.
 
-**The centre label is a printed record label, not the album art.** Title, artist, a hairline ring, a catalogue number and a punched spindle hole; it counter-rotates so the text stays upright while the disc turns.
+**The centre label is a printed record label, not the album art.** Cream stock with dark ink, a good deal larger than §9 first drew it — 45% of the disc, near a real pressing's, where 37% left no room for anything but the title. The title sits above the spindle hole and the artist below it, as a pressing sets them; the small print curves around the label and a barcode sits under the artist. The title and artist counter-rotate so they stay upright while the disc turns; everything printed around them rides the rotation, which is what makes the spin visible at all.
 
 This replaces the original rule, which put the album art in the label. The art now lives on the **sleeve** in the flat-lay (§12), where it is large and legible. Duplicating it inside a 165px circle made the scene read as a media player rather than as two objects on a desk, and it meant the same image appeared twice in one frame. In the machine looks, which have no sleeve, the label keeps the art.
 
@@ -412,7 +412,8 @@ survive.
 **The vinyl.** `#42413C` was the colour the design called for and it read as dark plastic, because
 almost everything you see on a record is reflection rather than colour. What it takes:
 
-- A much darker base, `#26252b`. Still not black.
+- A near-black base, `#0c0c0e`, with the groove rings a shade off it. Built against a reference
+  photograph of a pressing: next to one, `#26252b` read as dark grey plastic.
 - **Groove rings you can actually see.** The design asked for a ~2px period at very low contrast —
   "felt, not counted" — and what that produced could not be made out at all. Measured against the
   real stylesheet, the cause was mostly contrast: nine levels off the base is a grey wash at this
@@ -433,9 +434,13 @@ almost everything you see on a record is reflection rather than colour. What it 
 The arcs are static. The disc turns under them, which is what a real record does — the groove
 pattern is rotationally symmetric, so the highlight belongs to the lamp and not to the record.
 
-**The arm.** Slim and machined rather than a bar: a hairline bearing circle, a white pivot housing,
-a counterweight behind it, a brushed aluminium tube with a gradient across its width, and a
-headshell angled 20° off the tube axis with the stylus at its tip. The bend is in the geometry as
+**The arm.** Slim and machined rather than a bar: a soft translucent bearing disc, a **black** cast
+pivot housing, a counterweight behind it, a bare aluminium tube with a gradient across its width,
+and a **black** headshell angled 20° off the tube axis with the stylus coming to a point below it.
+
+The cast parts carry a lit edge, which is not decoration. At `#17171a` on a `#0c0c0e` disc the
+headshell simply disappeared the moment it passed over the vinyl — the silhouette has to be drawn,
+because the value difference will not do it. The bend is in the geometry as
 well as the drawing — a headshell rotated only for looks puts its tip 16px off the arm's axis,
 which at this scale is most of the run-out band.
 

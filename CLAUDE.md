@@ -63,7 +63,7 @@ the read fail with a 403.
 
 ## Domain model
 
-- **One track = one record.** In the machine looks the centre label is that track's album art. In the flat-lay it is a **printed record label** — title, artist, hairline ring, catalogue number, punched spindle hole — and it counter-rotates so the text stays upright. The album art is on the **sleeve** there, once, never twice in one frame.
+- **One track = one record.** In the machine looks the centre label is that track's album art. In the flat-lay it is a **printed record label** — cream stock, dark ink, 45% of the disc, title above the spindle hole and artist below, small print curving round and a barcode under the artist. Title and artist counter-rotate so they stay upright; the printing around them rides the rotation, which is what makes the spin visible. The album art is on the **sleeve** there, once, never twice in one frame.
 - Arm sweep: `REST_ANGLE` −12°, `START_ANGLE` 0°, `END_ANGLE` 22°.
 - **The park is a pose, not an angle.** The flat-lay parks the arm vertically, clear of the disc, by drawing any `armAngle` at or below `START_ANGLE` as that pose and easing between. `REST_ANGLE` keeps its meaning in core and is never re-tuned per skin.
 - **The flat-lay's arm geometry is solved** (`skins/flatlay/geometry.ts`), because placing it by eye does not close: a pivot far enough out to look right cannot reach the inner groove, and forcing it needs an arm half the width of the window. `solveArm` bisects for the one pivot distance that puts `armAngle` 0 on the outer groove and 22 on the inner.
@@ -109,9 +109,11 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
   jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands
   scale with it.
-- **Vinyl is drawn as reflection, not colour**: a dark base, two specular arcs set ~90° off the
+- **Vinyl is drawn as reflection, not colour**: a near-black base, two specular arcs set ~90° off the
   lamp rather than toward it — a groove is a circular grating — smooth lands glossier than the
   grooved band, and a rolled edge. The arcs are static; the disc turns under them.
+- **The arm's cast parts need a lit edge.** Black on near-black vinyl has no value difference at
+  all — the headshell vanished the moment it crossed the disc. The silhouette has to be stroked.
 - **The groove rings are meant to be seen.** `GROOVE_PERIOD` is the one authority and the skin
   hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
   mostly contrast, and the wider period keeps the spacing even rather than beating against the

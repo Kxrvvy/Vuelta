@@ -952,21 +952,26 @@ input[type='text']:focus {
   /* Vinyl is far darker than a dark grey and never flat: almost all of what
      you see on a record is reflection, not colour. Still not black — nothing
      in this scene is. */
-  --disc: #26252b;
-  /* Far enough off the base to be seen as lines rather than as a texture.
-     They were nine levels apart, which at this size was a grey wash. */
-  --disc-groove: #3c3b43;
+  --disc: #0c0c0e;
+  /* Far enough off the base to be seen as lines rather than as a texture. */
+  --disc-groove: #242428;
   /* The smooth lands — the lead-in at the rim and the run-out by the label.
-     No grooves to scatter the light, so they come back glossier, and with the
-     rings now legible the difference between ringed and smooth reads too. */
-  --disc-land: #343339;
+     No grooves to scatter the light, so they come back glossier. */
+  --disc-land: #17171a;
   --metal: #c8c4c6;
   --metal-light: #f0eeef;
   --metal-dark: #9c989b;
   --housing: #f2efea;
-  --label: #272320;
-  --label-text: #e8e4df;
-  --label-muted: #a8a39d;
+  /* A printed paper label: cream stock, dark ink. It was dark with pale text,
+     which is a sticker rather than a pressing. */
+  --label: #e9e2d2;
+  --label-text: #16130f;
+  --label-muted: #4f483d;
+  /* The arm's cast parts. Black, with the tube left in bare metal — but far
+     enough off the vinyl to be seen against it, which #17171a on #0c0c0e was
+     not: the headshell simply disappeared once it was over the disc. */
+  --arm-dark: #232329;
+  --arm-edge: rgba(255, 255, 255, 0.26);
   /* One shadow hue for the whole scene, so everything is lit by one lamp. */
   --cast: 40, 36, 32;
 }
@@ -1133,34 +1138,49 @@ input[type='text']:focus {
   border-radius: 50%;
   background: var(--label);
   overflow: hidden;
+  /* Paper on vinyl: a hair of shadow where the one sits on the other. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-/* §5: a hairline ring at ~0.88 of the label radius. */
-.flatlay__label::after {
-  content: '';
+/* Printed on the label, so it rides the rotation — which is also what makes
+   the spin visible once the title is held upright. */
+.flatlay__label-print {
   position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  border: 1px solid rgba(232, 228, 223, 0.22);
-  pointer-events: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-/* §5: catalogue-number text. Texture, not information — and because it rides
-   the rotating layer, it is also what makes the spin visible. */
-.flatlay__label-cat {
+.flatlay__label-arc {
+  font-size: 6.4px;
+  letter-spacing: 0.1em;
+  fill: var(--label-muted);
+}
+
+/* §8's barcode, in the reference's spot under the artist. Texture, not
+   information — a record label has one and the eye expects it. */
+.flatlay__label-code {
   position: absolute;
-  bottom: 11%;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 6px;
-  letter-spacing: 0.16em;
-  color: var(--label-text);
-  opacity: 0.35;
+  left: 50%;
+  bottom: 17%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 7px;
+  opacity: 0.72;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--label-text) 0 1px,
+    rgba(0, 0, 0, 0) 1px 2px,
+    var(--label-text) 2px 2.6px,
+    rgba(0, 0, 0, 0) 2.6px 4px,
+    var(--label-text) 4px 5px,
+    rgba(0, 0, 0, 0) 5px 6.4px
+  );
 }
 
 /* The counter-rotating group: the inverse of the disc's rotation, so the text
-   stays upright while the record turns. */
+   stays upright while the record turns. The gap in the middle is the spindle
+   hole's — title above it, artist below, as a pressing sets them. */
 .flatlay__label-upright {
   position: absolute;
   inset: 0;
@@ -1168,17 +1188,16 @@ input[type='text']:focus {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 0 15%;
+  gap: var(--hole-gap);
+  padding: 0 13%;
   text-align: center;
   will-change: transform;
 }
 
 .flatlay__label-title {
-  font-size: 11px;
-  line-height: 1.18;
-  font-stretch: condensed;
-  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 700;
   color: var(--label-text);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1188,9 +1207,9 @@ input[type='text']:focus {
 }
 
 .flatlay__label-artist {
-  font-size: 9px;
+  font-size: 10.5px;
   line-height: 1.2;
-  color: var(--label-muted);
+  color: var(--label-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1202,7 +1221,11 @@ input[type='text']:focus {
   position: absolute;
   border-radius: 50%;
   background: var(--paper);
-  box-shadow: inset 0 1px 1px rgba(var(--cast), 0.45);
+  /* A punched hole in paper over a punched hole in vinyl: a dark ring where
+     the stock is cut, and the deck showing through the middle. */
+  box-shadow:
+    0 0 0 2px rgba(22, 19, 15, 0.22),
+    inset 0 1px 1.5px rgba(var(--cast), 0.55);
 }
 
 /* ---- the sleeve ---------------------------------------------------------- */

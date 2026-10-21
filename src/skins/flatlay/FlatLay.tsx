@@ -404,16 +404,39 @@ export function FlatLay({
           <div className="flatlay__spin" ref={spin}>
             <div
               className="flatlay__label"
-              style={{
-                left: `${labelInset}px`,
-                top: `${labelInset}px`,
-                width: `${RECORD.LABEL_RADIUS * 2}px`,
-                height: `${RECORD.LABEL_RADIUS * 2}px`,
-              }}
+              style={
+                {
+                  left: `${labelInset}px`,
+                  top: `${labelInset}px`,
+                  width: `${RECORD.LABEL_RADIUS * 2}px`,
+                  height: `${RECORD.LABEL_RADIUS * 2}px`,
+                  '--hole-gap': `${RECORD.SPINDLE_RADIUS * 2 + 13}px`,
+                } as CSSProperties
+              }
             >
-              {/* Rides the rotation, so it orbits -- which is what makes the
-                  spin visible at all once the title is held upright. */}
-              <span className="flatlay__label-cat">{catalogueNumber(title)}</span>
+              {/* The small print, curved around the label the way a pressing
+                  sets it. It rides the rotation, so it orbits — which is what
+                  makes the spin visible once the title is held upright. */}
+              <svg className="flatlay__label-print" viewBox="0 0 200 200" aria-hidden>
+                <defs>
+                  {/* Left to right over the top, and right to left under the
+                      bottom, so both read the right way up. */}
+                  <path id="flatlay-arc-top" d="M 28 100 A 72 72 0 0 1 172 100" fill="none" />
+                  <path id="flatlay-arc-foot" d="M 176 100 A 76 76 0 0 1 24 100" fill="none" />
+                </defs>
+                <text className="flatlay__label-arc">
+                  <textPath href="#flatlay-arc-top" startOffset="50%" textAnchor="middle">
+                    VUELTA · LONG PLAY · 16⅔ RPM
+                  </textPath>
+                </text>
+                <text className="flatlay__label-arc">
+                  <textPath href="#flatlay-arc-foot" startOffset="50%" textAnchor="middle">
+                    {catalogueNumber(title)}
+                  </textPath>
+                </text>
+              </svg>
+
+              <span className="flatlay__label-code" />
 
               <div className="flatlay__label-upright" ref={upright}>
                 <span className="flatlay__label-title">{title ?? 'No record'}</span>
@@ -494,8 +517,8 @@ export function FlatLay({
               cx={PIVOT.x}
               cy={PIVOT.y}
               r={ARM.BEARING_DIAMETER / 2}
-              fill="none"
-              stroke="rgba(80,76,70,0.28)"
+              fill="rgba(255,255,255,0.22)"
+              stroke="rgba(80,76,70,0.10)"
               strokeWidth={1}
             />
 
@@ -531,37 +554,46 @@ export function FlatLay({
                       `H ${ARM_LOCAL.bend.x}`,
                       'Z',
                     ].join(' ')}
-                    fill="var(--housing)"
+                    fill="var(--arm-dark)"
+                    stroke="var(--arm-edge)"
+                    strokeWidth={1}
                   />
-                  {/* §6: the stylus — the point that maps to `armAngle`. */}
-                  <circle
-                    cx={ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH}
-                    cy={0}
-                    r={ARM.STYLUS_SIZE / 2 + 0.5}
-                    fill="#2a2724"
+                  {/* §6: the stylus — the point that maps to `armAngle`. It
+                      comes to a point below the shell, as a cartridge does. */}
+                  <path
+                    d={[
+                      `M ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 7} ${ARM.HEADSHELL_WIDTH / 2}`,
+                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${ARM.HEADSHELL_WIDTH / 2 + 7}`,
+                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${ARM.HEADSHELL_WIDTH / 2}`,
+                      'Z',
+                    ].join(' ')}
+                    fill="var(--arm-dark)"
                   />
                 </g>
 
                 {/* §6: the pivot housing, boxy, with a small cylinder on top. */}
                 <rect
                   x={-ARM.HOUSING_WIDTH / 2}
-                  y={-ARM.HOUSING_HEIGHT / 2}
+                  y={-ARM.HOUSING_HEIGHT / 2 - 4}
                   width={ARM.HOUSING_WIDTH}
-                  height={ARM.HOUSING_HEIGHT}
-                  rx={4}
-                  fill="var(--housing)"
+                  height={ARM.HOUSING_HEIGHT + 8}
+                  rx={3}
+                  fill="var(--arm-dark)"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
                 />
-                <circle cx={0} cy={0} r={9} fill="#f8f6f2" stroke="rgba(80,76,70,0.18)" />
 
-                {/* §6: the counterweight, slightly proud of the housing and
-                    catching a touch more light. */}
+                {/* §6: the counterweight, a second block behind the bearing and
+                    standing a little proud of it. */}
                 <rect
                   x={ARM_LOCAL.counterweightX - ARM.COUNTERWEIGHT / 2}
-                  y={-ARM.COUNTERWEIGHT / 2}
+                  y={-ARM.COUNTERWEIGHT / 2 - 3}
                   width={ARM.COUNTERWEIGHT}
-                  height={ARM.COUNTERWEIGHT}
-                  rx={3}
-                  fill="#f7f5f1"
+                  height={ARM.COUNTERWEIGHT + 6}
+                  rx={2}
+                  fill="#1a1a1f"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
                 />
 
                 {/* The grab target. Invisible, and far fatter than the tube it

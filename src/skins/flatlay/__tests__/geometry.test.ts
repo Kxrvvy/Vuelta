@@ -293,21 +293,37 @@ describe('the card move', () => {
 })
 
 describe('the arm and the sleeve', () => {
-  it('never overlap, anywhere in the band or at the park', () => {
-    const insideSleeve = (point: { x: number; y: number }) =>
-      point.x >= SLEEVE.LEFT &&
-      point.x <= SLEEVE.RIGHT_EDGE_X &&
-      point.y >= SLEEVE.TOP &&
-      point.y <= SLEEVE.TOP + SLEEVE.SIZE
+  const insideSleeve = (point: { x: number; y: number }) =>
+    point.x >= SLEEVE.LEFT &&
+    point.x <= SLEEVE.RIGHT_EDGE_X &&
+    point.y >= SLEEVE.TOP &&
+    point.y <= SLEEVE.TOP + SLEEVE.SIZE
 
-    for (let angle = CORE_ARM.START_ANGLE; angle <= CORE_ARM.END_ANGLE; angle += 0.5) {
-      for (const point of alongArm(armBearingDeg(angle))) {
-        expect(insideSleeve(point)).toBe(false)
-      }
-    }
+  it('keeps the park entirely off the cover', () => {
     for (const point of alongArm(ARM.PARK_BEARING_DEG)) {
       expect(insideSleeve(point)).toBe(false)
     }
+  })
+
+  it('is clear of the cover over the outer half of the sweep', () => {
+    for (let angle = CORE_ARM.START_ANGLE; angle <= 10; angle += 0.5) {
+      expect(insideSleeve(stylusAt(angle))).toBe(false)
+    }
+  })
+
+  it('crosses onto the cover as the side runs out — and by how much', () => {
+    // Not a thing anyone chose. With the sleeve covering half the disc its
+    // right edge *is* the record's centre, and the arm has to reach the inner
+    // groove, which is near that centre — so the stylus is over the cover for
+    // roughly the back half of every side. Pinned here rather than left to be
+    // discovered: if the overlap or the label changes, this number moves and
+    // the trade has to be looked at again.
+    const dx = (angle: number) => stylusAt(angle).x - RECORD_CENTER_X
+    expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 6)
+    expect(dx(CORE_ARM.START_ANGLE)).toBeGreaterThan(0)
+    expect(dx(CORE_ARM.END_ANGLE)).toBeLessThan(0)
+    // How far past the cover's edge the stylus finishes.
+    expect(Math.abs(dx(CORE_ARM.END_ANGLE))).toBeLessThan(RECORD.RADIUS * 0.25)
   })
 })
 

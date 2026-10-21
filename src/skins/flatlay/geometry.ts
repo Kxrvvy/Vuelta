@@ -107,8 +107,12 @@ const RECORD_SCALE = 0.95
 
 export const RECORD = {
   RADIUS: (SLEEVE.SIZE / 2) * RECORD_SCALE,
-  /** §5: label circle ⌀165, scaled with the rest. */
-  LABEL_RADIUS: 82.5 * RECORD_SCALE,
+  /**
+   * §5's label was ⌀165 — 37% of the disc. A pressing's label is a good deal
+   * larger than that, nearly half the diameter, and at 37% there was not much
+   * room on it for anything but the title.
+   */
+  LABEL_RADIUS: ((440 / 2) * RECORD_SCALE) * 0.45,
   /** §5: spindle hole ⌀12, punched through to the paper. */
   SPINDLE_RADIUS: 6 * RECORD_SCALE,
   /** §4: a wider smooth band at the rim, with no ring texture. */
