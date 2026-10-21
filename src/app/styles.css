@@ -59,14 +59,29 @@ body {
 }
 
 /* The settings corner. Above the scene, including the flat-lay's arm, which
-   sits at z-index 4 in the same stacking context. */
+   sits at z-index 4 in the same stacking context.
+
+   It sits on the browser bar's own line, out at the right edge: the two come
+   and go together on the same gesture, so standing them on the same level
+   reads as one piece of chrome rather than two in opposite corners. The bar is
+   centred and much narrower than the window, so the corner past it is free in
+   all three looks -- the now-playing panel stops 75px above this line, and the
+   lyrics column likewise.
+
+   The 3px is half the difference between the bar's 38px height and this
+   button's 32px, which is what puts the two on a shared centre line rather
+   than a shared bottom edge. If the bar's height changes, this follows it. */
 .settings {
   position: absolute;
-  top: 0.85rem;
+  bottom: calc(0.85rem + 3px);
   right: 1rem;
   z-index: 50;
-  display: grid;
-  justify-items: end;
+  /* Reversed, so the menu opens *upward* off the button. In a plain column it
+     opens downward, which from here goes straight off the bottom of the
+     window. The button stays first in the DOM, where it belongs. */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
   gap: 0.5rem;
   /* The same fade as the browser bar, so the two come and go together. */
   transition: opacity 260ms ease;
@@ -383,8 +398,8 @@ input[type='text']:focus {
   inset: 0;
 }
 
-/* The machine, shrunk into the corner of the flat-lay: the same canvas and
-   camera, given a small box to frame themselves in.
+/* The machine, shrunk into the top-right corner of the flat-lay: the same
+   canvas and camera, given a small box to frame themselves in.
 
    It has no field behind it -- `Staging` leaves its background off here -- so
    the machine stands on the paper rather than on a dark card. Nothing else in
@@ -401,21 +416,63 @@ input[type='text']:focus {
    bar and the settings corner. */
 .stage__machine--preview {
   inset: auto;
-  top: 18px;
-  left: 18px;
-  /* What has to clear the sleeve is the *machine*, not the box: with no field
-     behind it, the box's empty margins lie over the cover without anything
-     showing, and at this size they do. The machine's own ink is 109x103 of
-     the 237x140, centred, and every pixel of it lands on bare paper in both
-     resting arrangements.
 
-     Checked by difference -- shoot the frame with the preview hidden, shoot it
-     again with it shown, and ask what each changed pixel was drawn over. A
-     box-against-box test says this overlaps and is wrong: the cover behind is
-     a square turned four degrees, so the corners of its rect are bare paper
-     and a rect overlap there covers nothing. */
-  width: 237px;
-  height: 140px;
+  /* Every number in this rule is in design-box pixels -- what it measures at a
+     1280x800 window -- and `--fit` carries them to every other size. It is the
+     same fit the flat-lay itself uses, so the preview shrinks and grows in
+     step with the scene around it.
+
+     In fixed px it did not. The scene scales with the window and the preview
+     did not, so on a restored-down window the machine kept its size while
+     everything else shrank, swallowed the frame and ran over the disc. Only
+     maximised looked right, which is the giveaway. */
+  --fit: min(100vw / 1280, 100vh / 800);
+
+  /* The box's width, which everything else here is derived from. */
+  --w: calc(413 * var(--fit));
+
+  /* Both negative, so the box hangs past the window's top and right edges.
+     Only its empty margin goes over -- the box has no field of its own to
+     show, so nothing is lost off the edge. Hanging it off the top is what
+     lets the machine grow at all: the ink runs about 73% of the box's height
+     whatever the size, so the bottom margin cannot shrink to clear the
+     armboard, and the room has to come from above the window instead. */
+  top: calc(-14 * var(--fit));
+
+  /* Plainly scaled, because this corner is its own now. It used to have to
+     dodge the settings gear, which is app chrome and does not scale -- pinned
+     a fixed distance in from the corner at the same size whatever the window,
+     so the smaller the window the more of the corner it took, and a scaled
+     offset walked the machine into it. The gear has moved down to the browser
+     bar's line, and the clamp went with it. */
+  right: calc(-40 * var(--fit));
+
+  /* It sits in the top *right*, which is where the room is. On the left it had
+     to thread a wedge above the sleeve's top edge, and that edge slopes -- the
+     cover behind lies over four degrees -- so every pixel lower cost about
+     1.8px of width and the thing could not be both larger and lower.
+
+     Here it is boxed in by two things, and clears both in either resting
+     arrangement: 4.8px above the armboard, 24px short of the settings gear,
+     with the machine 17px down from the top of the window. Under 5px is the
+     whole remaining budget, so this is about as large as it goes without
+     moving something else.
+
+     What has to clear them is the *machine*, not the box: with no field behind
+     it the box's empty margins lie over anything without showing, and the ink
+     is only 191x179 of the 413x244.
+
+     Measured by difference -- hide the preview, shoot, show it, shoot again,
+     and ask what each changed pixel was drawn over. Two obvious methods are
+     both wrong, and both were tried: box against box says this collides, but
+     the cover behind is a turned square whose rect corners are bare paper; and
+     diffing while the deck plays counts the turning record as machine, which
+     leaks through a stability mask too, because the groove pattern is
+     near-periodic. Pause the deck first -- and check it is actually stopped,
+     since the control is a toggle. Threshold generously as well: compositing
+     the canvas lifts near-black disc pixels by about 15 levels on its own. */
+  width: var(--w);
+  height: calc(var(--w) * 244 / 413);
   z-index: 10;
   overflow: hidden;
   pointer-events: none;

@@ -102,7 +102,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 237×140 box to frame themselves in, so the only thing that changes is the
+  same camera, given a 413×244 box in the top right to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
 - **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
   `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
@@ -115,13 +115,38 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   click-through too, which is the opposite of the disc and the cover — those are objects lying on
   the paper and absorb their own click, but an invisible box is not an object, and swallowing
   clicks there would leave a dead rectangle in a corner that otherwise responds everywhere.
-- **What has to clear the sleeve is the machine, not the box.** With no field behind it the box's
-  empty margins lie over the cover with nothing showing — two thirds of it is bare paper, and the
-  machine's ink is 109×103 of the 237×140. Measure it **by difference and per pixel**, never box
-  against box: the cover behind is a square turned four degrees, so the corners of its rect are
-  bare paper, and a rect overlap there covers nothing. Shoot the frame with the preview hidden,
-  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE` and
-  the preview's size both move this, so re-measure when either changes.
+- **The preview lives in the top right because that is where the room is.** On the left it had to
+  thread a wedge above the sleeve's top edge, and that edge *slopes* — the cover behind lies over
+  four degrees — so every pixel lower cost about 1.8px of width and it could not be made both
+  larger and lower. The right corner is bounded only by the armboard below it, which leaves 4.8px. Both `top` and `right` are negative, because the inset you
+  see is the box's own empty margin rather than its edge — which is what lets the box hang off the
+  window while the machine stays inside it. Growing the preview depends on that: the ink runs about
+  73% of the box's height whatever the size, so the bottom margin cannot shrink to clear the
+  armboard and the room has to come from above the window. At under 5px the armboard is now the
+  whole budget.
+- **The preview scales with the window, and must.** Everything in its rule is in design-box pixels
+  carried by `--fit: min(100vw / 1280, 100vh / 800)` — the same fit the flat-lay uses, so the two
+  shrink in step. In fixed px the machine kept its size while the scene shrank around it and
+  swallowed a restored-down window; only maximised looked right, which is the tell.
+- **Chrome does not scale, and that used to cost the preview its corner.** The settings gear is
+  app chrome: fixed size, pinned a fixed distance in, because a gear that shrank with the scene
+  would stop being clickable. While it sat in the top right it therefore took proportionally more
+  of that corner as the window shrank, and the preview's scaled offset walked the machine into it
+  — −5.7px on an 820×560 window — which needed a `max()` clamp. **The gear has since moved to the
+  browser bar's line and the clamp is gone.** Anything fixed-size put back in that corner brings
+  the problem with it. Verified per pixel at 640×520 (the app's minimum), 820×560, 960×620 and
+  1100×700, both resting arrangements: nothing covered.
+- **What has to clear them is the machine, not the box.** With no field behind it the box's empty
+  margins lie over anything with nothing showing; the ink is 191×179 of the 413×244 (figures at a 1280×800 window).
+- **Measuring that needs care, and two obvious methods are both wrong.** Never box against box:
+  the cover behind is a turned square, so the corners of its rect are bare paper and a rect
+  overlap there covers nothing — that test reported a collision on the left that did not exist.
+  And never diff two screenshots while the deck is playing: the record turns once every 3.6s, so
+  disc pixels differ between any two captures, and because the groove pattern is near-periodic
+  they leak through a stability mask as well. **Pause the deck, let it spin down and park, then
+  assert nothing moved between two reference shots before believing the third.** Threshold
+  generously too: compositing the canvas lifts near-black disc pixels by about 15 levels on its
+  own. `SCENE_SCALE`, the preview's size and the card swap all move these margins.
 - **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
   `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
   anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
@@ -188,6 +213,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is
   purely visual — playback is untouched.
+- **The settings gear stands on the browser bar's line**, out at the right edge, in every look. The
+  two are summoned and dismissed by the same gesture, so putting them on one level reads as a
+  single piece of chrome instead of two in opposite corners. The bar is centred and much narrower
+  than the window, so the corner past it is free in all three: the now-playing panel stops 75px
+  above that line and the lyrics column likewise. Its menu opens **upward** — a plain column opens
+  downward, which from there leaves the window. The 3px in its `bottom` is half the difference
+  between the bar's height and the button's, which is what puts them on a shared centre line
+  rather than a shared bottom edge.
 - **One bar for all three looks.** The flat-lay uses the same `BrowserBar` as the machine looks,
   summoned and dismissed by the same click on the empty field. It had a transport pill of its own
   for a while, with a gear and a `···` view switcher in the corners; two pieces of chrome doing one
