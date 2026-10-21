@@ -240,7 +240,6 @@ export function Stage({
           ref={rightRef}
           load={lyrics}
           stateRef={sync.stateRef}
-          actions={sync.actions}
         />
       ) : flatlayShown ? null : (
         <NowPlayingPanel

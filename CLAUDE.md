@@ -272,15 +272,18 @@ service that is not part of the API and must not be called. Lyrics come from **L
   coming. It was graded by distance for a while, so the lines either side stayed bright and the
   eye had three or four places to be; one lit line leaves it nowhere to go but the right one.
 - **The type is sized to hold about five lines**, not ten — roughly double what it was.
-- **Skip sits in its own row under the words**, outside the scrolling body — inside it, it would
-  travel with the lyrics. Play and pause have never needed a home here: the machine is beside this
-  column and the disc is the control.
-- **The body needs `min-height: 0` and a capped padding**, or that row is pushed out of the
-  column. A grid item's automatic minimum is its content, and the body's air is set in *padding*,
-  which resolves against **width** however tall the box is — widening and shortening the column in
-  one go took it to 184px a side inside 362px of column. Padding puts a floor under an element's
-  height that `min-height: 0` cannot lift, so the track grew to fit it and the buttons left the
-  bottom of the column. Hence `min(40%, 17vh)`.
+- **The column carries no transport at all.** It had a skip row under the words for a while; it is
+  gone again, and so this view has no previous or next. Play and pause do not need one here — the
+  machine is beside this column and the disc is the control — but skip has nowhere to go, which is
+  the standing cost of the bare column. `.lyrics` still declares a second grid track for the row
+  that used to sit there.
+- **The body needs `min-height: 0` and a capped padding.** A grid item's automatic minimum is its
+  content, and the body's air is set in *padding*, which resolves against **width** however tall
+  the box is — widening and shortening the column in one go took it to 184px a side inside 362px
+  of column. Padding puts a floor under an element's height that `min-height: 0` cannot lift, so
+  the track grew to fit it and anything below the body left the bottom of the column. Hence
+  `min(40%, 17vh)`. It still matters with nothing under the body, because the padding alone would
+  otherwise outgrow the column.
 - **The column is half the height it was and centred in the gap**, not stretched between two
   insets and pinned to the right edge. The offset is *derived*, not chosen: the camera frames the
   machine into whatever the column leaves it, so sliding the column left widens the reserve,

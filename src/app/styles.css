@@ -1048,8 +1048,14 @@ input[type='text']:focus {
   right: calc(22.75vw - var(--col-w) / 2);
   /* Wider than the panel: a line of lyric is a line of text, and wrapping
      every one of them in half would cost more than the machine gains. */
-  /* Named, because `right` above is derived from it. */
-  --col-w: clamp(15.6rem, 38.4vw, 28.8rem);
+  /* Named, because `right` above is derived from it, so the centring follows
+     any change here without being re-solved.
+
+     400px is the figure at any ordinary window. The clamp is still there
+     underneath it, and only bites on a small one: Vuelta opens down to 640
+     wide, where a fixed 400 would take two thirds of the window and leave the
+     machine the rest. */
+  --col-w: clamp(13rem, 32vw, 400px);
   width: var(--col-w);
   display: grid;
   /* The words, and a row under them for skip. */
@@ -1141,37 +1147,6 @@ input[type='text']:focus {
 
 .lyrics__body[data-mode='note'] .lyrics__note {
   margin: 0;
-}
-
-/* Skip, in its own row at the foot of the column. */
-.lyrics__skip {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.lyrics__skip button {
-  width: 2.1rem;
-  height: 2.1rem;
-  /* The global button rule sets 0.5rem 1.1rem, which with border-box is wider
-     than this button: the content box collapses, the grid track is laid out
-     after the left padding, and the icon lands half its own width right of
-     centre and low. Any button given an explicit size has to clear it. */
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
-}
-
-.lyrics__skip button:hover {
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .lyrics__note {

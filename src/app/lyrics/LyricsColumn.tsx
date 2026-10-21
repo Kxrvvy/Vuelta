@@ -13,30 +13,25 @@
  *
  * The words and nothing else. It had a title, an artist and a transport of its
  * own, and a card to hold them; all of it is gone, so the lyrics stand on the
- * field with no edge around them. Play and pause still have a home in this
- * view -- the machine is right there, and the disc is the control -- but skip
- * no longer does, which is the price of the bare column.
+ * field with no edge around them. Playback controls remain on the machine:
+ * the disc is the play/pause control.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import type { Actions, RenderState } from '../../core/contract.js'
+import type { RenderState } from '../../core/contract.js'
 import { activeLyricIndex, type LyricLine } from '../../core/lyrics.js'
 import type { LyricsLoad } from './useLyrics.js'
-import { Next, Previous } from '../transport/icons.js'
 
 export function LyricsColumn({
   ref,
   load,
   stateRef,
-  actions,
 }: {
   /** Measured by the stage so the camera can frame beside it. */
   ref?: React.Ref<HTMLElement>
   load: LyricsLoad
   /** Live progress, read per frame. Never a prop that changes per frame. */
   stateRef: React.RefObject<RenderState>
-  /** Only skip: the row under the words. Play and pause live on the deck. */
-  actions: Actions
 }) {
   const lines = load.status === 'ready' ? (load.value?.lines ?? []) : []
   const [index, setIndex] = useState(-1)
@@ -102,23 +97,6 @@ export function LyricsColumn({
     <aside className="lyrics" ref={ref}>
       <div className="lyrics__body" data-mode={mode} ref={scroller}>
         <Body load={load} index={index} activeRef={active} lines={lines} />
-      </div>
-
-      {/* Skip, under the words, in its own row rather than inside the
-          scrolling body -- there it would have moved with the lyrics.
-
-          It appeared only on the empty state for a while, which was the one
-          place it fitted when the column ran the full height of the window.
-          The column is half that now, so there is a foot to put it on, and
-          play and pause have never needed one: the machine is beside this
-          column and the disc is the control. */}
-      <div className="lyrics__skip">
-        <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
-          <Previous />
-        </button>
-        <button type="button" aria-label="Next track" onClick={() => actions.next()}>
-          <Next />
-        </button>
       </div>
     </aside>
   )
