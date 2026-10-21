@@ -47,9 +47,24 @@ function alongArm(bearingDeg: number, samples = 40): { x: number; y: number }[] 
 }
 
 describe('the flat-lay layout', () => {
-  it('tucks exactly 35% of the record behind the sleeve', () => {
+  it('tucks exactly TUCK_FRACTION of the record behind the sleeve', () => {
     const covered = SLEEVE.RIGHT_EDGE_X - (RECORD_CENTER_X - RECORD.RADIUS)
     expect(covered / (RECORD.RADIUS * 2)).toBeCloseTo(TUCK_FRACTION, 10)
+  })
+
+  it('puts the spindle on the sleeve’s edge, which is what half an overlap means', () => {
+    // At a half the record's centre lands exactly on the sleeve's right edge.
+    // Worth pinning: it is the one place the two objects agree on, and it is
+    // what the whole layout is measured from.
+    expect(TUCK_FRACTION).toBe(0.5)
+    expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 9)
+  })
+
+  it('leaves the cover where it was when it goes behind', () => {
+    // Front or back, the overlap is the same and neither object moves. The
+    // swap changes which is on top and nothing else.
+    const covered = SLEEVE.RIGHT_EDGE_X - (RECORD_CENTER_X - RECORD.RADIUS)
+    expect(covered / (RECORD.RADIUS * 2)).toBeCloseTo(TUCK_FRACTION, 9)
   })
 
   it('centres the whole arrangement in the design box', () => {
@@ -77,7 +92,7 @@ describe('the flat-lay layout', () => {
     expect(rightOfSleeve).toBeLessThanOrEqual(SLEEVE.RIGHT_EDGE_X + 0.001)
   })
 
-  it('travels exactly the gap between the two centres, and §9 clears 65%', () => {
+  it('travels exactly the gap between the two centres, and clears the rest', () => {
     // Not a number: the travel is however far it is from resting to
     // concentric, and it changed the moment the record stopped being the same
     // size as its sleeve.

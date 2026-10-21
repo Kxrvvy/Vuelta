@@ -351,8 +351,15 @@ fade with the click gesture: it is the content of that view, not chrome over it.
 
 **3 — Close-up.** A flat-lay, from directly overhead: an album sleeve and a record lying on a sheet
 of warm paper, with a tonearm across the record, and **no turntable in the view at all** — not even
-a picture of one. The record is half pulled out of its jacket: 35% of the disc sits behind the
-sleeve, which is the signature of the layout and the one measurement everything else derives from.
+a picture of one. The record is half pulled out of its jacket, and exactly half: the sleeve covers
+50% of the disc, which is the signature of the layout and the one measurement everything else
+derives from — the cover's travel during a swap included. At a half the record's centre, and so the
+spindle, sits precisely on the sleeve's right edge.
+
+**The same half stays covered whichever card is on top.** Neither object moves when they trade
+places, so front and back differ only in stacking. What that costs is the label: with the cover in
+front its left half is behind the jacket, so the title and artist read fully only once the record
+comes forward. It was 35% before, where a sliver of the label was clipped rather than half of it.
 
 **It is a second skin, not a second camera.** `skins/flatlay/` draws it in DOM and SVG;
 `skins/3d/` keeps the other two looks. That is a reversal: it began as one scene rendered through
@@ -454,7 +461,7 @@ to follow and the stylus never leaves the groove it is playing. A card you push 
 is one object moving, not two.
 
 It could not always. With the sleeve at the left edge of the frame there was less room beside it
-than the 154px overlap was wide, so the cover could never get clear on its own and the record had
+than the overlap was wide, so the cover could never get clear on its own and the record had
 to give way too — taking the arm with it, which is what kept the stylus on its groove then. Centring
 the arrangement gave the cover the room to do the whole move itself, and the record and the arm now
 hold still. The cover ends 16px clear of the record, which is what lets the stacking flip during

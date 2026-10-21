@@ -116,8 +116,11 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
   mostly contrast, and the wider period keeps the spacing even rather than beating against the
   pixel grid once the box is scaled.
-- **The sleeve overlaps the record and occludes it.** 35% of the disc is tucked behind the jacket
-  at rest, and `TUCK_FRACTION` is the one number the whole layout and §9's slide derive from. This
+- **The sleeve covers half the disc**, and the same half whichever of the two is on top — the swap
+  changes the stacking and nothing else. `TUCK_FRACTION` is the one number the whole layout, the
+  cover's swap travel and §9's slide derive from; at a half the spindle sits exactly on the
+  sleeve's right edge. The cost is the label: with the cover in front its left half is hidden, so
+  the title and artist are only fully legible with the record forward. This
   replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where
   whichever card sat behind had a bite taken out of it by the other. In DOM, paint order settles it
   and nothing is lost.
@@ -128,7 +131,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **Only the cover moves.** It slides clear, trades places with the record out there where nothing
   overlaps, and slides home; the record does not stir, so the arm has nothing to follow and the
   stylus never leaves the groove it is playing. Both used to move, because with the sleeve at the
-  frame's left edge there was less room beside it than the 154px overlap was wide — centring the
+  frame's left edge there was less room beside it than the overlap was wide — centring the
   arrangement gave the cover room to do the whole move itself.
 - **The arrangement is centred by derivation, not by eye** — `SLEEVE_LEFT` solves for it from the
   composition's width. The arm reaches well past the record, so the bearing circle is the

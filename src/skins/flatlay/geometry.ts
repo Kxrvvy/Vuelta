@@ -67,11 +67,17 @@ export const SLEEVE = {
 /**
  * How much of the record's diameter the sleeve covers when it is at rest.
  *
- * The signature of the layout, and the one number the slide is measured from:
- * at rest 35% is tucked, which is §9's "~65% clears the sleeve edge" seen from
- * the other side.
+ * The signature of the layout, and the one number everything else is measured
+ * from: half the disc is behind the jacket, and the same half stays behind it
+ * whichever of the two is on top. At a half the record's centre — and so the
+ * spindle — sits exactly on the sleeve's right edge.
+ *
+ * It was 0.35, which is §9's "~65% clears the sleeve edge". The cost of a half
+ * is the label: at 0.35 a sliver of it was behind the cover, at 0.5 it is the
+ * whole left half, so the title and artist are only fully legible with the
+ * record in front.
  */
-export const TUCK_FRACTION = 0.35
+export const TUCK_FRACTION = 0.5
 
 /**
  * How much smaller the record is than the jacket it comes out of.
@@ -401,9 +407,20 @@ export const ARM_LOCAL = {
  * room to do the whole move itself, and a card you push out and tuck under is
  * one object moving, not two.
  */
+/** How much daylight to leave between the two when they are apart. */
+const SWAP_AIR = 16
+
 export const SWAP = {
-  /** Far enough left to be wholly clear of the record, plus a little air. */
-  COVER_SHIFT: -170,
+  /**
+   * Far enough left to be wholly clear of the record, plus a little air.
+   *
+   * Derived, not chosen: it is whatever the overlap happens to be. A fixed
+   * number was right until the overlap grew to half the disc, at which point
+   * the cover stopped clearing and the flip would have shown as a pop inside
+   * the band — which is the one thing the hold in the middle exists to
+   * prevent.
+   */
+  COVER_SHIFT: -(TUCK_FRACTION * RECORD.RADIUS * 2 + SWAP_AIR),
   /**
    * How far the cover lies over once it is behind the record, in degrees.
    *
