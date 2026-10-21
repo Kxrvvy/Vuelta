@@ -403,12 +403,19 @@ input[type='text']:focus {
   inset: auto;
   top: 18px;
   left: 18px;
-  /* What has to clear the sleeve is now the *machine*, not the box: with no
-     field behind it, the box's empty margins can lie over the cover without
-     anything showing. The machine sits centred in here with room to spare, so
-     the figures to watch are in the measurement script, not these. */
-  width: 182px;
-  height: 108px;
+  /* What has to clear the sleeve is the *machine*, not the box: with no field
+     behind it, the box's empty margins lie over the cover without anything
+     showing, and at this size they do. The machine's own ink is 109x103 of
+     the 237x140, centred, and every pixel of it lands on bare paper in both
+     resting arrangements.
+
+     Checked by difference -- shoot the frame with the preview hidden, shoot it
+     again with it shown, and ask what each changed pixel was drawn over. A
+     box-against-box test says this overlaps and is wrong: the cover behind is
+     a square turned four degrees, so the corners of its rect are bare paper
+     and a rect overlap there covers nothing. */
+  width: 237px;
+  height: 140px;
   z-index: 10;
   overflow: hidden;
   pointer-events: none;

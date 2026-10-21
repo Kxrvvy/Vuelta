@@ -102,7 +102,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 182×108 box to frame themselves in, so the only thing that changes is the
+  same camera, given a 237×140 box to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
 - **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
   `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
@@ -116,10 +116,12 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   the paper and absorb their own click, but an invisible box is not an object, and swallowing
   clicks there would leave a dead rectangle in a corner that otherwise responds everywhere.
 - **What has to clear the sleeve is the machine, not the box.** With no field behind it the box's
-  empty margins can lie over the cover with nothing showing — about 73% of it is bare paper. The
-  machine's own ink is what is measured, against the cover in *both* resting arrangements: in front
-  its top-left corner is the limit, and behind, the tilted corner reaches further left, so the
-  clearance is vertical instead. `SCENE_SCALE` moves both margins.
+  empty margins lie over the cover with nothing showing — two thirds of it is bare paper, and the
+  machine's ink is 109×103 of the 237×140. Measure it **by difference and per pixel**, never box
+  against box: the cover behind is a square turned four degrees, so the corners of its rect are
+  bare paper, and a rect overlap there covers nothing. Shoot the frame with the preview hidden,
+  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE` and
+  the preview's size both move this, so re-measure when either changes.
 - **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
   `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
   anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
