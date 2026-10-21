@@ -1029,6 +1029,45 @@ input[type='text']:focus {
   background: rgba(22, 19, 17, 0.82);
   backdrop-filter: blur(14px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  /* The art layer below is clipped to the column's corners. */
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* The record's own colour, under the words.
+   The sleeve blurred far past recognition, scaled up so no edge of it shows,
+   and held down by a scrim dark enough to read 700-weight white over. It is a
+   ground, not a picture: at this blur it carries the album's colour and
+   nothing else, which is the whole of what it is for. */
+.lyrics::before {
+  content: '';
+  position: absolute;
+  /* Overdrawn, because a blur of this radius pulls the edges inward and would
+     otherwise leave a pale rim inside the corners. */
+  inset: -18%;
+  z-index: -1;
+  background-image: var(--art, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) saturate(1.9) brightness(0.9);
+  opacity: 0.95;
+}
+
+/* The scrim. Separate from the blur so the two can be tuned apart, and a
+   gradient rather than a flat wash: the head and the transport sit on the
+   ends, and they need more cover than the middle of the column does. */
+.lyrics::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    rgba(14, 12, 11, 0.82),
+    rgba(14, 12, 11, 0.42) 24%,
+    rgba(14, 12, 11, 0.42) 76%,
+    rgba(14, 12, 11, 0.82)
+  );
 }
 
 .lyrics__head {
@@ -1066,27 +1105,39 @@ input[type='text']:focus {
   padding: 40% 0;
 }
 
+/* Set in bold and large, and lit by distance from the vocal rather than by a
+   single "not now" value. That grading is most of the look: the lines either
+   side of the sung one stay readable, the column falls away from there, and
+   the present reads as the bright band in the middle.
+
+   `--d` is how many lines away this one is; the component sets it. */
 .lyrics__line {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-  line-height: 1.45;
-  color: var(--muted);
-  opacity: 0.32;
+  --d: 6;
+  margin: 0 0 1.05rem;
+  /* Scales with the column, which itself is a clamp against the window. */
+  font-size: clamp(1rem, 1.75vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.24;
+  letter-spacing: -0.012em;
+  color: #fff;
+  /* Ahead of the vocal: still to come, so brighter than what has gone. */
+  opacity: max(0.14, calc(0.62 - var(--d) * 0.15));
   transition:
     opacity 420ms ease,
-    color 420ms ease,
     transform 420ms ease;
 }
 
 /* The lead is what makes this land before the vocal: core/lyrics.ts moves the
    index half a second early, and this transition is the fade itself. */
 .lyrics__line[data-state='now'] {
-  color: var(--text);
+  color: #fff;
   opacity: 1;
 }
 
+/* Sung already: dimmer than the same distance ahead, so the column reads in
+   the direction it is going. */
 .lyrics__line[data-state='past'] {
-  opacity: 0.18;
+  opacity: max(0.1, calc(0.34 - var(--d) * 0.07));
 }
 
 .lyrics__note {
@@ -1296,13 +1347,25 @@ input[type='text']:focus {
   will-change: transform;
   /* The disc underneath is the play/pause target; nothing here is clickable. */
   pointer-events: none;
+  /* The only thing on the record that is not rotationally symmetric, and so
+     the only thing that can show it turning at all. The grooves are perfect
+     circles: spin them and every pixel keeps its value, which is why the big
+     black field read as dead still however fast it was going. Only the label
+     moved, and the cover hides half of that.
+
+     It was 0.035 white, which over a #0c0c0e disc is about eight levels --
+     the same mistake the grooves made, and the same fix. Tripled, the swing
+     is wide enough to follow without becoming a smear, and it still reads as
+     what it is: the faint radial sheen of a pressing, not a drawn mark.
+
+     The static sheen above stays where the lamp is; this one goes round. */
   background-image: conic-gradient(
     from 0deg,
-    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0.115),
     rgba(255, 255, 255, 0) 28%,
-    rgba(0, 0, 0, 0.02) 55%,
+    rgba(0, 0, 0, 0.07) 55%,
     rgba(255, 255, 255, 0) 78%,
-    rgba(255, 255, 255, 0.035)
+    rgba(255, 255, 255, 0.115)
   );
 }
 

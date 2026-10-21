@@ -28,6 +28,7 @@ export function LyricsColumn({
   isPlaying,
   stateRef,
   actions,
+  albumArtUrl,
 }: {
   /** Measured by the stage so the camera can frame beside it. */
   ref?: React.Ref<HTMLElement>
@@ -37,6 +38,16 @@ export function LyricsColumn({
   /** Live progress, read per frame. Never a prop that changes per frame. */
   stateRef: React.RefObject<RenderState>
   actions: Actions
+  /**
+   * The sleeve, used as the column's ground: blurred far past recognition and
+   * dropped behind a scrim, so the lyrics sit in the record's own colour.
+   *
+   * As a CSS background rather than a sampled palette. Reading an average
+   * colour off the art means drawing it into a canvas, and a canvas that has
+   * had a remote image drawn into it is tainted unless the CDN cooperates --
+   * so the straightforward version is the one that cannot break.
+   */
+  albumArtUrl: string | null
 }) {
   const lines = load.status === 'ready' ? (load.value?.lines ?? []) : []
   const [index, setIndex] = useState(-1)
@@ -97,7 +108,11 @@ export function LyricsColumn({
   }, [index])
 
   return (
-    <aside className="lyrics" ref={ref}>
+    <aside
+      className="lyrics"
+      ref={ref}
+      style={{ '--art': albumArtUrl ? `url("${albumArtUrl}")` : 'none' } as React.CSSProperties}
+    >
       <header className="lyrics__head">
         <div className="lyrics__title">{track?.title ?? 'Nothing playing'}</div>
         <div className="lyrics__artist">{track?.artist ?? '—'}</div>
@@ -170,6 +185,11 @@ function Body({
           ref={at === index ? activeRef : undefined}
           className="lyrics__line"
           data-state={at === index ? 'now' : at < index ? 'past' : 'ahead'}
+          // How far this line is from the one being sung. The fade is graded
+          // by it rather than being one value for "not now": the lines either
+          // side of the vocal stay readable and the column falls away from
+          // there, which is what makes the middle of it read as the present.
+          style={{ '--d': index < 0 ? 6 : Math.abs(at - index) } as React.CSSProperties}
         >
           {/* A sung-less gap still takes a line, so the column keeps moving
               through a long instrumental break instead of appearing stuck. */}

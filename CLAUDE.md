@@ -171,6 +171,13 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   grooved band, and a rolled edge. The arcs are static; the disc turns under them.
 - **The arm's cast parts need a lit edge.** Black on near-black vinyl has no value difference at
   all — the headshell vanished the moment it crossed the disc. The silhouette has to be stroked.
+- **The spin needs something that is not rotationally symmetric.** The grooves are perfect
+  circles, so turning them changes no pixel: the black field read as dead still however fast it
+  was going, and only the label moved — half of which the cover hides. The rotating conic on
+  `.flatlay__spin` is the one asymmetric thing on the record and so the only thing that can show
+  it turning. It was 0.035 white over a `#0c0c0e` disc, about eight levels, which is the same
+  mistake the grooves made; tripled, a fixed point on the field now swings 22–25 levels per
+  revolution. The static sheen stays where the lamp is; this one goes round.
 - **The groove rings are meant to be seen.** `GROOVE_PERIOD` is the one authority and the skin
   hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
   mostly contrast, and the wider period keeps the spacing even rather than beating against the
@@ -249,6 +256,19 @@ service that is not part of the API and must not be called. Lyrics come from **L
   `main/lyrics/client.ts` — not in `spotify/client.ts`, which maps every 403 to `not-allowlisted`.
 - Any non-200 means "no lyrics", never an error screen: an unmatched lookup was observed returning
   503 rather than the documented 404.
+- The column is set after Spotify's own lyrics view: **large and bold**, the sung line in full
+  white, and everything else **graded by distance from it** rather than by one "not now" value —
+  the lines either side stay readable and the column falls away from there, which is what makes
+  the middle read as the present. Lines ahead are brighter than lines the same distance behind,
+  so it reads in the direction it is going. `--d` carries the distance from the component.
+- **The column's ground is the sleeve itself**, blurred far past recognition behind a scrim, so
+  the lyrics sit in the record's own colour. As a CSS background, not a sampled palette: reading
+  an average colour means drawing the art into a canvas, and a canvas with a remote image in it is
+  tainted unless the CDN cooperates. Measured at the reference size, the ground carries a chroma
+  of about 40 — the album's colour, not grey.
+- **There is no word-by-word fill**, which the reference has. LRCLIB gives **line** timings only,
+  so a per-word highlight would have to be invented from the line's duration and would drift off
+  the actual words. The line-level lead in `core/lyrics.ts` is the honest version of the same idea.
 - Read the active line from the **live state ref**, never from `readout` — that updates at
   `READOUT_HZ` (4), which would make every line up to 250ms late.
 

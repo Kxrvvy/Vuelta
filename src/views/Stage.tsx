@@ -243,6 +243,7 @@ export function Stage({
           isPlaying={sync.readout.isPlaying}
           stateRef={sync.stateRef}
           actions={sync.actions}
+          albumArtUrl={sync.display.albumArtUrl}
         />
       ) : flatlayShown ? null : (
         <NowPlayingPanel
