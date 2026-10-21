@@ -1142,8 +1142,7 @@ input[type='text']:focus {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-/* Printed on the label, so it rides the rotation — which is also what makes
-   the spin visible once the title is held upright. */
+/* Printed on the label, so it turns with the record. */
 .flatlay__label-print {
   position: absolute;
   inset: 0;
@@ -1178,10 +1177,10 @@ input[type='text']:focus {
   );
 }
 
-/* The counter-rotating group: the inverse of the disc's rotation, so the text
-   stays upright while the record turns. The gap in the middle is the spindle
-   hole's — title above it, artist below, as a pressing sets them. */
-.flatlay__label-upright {
+/* Title and artist. They turn with the record like everything else printed on
+   it; the gap in the middle is the spindle hole's — title above it, artist
+   below, as a pressing sets them. */
+.flatlay__label-text {
   position: absolute;
   inset: 0;
   display: flex;
@@ -1191,7 +1190,6 @@ input[type='text']:focus {
   gap: var(--hole-gap);
   padding: 0 13%;
   text-align: center;
-  will-change: transform;
 }
 
 .flatlay__label-title {

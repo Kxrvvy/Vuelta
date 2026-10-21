@@ -101,7 +101,6 @@ export function FlatLay({
   const host = useRef<HTMLDivElement | null>(null)
   const record = useRef<HTMLDivElement | null>(null)
   const spin = useRef<HTMLDivElement | null>(null)
-  const upright = useRef<HTMLDivElement | null>(null)
   const armGroup = useRef<SVGGElement | null>(null)
   const armLift = useRef<SVGGElement | null>(null)
   /** The whole arm assembly, which travels with the record during a card move. */
@@ -228,11 +227,13 @@ export function FlatLay({
         if (degPerSec > 0.05) {
           // Clockwise from above, which is what a positive CSS rotation is.
           angle = (angle + degPerSec * delta) % 360
+          // Everything on the record turns with it, the label included. The
+          // title and artist used to be held upright by the inverse rotation,
+          // which kept them readable and left the middle of the disc dead
+          // still — and a record whose centre does not move does not read as
+          // a record at all. Legibility was the wrong thing to optimise for:
+          // the label is not where you read the title, the bar is.
           if (spin.current) spin.current.style.transform = `rotate(${angle}deg)`
-          // §5: the inverse, so the text stays upright. Written in the same
-          // pass as the rotation it undoes, so the two cannot disagree by a
-          // frame.
-          if (upright.current) upright.current.style.transform = `rotate(${-angle}deg)`
         }
 
         // The card move. Both objects slide apart, trade places in the stack
@@ -415,8 +416,7 @@ export function FlatLay({
               }
             >
               {/* The small print, curved around the label the way a pressing
-                  sets it. It rides the rotation, so it orbits — which is what
-                  makes the spin visible once the title is held upright. */}
+                  sets it. */}
               <svg className="flatlay__label-print" viewBox="0 0 200 200" aria-hidden>
                 <defs>
                   {/* Left to right over the top, and right to left under the
@@ -438,7 +438,7 @@ export function FlatLay({
 
               <span className="flatlay__label-code" />
 
-              <div className="flatlay__label-upright" ref={upright}>
+              <div className="flatlay__label-text">
                 <span className="flatlay__label-title">{title ?? 'No record'}</span>
                 {artist ? <span className="flatlay__label-artist">{artist}</span> : null}
               </div>
