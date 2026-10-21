@@ -48,6 +48,11 @@ export type TurntableProps = {
   onBackgroundClick: () => void
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
+  /**
+   * Drawn as the close-up's corner preview: no dark field, so the machine
+   * sits on the flat-lay's paper. The scene is otherwise identical.
+   */
+  preview?: boolean
 }
 
 /** How long to keep rendering after things stop, so spin-down can finish. */
@@ -67,6 +72,7 @@ export function Turntable({
   onArmDragEnd,
   onBackgroundClick,
   reserveRightPx,
+  preview = false,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
   // frames a second at a motionless record would burn GPU and battery for
@@ -128,7 +134,7 @@ export function Turntable({
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
             <CameraRig reserveRightPx={reserveRightPx} pose={pose} />
-            <Staging />
+            <Staging transparent={preview} />
 
             <Cabinet />
             <TimeDisplay lidOpen={lidOpen} />

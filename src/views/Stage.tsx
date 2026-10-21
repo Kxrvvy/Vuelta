@@ -208,6 +208,9 @@ export function Stage({
           // sits centred the moment it fades. The rect is still measured
           // whatever the opacity; it is the gating that is conditional.
           reserveRightPx={reserveRight}
+          // In the corner preview the dark field comes off, so the machine
+          // sits on the paper rather than on a card.
+          preview={flatlayShown}
           lidOpen={sync.lidOpen}
           onOpenLid={sync.openLid}
           onCloseLid={sync.closeLid}

@@ -10,7 +10,8 @@
  *
  * Staging is a dark field (spec §19's open question, now answered): the unit
  * floats on the app's own background rather than sitting on a surface, so
- * there is no ground plane and no contact shadow. Shadows that remain are
+ * there is no ground plane and no contact shadow. `transparent` drops the
+ * field for the close-up's corner preview, which needs the machine on paper. Shadows that remain are
  * self-shadows — the arm onto the record, the lid onto the deck.
  */
 
@@ -19,7 +20,7 @@ import { useEffect, useRef } from 'react'
 import { PMREMGenerator } from 'three'
 import { studioEnvironmentTexture } from '../materials/textures.js'
 
-export function Staging() {
+export function Staging({ transparent = false }: { transparent?: boolean }) {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
   const frame = useRef(0)
@@ -54,7 +55,17 @@ export function Staging() {
 
   return (
     <>
-      <color attach="background" args={['#141210']} />
+      {/* The dark field. Left off for the corner preview in the close-up,
+          where the machine has to sit on the flat-lay's paper rather than on
+          a dark card -- and where a background is the one thing a thumbnail
+          of a floating object does not need. Nothing else in here paints a
+          backdrop, because the unit floats and has no ground plane, so
+          dropping this is all it takes to clear the frame to the page.
+
+          Not a second scene: the same scene, the same camera and the same
+          lighting, with one attachment conditional. R3F restores the previous
+          background when it detaches, so switching looks puts it back. */}
+      {transparent ? null : <color attach="background" args={['#141210']} />}
       <ambientLight intensity={0.38} />
 
       {/* Key: high and to the left-back, which is where the reference's main

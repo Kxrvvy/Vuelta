@@ -102,13 +102,24 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 152×90 box to frame themselves in, so the only thing that changes is the
-  size of the element the renderer is already drawing into. Its contents take no clicks — R3F sets
-  `pointer-events: auto` inline on its own container, so the override has to be `!important` — but
-  the box itself absorbs them, because everything lying on the paper absorbs its own click.
-- **The preview's size is set by what it must not cover.** With the cover in front its top-left
-  corner is the limit; with the cover behind, the tilted corner reaches further left, so the box
-  has to stay *above* it instead. That is why it is wide and low. `SCENE_SCALE` moves both margins.
+  same camera, given a 182×108 box to frame themselves in, so the only thing that changes is the
+  size of the element the renderer is already drawing into.
+- **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
+  `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
+  card. Nothing else in the scene paints a backdrop — the unit floats and has no ground plane — so
+  dropping that one attachment clears the frame to the page. R3F puts the field back on the way
+  out; the other two looks are untouched.
+- **The preview takes no clicks at all, box included.** Its contents cannot, by `!important`: R3F
+  sets `pointer-events: auto` inline on its own container, which outranks anything inherited, and
+  without the override a click raycasts into the real scene and works the lid. The box is
+  click-through too, which is the opposite of the disc and the cover — those are objects lying on
+  the paper and absorb their own click, but an invisible box is not an object, and swallowing
+  clicks there would leave a dead rectangle in a corner that otherwise responds everywhere.
+- **What has to clear the sleeve is the machine, not the box.** With no field behind it the box's
+  empty margins can lie over the cover with nothing showing — about 73% of it is bare paper. The
+  machine's own ink is what is measured, against the cover in *both* resting arrangements: in front
+  its top-left corner is the limit, and behind, the tilted corner reaches further left, so the
+  clearance is vertical instead. `SCENE_SCALE` moves both margins.
 - **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
   `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
   anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
