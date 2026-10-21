@@ -137,6 +137,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The cover's clearance travel lerps toward `COVER_SHIFT`, it does not add to it.** The
   reposition and the travel are both at full value at the end of the hold; adding them took the
   cover 13px off the left of the box.
+- **The arm is solved, then nudged 12px right** (`ARM_NUDGE_X`) to open the gap at the rim. The
+  solve fixes the pivot's *distance* from the spindle, so the nudge is slack being spent, and it is
+  spent out of the **lead-in**: the stylus sets down 5.8px into a 13.3px band of smooth land
+  instead of exactly on the first groove, which is how a needle is actually dropped. The ceiling is
+  ~27px, where the stylus would touch the rim. It is the one number in `geometry.ts` that is not
+  derived — do not re-tune it by eye, and do not let the lead-in, the label or the overlap shrink
+  without re-measuring it. It also bought the clearance that keeps the stylus **off the album
+  cover** for the whole sweep, which it previously crossed by a whisker at the end of every side.
 - **The arrangement is centred by derivation, not by eye** — `SLEEVE_LEFT` solves for it from the
   composition's width. The arm reaches well past the record, so the bearing circle is the
   right-hand edge and the thing is much wider than the two cards suggest; centring on the cards

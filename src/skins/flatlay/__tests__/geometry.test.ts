@@ -4,6 +4,7 @@ import { ARM as CORE_ARM } from '../../../core/contract.js'
 import {
   ARM,
   ARM_LOCAL,
+  ARM_NUDGE_X,
   ARM_REACH,
   ARM_SOLUTION,
   armAngleAtPoint,
@@ -156,8 +157,32 @@ describe('the flat-lay layout', () => {
 
 describe('the arm solve', () => {
   it('lands armAngle 0 on the outer groove and 22 on the inner, within a pixel', () => {
-    expect(distanceToRecordCentre(stylusAt(CORE_ARM.START_ANGLE))).toBeCloseTo(GROOVE.OUTER, 0)
-    expect(distanceToRecordCentre(stylusAt(CORE_ARM.END_ANGLE))).toBeCloseTo(GROOVE.INNER, 0)
+    // Measured at the pivot the solve actually solved for. `ARM_NUDGE_X`
+    // slides the finished arm sideways afterwards, for the composition's sake,
+    // and taking it back off is what checks the solve underneath it -- this is
+    // the assertion that caught an arm which could not reach the disc at all.
+    const unnudged = (armAngle: number) => {
+      const point = stylusAt(armAngle)
+      return { x: point.x - ARM_NUDGE_X, y: point.y }
+    }
+    expect(distanceToRecordCentre(unnudged(CORE_ARM.START_ANGLE))).toBeCloseTo(GROOVE.OUTER, 0)
+    expect(distanceToRecordCentre(unnudged(CORE_ARM.END_ANGLE))).toBeCloseTo(GROOVE.INNER, 0)
+  })
+
+  it('spends the nudge out of the lead-in, and not all of it', () => {
+    // What the sideways slide costs, where it costs it. Pinned rather than
+    // left to be discovered: the lead-in is the band being spent, so if the
+    // nudge grows past it the stylus starts setting down on the rim.
+    const start = distanceToRecordCentre(stylusAt(CORE_ARM.START_ANGLE))
+    const end = distanceToRecordCentre(stylusAt(CORE_ARM.END_ANGLE))
+
+    expect(start).toBeGreaterThan(GROOVE.OUTER)
+    expect(start - GROOVE.OUTER).toBeLessThan(RECORD.LEAD_IN)
+    expect(start).toBeLessThan(RECORD.RADIUS)
+
+    // The far end barely moves: a fraction of the run-out, not the label.
+    expect(end - GROOVE.INNER).toBeLessThan(RECORD.RUN_OUT)
+    expect(end).toBeGreaterThan(RECORD.LABEL_RADIUS)
   })
 
   it('sweeps inward monotonically across the whole band', () => {
@@ -311,7 +336,9 @@ describe('the card move', () => {
     // arrangement before it.
     expect(RECORD_CENTER_X).toBe(SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS)
     expect(PIVOT.x).toBeCloseTo(
-      RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
+      RECORD_CENTER_X +
+        ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG) +
+        ARM_NUDGE_X,
       9,
     )
   })
@@ -330,25 +357,28 @@ describe('the arm and the sleeve', () => {
     }
   })
 
-  it('is clear of the cover over the outer half of the sweep', () => {
-    for (let angle = CORE_ARM.START_ANGLE; angle <= 10; angle += 0.5) {
-      expect(insideSleeve(stylusAt(angle))).toBe(false)
-    }
-  })
-
-  it('crosses onto the cover as the side runs out — and by how much', () => {
-    // Not a thing anyone chose. With the sleeve covering half the disc its
-    // right edge *is* the record's centre, and the arm has to reach the inner
-    // groove, which is near that centre — so the stylus is over the cover for
-    // roughly the back half of every side. Pinned here rather than left to be
-    // discovered: if the overlap or the label changes, this number moves and
-    // the trade has to be looked at again.
-    const dx = (angle: number) => stylusAt(angle).x - RECORD_CENTER_X
+  it('stays clear of the cover across the whole sweep', () => {
+    // This was the one thing in the layout nobody chose and nobody wanted.
+    // With the sleeve over half the disc its right edge *is* the record's
+    // centre, and the arm has to reach the inner groove, which is near that
+    // centre -- so the stylus used to finish the side a whisker over the
+    // jacket, drawing a needle on printed card.
+    //
+    // `ARM_NUDGE_X` fixed it as a side effect: the clearance it buys at the
+    // rim is bought here too, and the margin at the tightest point went from
+    // about -0.7px to the figure below. Asserted across the sweep rather than
+    // at the ends, because the tightest angle is not necessarily either end.
     expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 6)
-    expect(dx(CORE_ARM.START_ANGLE)).toBeGreaterThan(0)
-    expect(dx(CORE_ARM.END_ANGLE)).toBeLessThan(0)
-    // How far past the cover's edge the stylus finishes.
-    expect(Math.abs(dx(CORE_ARM.END_ANGLE))).toBeLessThan(RECORD.RADIUS * 0.25)
+
+    let tightest = Infinity
+    for (let angle = CORE_ARM.START_ANGLE; angle <= CORE_ARM.END_ANGLE; angle += 0.5) {
+      expect(insideSleeve(stylusAt(angle))).toBe(false)
+      tightest = Math.min(tightest, stylusAt(angle).x - SLEEVE.RIGHT_EDGE_X)
+    }
+    expect(tightest).toBeGreaterThan(0)
+    // Pinned: the margin is thin, and the overlap, the label and the nudge all
+    // move it. If one of them eats this, the needle is on the artwork again.
+    expect(tightest).toBeGreaterThan(ARM_NUDGE_X * 0.75)
   })
 })
 

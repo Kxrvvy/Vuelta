@@ -342,6 +342,31 @@ export const ARM_SOLUTION = solveArm({
 const PIVOT_DX = ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG)
 
 /**
+ * A little further right than the solve puts it, to open the gap at the rim.
+ *
+ * The solve fixes the pivot's *distance* from the record's centre, so this is
+ * the one measurement here that is not derived — it is slack being spent, and
+ * the band it is spent out of is the lead-in.
+ *
+ * Sliding the arm sideways moves the stylus off the radius it is meant to land
+ * on, and the cost is almost all at the start of a side: at 12px the stylus
+ * sets down at r 201.5 instead of 195.7, which is 5.8px out into a 13.3px
+ * lead-in and still 7.5px inside the rim. At the end of the side it finishes
+ * 0.7px short of the inner groove — nothing. So the arm now sets its needle
+ * down in the run-in land and tracks into the first groove, which is what
+ * happens on a deck anyway; an arm that lands dead on the first groove was the
+ * more exact of the two and the less true.
+ *
+ * The ceiling is about 27px, where the lead-in is used up and the stylus would
+ * touch the rim. This spends a little under half of it.
+ *
+ * It widens the arrangement, so `layoutFor` re-centres: the cards go left by
+ * half of it and the arm right by the other half, and the clearance between
+ * the disc and the armboard grows by the whole of it.
+ */
+export const ARM_NUDGE_X = 12
+
+/**
  * Screen bearing from the pivot to the record's centre.
  *
  * The identity, not an atan2 of the two positions: the pivot is placed from
@@ -378,7 +403,8 @@ export type Layout = {
  */
 function layoutFor(tuck: number): Layout {
   const recordFromCoverLeft = SLEEVE.SIZE - tuck * RECORD.RADIUS * 2 + RECORD.RADIUS
-  const width = recordFromCoverLeft + PIVOT_DX + boardOffset().x + ARM.BOARD_WIDTH / 2
+  const width =
+    recordFromCoverLeft + PIVOT_DX + ARM_NUDGE_X + boardOffset().x + ARM.BOARD_WIDTH / 2
   const coverLeft = (BOX.WIDTH - width) / 2
   return { coverLeft, recordCenterX: coverLeft + recordFromCoverLeft, width }
 }
@@ -441,10 +467,10 @@ export const BOARD_OFFSET = boardOffset()
 
 /** The outside of the armboard: the arrangement's right-hand edge. */
 export const COMPOSITION_RIGHT_X =
-  RECORD_CENTER_X + PIVOT_DX + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2
+  RECORD_CENTER_X + PIVOT_DX + ARM_NUDGE_X + BOARD_OFFSET.x + ARM.BOARD_WIDTH / 2
 
 export const PIVOT = {
-  x: RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
+  x: RECORD_CENTER_X + PIVOT_DX + ARM_NUDGE_X,
   y: RECORD.CENTER_Y + ARM_SOLUTION.pivotDistance * Math.sin(PIVOT_BEARING_DEG * DEG),
 } as const
 

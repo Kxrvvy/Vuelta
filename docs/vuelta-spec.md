@@ -226,6 +226,8 @@ The park is a *pose*, not a bearing on the groove band. The skin draws any `armA
 
 **The flat-lay's arm geometry is solved, not placed.** Given the stylus reach, the outer and inner groove radii and the 22° sweep, there is exactly one pivot distance that lands `armAngle` 0 on the outer groove and 22 on the inner; `solveArm` in `skins/flatlay/geometry.ts` bisects for it. It has to be solved because the obvious placement does not work: a pivot far enough out to look right leaves the stylus unable to reach the inner groove at all, and forcing it demands an arm half the width of the window. The solved pivot sits about 1.36× the disc radius from the spindle, which is close to a real 12" deck's 1.38.
 
+**And then nudged.** `ARM_NUDGE_X` slides the finished arm and its board 12px further right than the solve puts them, to open the gap at the rim. It is the one measurement in that module that is not derived, and the slack it spends is the **lead-in**: the stylus sets down at r 201.5 rather than 195.7, which is 5.8px into a 13.3px band of smooth land and still 7.5px inside the rim, and at the far end it finishes 0.7px short of the inner groove. So the arm now puts its needle down in the run-in and tracks into the first groove, which is what happens on a deck anyway. The ceiling is about 27px, where the lead-in runs out and the stylus would touch the edge. It widens the arrangement, so `layoutFor` re-centres and the cards give up half of it — the clearance between disc and armboard grows by the whole 12.
+
 **Platter:** spins down with easing on pause, spins up on resume. Never an instant stop.
 
 ---
