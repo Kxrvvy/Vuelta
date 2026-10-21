@@ -84,12 +84,12 @@ export const SLEEVE = {
    * square of card with a hairline break on the corner, which is what a real
    * jacket is; this is a softer card than that, and deliberately so.
    *
-   * It was 30 for one commit, which was further than wanted.
+   * Settled at 10 by eye, by way of 30 and 15.
    *
    * In design-box pixels like everything else here, so at `SCENE_SCALE` it
-   * draws at about 18 on a 1280-wide window.
+   * draws at about 12 on a 1280-wide window.
    */
-  CORNER_RADIUS: 15,
+  CORNER_RADIUS: 10,
 } as const
 
 /**
