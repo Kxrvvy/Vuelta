@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 /**
  * The frame every screen sits in: the screen itself, and a settings button in
@@ -61,31 +61,30 @@ const COG = cogPath(8, 9.6, 7.3, 3.3)
 
 export function Shell({ children, settings }: { children: ReactNode; settings: ReactNode }) {
   const [open, setOpen] = useState(false)
-  const root = useRef<HTMLDivElement | null>(null)
 
-  // A menu that cannot be dismissed by clicking away is a trap, and the scene
-  // behind it has click handlers of its own.
   useEffect(() => {
     if (!open) return
-    const onDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false)
-    }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
-    window.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
   return (
     <div className="shell">
       {children}
 
-      <div className="settings" ref={root}>
+      {/* A backdrop rather than a window listener, so the click that closes
+          the menu is *spent* closing it. Listening on the window let the same
+          click reach the scene underneath, where in the flat-lay it counts as
+          a click on the empty field and dismisses the browser bar too — one
+          gesture, two things vanishing. */}
+      {open ? (
+        <div className="settings__backdrop" onClick={() => setOpen(false)} aria-hidden />
+      ) : null}
+
+      <div className="settings">
         <button
           type="button"
           className="settings__button"

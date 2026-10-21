@@ -50,6 +50,14 @@ body {
   position: relative;
 }
 
+/* Below the corner, above everything else: it catches the click that closes
+   the menu so nothing underneath sees it. */
+.settings__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
 /* The settings corner. Above the scene, including the flat-lay's arm, which
    sits at z-index 4 in the same stacking context. */
 .settings {
@@ -79,7 +87,10 @@ body {
   border-radius: 999px;
   background: rgba(22, 19, 17, 0.82);
   backdrop-filter: blur(14px);
-  color: var(--muted);
+  /* Was --muted, which is quiet against the chip on any ground. The corner is
+     the only control on screen in the flat-lay when the bar is dismissed, so
+     it should be legible without being loud. */
+  color: #cfc6b8;
   cursor: pointer;
   transition:
     color 140ms ease,
