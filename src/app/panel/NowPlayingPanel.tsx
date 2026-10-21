@@ -16,6 +16,7 @@
 import { useRef } from 'react'
 import type { Actions, TrackSummary } from '../../core/contract.js'
 import { mmss } from '../../core/format.js'
+import { Next, Pause, Play, Previous } from '../transport/icons.js'
 
 export function NowPlayingPanel({
   ref,
@@ -69,7 +70,7 @@ export function NowPlayingPanel({
 
       <div className="panel__transport">
         <button type="button" aria-label="Previous track" onClick={() => actions.previous()}>
-          ⏮
+          <Previous />
         </button>
         <button
           type="button"
@@ -77,10 +78,10 @@ export function NowPlayingPanel({
           aria-label={isPlaying ? 'Pause' : 'Play'}
           onClick={() => (isPlaying ? actions.pause() : actions.play())}
         >
-          {isPlaying ? '⏸' : '▶'}
+          {isPlaying ? <Pause /> : <Play />}
         </button>
         <button type="button" aria-label="Next track" onClick={() => actions.next()}>
-          ⏭
+          <Next />
         </button>
       </div>
 
