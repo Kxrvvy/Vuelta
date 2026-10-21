@@ -1010,14 +1010,47 @@ input[type='text']:focus {
 
 .lyrics {
   position: absolute;
-  top: 1.1rem;
-  /* Clear of the browser bar. The bar is centred on the window and the column
-     is at its right edge, so at narrow widths the two meet. */
-  bottom: 3.6rem;
-  right: 1.1rem;
+  /* Half the height it used to run, and centred on the window rather than
+     stretched between two insets.
+
+     It spanned top to bottom, which with the larger type meant a tall band of
+     mostly faded words -- a lot of column for one lit line. Halved, the lyrics
+     sit as a block against the middle of the machine, and what is on screen is
+     the line being sung and its immediate neighbours.
+
+     The old height was the window less the two insets below; this is that,
+     halved, so it still answers to the window rather than to a fixed figure. */
+  top: 50%;
+  height: calc((100% - 4.7rem) / 2);
+  transform: translateY(-50%);
+  /* Centred in the gap between the machine and the right edge, rather than
+     pinned to that edge.
+
+     Solved rather than chosen, and it had to be: the camera frames the
+     machine into whatever this column leaves it, so sliding the column left
+     widens the reserve, shrinks the machine and moves the very edge the
+     centre was measured from. It is a fixed point, and it was walked to with
+     the machine's rightmost pixel read off the frame.
+
+     A flat offset will not hold it, because the width below is clamped: past
+     a certain window the column stops growing while the gap keeps going, and
+     at 1600 it sat 59px right of centre. So it is derived instead. The
+     machine's right edge measures a steady ~0.545 of the window across every
+     size tried, which puts the gap's centre at 0.7725 of it, and
+
+         right = (window - column - machineRight) / 2
+               = 22.75vw - column/2
+
+     Measured against that edge at 1280, 1600, 1100 and 900, the column's
+     centre lands within about 7px of the gap's -- and the residue is the
+     tonearm, which is the rightmost thing on the machine at some angles and
+     not at others. */
+  right: calc(22.75vw - var(--col-w) / 2);
   /* Wider than the panel: a line of lyric is a line of text, and wrapping
      every one of them in half would cost more than the machine gains. */
-  width: clamp(13rem, 32vw, 24rem);
+  /* Named, because `right` above is derived from it. */
+  --col-w: clamp(15.6rem, 38.4vw, 28.8rem);
+  width: var(--col-w);
   display: grid;
   /* One row. There was a head above and a transport below, each in its own
      track; the words are all that is left. */

@@ -254,14 +254,32 @@ service that is not part of the API and must not be called. Lyrics come from **L
   misses. Nothing is sent in the other two looks. See SECURITY.md.
 - Parsing and the which-line-now rule are pure, in `core/lyrics.ts`. The fetch is in
   `main/lyrics/client.ts` — not in `spotify/client.ts`, which maps every 403 to `not-allowlisted`.
-- Any non-200 means "no lyrics", never an error screen: an unmatched lookup was observed returning
-  503 rather than the documented 404.
+- A non-200 means "no lyrics" — never an error screen — **except when the body says the service is
+  unwell**. `/api/get` has been seen returning 503 for an unmatched lookup, which is why every
+  non-200 used to count as a miss; but a real outage names itself (`ServerOverloaded`), and the
+  difference matters because **a miss is cached for the session**. One busy minute would otherwise
+  mark a track lyric-less until the app restarts. An outage returns `ok: false`, which is not
+  cached and is retried.
+- **`/api/get` alone finds far less than LRCLIB has.** It matches on duration and matches it
+  tightly, and Spotify's figure and LRCLIB's routinely differ by a second or two for the same
+  recording. Three tracks the app called lyric-less had 1, 6 and 5 synced results waiting in
+  `/api/search`. So a miss from the exact lookup falls through to the fuzzy one, ranked here by
+  duration closeness and synced-over-plain, because search returns the best *text* match and that
+  is not necessarily the recording playing. Measured across five tracks, coverage went from 1 in 5
+  to 4 in 5.
 - The column is set after Spotify's own lyrics view: **large and bold**, and **one line lit at a
   time**. Everything not being sung is faded to the same value, whether it has gone or is still
   coming. It was graded by distance for a while, so the lines either side stayed bright and the
   eye had three or four places to be; one lit line leaves it nowhere to go but the right one.
-- **The type is sized to hold about five lines**, not ten — roughly double what it was. The column
-  is unchanged; the type grew into it.
+- **The type is sized to hold about five lines**, not ten — roughly double what it was.
+- **The column is half the height it was and centred in the gap**, not stretched between two
+  insets and pinned to the right edge. The offset is *derived*, not chosen: the camera frames the
+  machine into whatever the column leaves it, so sliding the column left widens the reserve,
+  shrinks the machine, and moves the very edge the centre was measured from — a fixed point. A
+  flat offset will not hold it either, because the width is clamped, so past a certain window the
+  column stops growing while the gap keeps going. The machine's right edge measures a steady
+  ~0.545 of the window, which gives `right = 22.75vw - column/2`, and that lands within ~9px at
+  every size tried.
 - **Through an intro nothing is lit.** `activeLyricIndex` returns −1 until the first line is due,
   so no line carries `data-state='now'` and the whole column sits faded until the singing starts.
   That falls out of the rule rather than being a case of its own, so do not add one.
