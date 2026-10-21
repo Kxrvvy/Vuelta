@@ -401,28 +401,37 @@ input[type='text']:focus {
    bar and the settings corner. */
 .stage__machine--preview {
   inset: auto;
-  top: 18px;
-  right: 18px;
+  top: 0;
+  /* Negative, so the box hangs past the window's right edge. Only its empty
+     margin goes over -- the machine sits 98px in from that edge, and the box
+     has no field of its own to show. It buys the machine its travel right
+     without making it smaller. */
+  right: -40px;
   /* It sits in the top *right*, which is where the room is. On the left it
      had to thread a wedge above the sleeve's top edge, and that edge slopes
      -- the cover behind lies over four degrees -- so every pixel lower cost
      about 1.8px of width and the thing could not be both larger and lower.
-     The right-hand corner is bounded by the armboard below it and the
-     settings gear beside it, and both are far enough off that the box fits
-     at this size with room to spare: 37.8px above the board, 46px clear of
-     the gear, in both resting arrangements.
+     Here it is boxed in by only two things, and clears both in either resting
+     arrangement: 12.8px above the armboard, 12px short of the settings gear.
+     That is the whole budget now.
 
      What has to clear them is the *machine*, not the box: with no field
-     behind it the box's empty margins lie over anything without showing. The
-     ink is 132x123 of the 284x168, centred.
+     behind it the box's empty margins lie over anything without showing, and
+     the ink is only 170x161 of the 369x218. It is also why `top` is 0 and
+     `right` is negative -- the inset you see is the box's own margin, not the
+     box's edge, so the box is free to hang off the window.
 
-     Measured by difference -- shoot the frame with the preview hidden, shoot
-     it again with it shown, and ask what each changed pixel was drawn over.
-     Never box against box: the cover behind is a turned square, so the
-     corners of its rect are bare paper and a rect overlap there covers
-     nothing. That test said the left-hand placement collided when it did not. */
-  width: 284px;
-  height: 168px;
+     Measured by difference -- hide the preview, shoot, show it, shoot again,
+     and ask what each changed pixel was drawn over. Two obvious methods are
+     both wrong, and both were tried: box against box says this collides, but
+     the cover behind is a turned square whose rect corners are bare paper;
+     and diffing while the deck plays counts the turning record as machine,
+     which leaks through a stability mask too because the groove pattern is
+     near-periodic. Pause the deck first. Threshold generously as well --
+     compositing the canvas lifts near-black disc pixels by about 15 levels
+     on its own. */
+  width: 369px;
+  height: 218px;
   z-index: 10;
   overflow: hidden;
   pointer-events: none;

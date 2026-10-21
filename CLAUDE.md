@@ -102,7 +102,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 284×168 box in the top right to frame themselves in, so the only thing that changes is the
+  same camera, given a 369×218 box in the top right to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
 - **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
   `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
@@ -119,14 +119,20 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   thread a wedge above the sleeve's top edge, and that edge *slopes* — the cover behind lies over
   four degrees — so every pixel lower cost about 1.8px of width and it could not be made both
   larger and lower. The right corner is bounded only by the armboard below and the settings gear
-  beside, which leave 37.8px and 46px.
+  beside, which leave 12.8px and 12px. Those two are the whole budget now: `top` is 0 and `right`
+  is negative, because the inset you see is the box's own empty margin rather than its edge, which
+  is what lets the box hang off the window and the machine still travel right.
 - **What has to clear them is the machine, not the box.** With no field behind it the box's empty
-  margins lie over anything with nothing showing; the ink is 132×123 of the 284×168. Measure it
-  **by difference and per pixel**, never box against box: the cover behind is a turned square, so
-  the corners of its rect are bare paper and a rect overlap there covers nothing — that test
-  reported a collision on the left that did not exist. Shoot the frame with the preview hidden,
-  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE`, the
-  preview's size and the card swap all move this, so re-measure when any of them changes.
+  margins lie over anything with nothing showing; the ink is 170×161 of the 369×218.
+- **Measuring that needs care, and two obvious methods are both wrong.** Never box against box:
+  the cover behind is a turned square, so the corners of its rect are bare paper and a rect
+  overlap there covers nothing — that test reported a collision on the left that did not exist.
+  And never diff two screenshots while the deck is playing: the record turns once every 3.6s, so
+  disc pixels differ between any two captures, and because the groove pattern is near-periodic
+  they leak through a stability mask as well. **Pause the deck, let it spin down and park, then
+  assert nothing moved between two reference shots before believing the third.** Threshold
+  generously too: compositing the canvas lifts near-black disc pixels by about 15 levels on its
+  own. `SCENE_SCALE`, the preview's size and the card swap all move these margins.
 - **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
   `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
   anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
