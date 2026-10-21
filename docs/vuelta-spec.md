@@ -434,9 +434,16 @@ almost everything you see on a record is reflection rather than colour. What it 
 The arcs are static. The disc turns under them, which is what a real record does — the groove
 pattern is rotationally symmetric, so the highlight belongs to the lamp and not to the record.
 
-**The arm.** Slim and machined rather than a bar: a soft translucent bearing disc, a **black** cast
-pivot housing, a counterweight behind it, a bare aluminium tube with a gradient across its width,
-and a **black** headshell angled 20° off the tube axis with the stylus coming to a point below it.
+**The arm**, drawn part for part off the reference. A soft armboard behind it; then the pivot
+assembly in three overlapping pieces — the column the tube comes out of, a counterweight beside it
+carrying a band of light **across** the casting, and a smaller block standing proud on top. A bare
+aluminium tube, nearly white down its centre line and the only light thing on the arm, running into
+a cast collar at each end. Then a rounded black headshell angled 20° off the tube axis, with the
+stylus a short stub off its far corner.
+
+The band of light is worth saying out loud: it runs across the block, perpendicular to the tube,
+and drawn along the tube instead it reads as a stripe painted down the casting rather than as a
+machined face catching the lamp. It was drawn that way first.
 
 The cast parts carry a lit edge, which is not decoration. At `#17171a` on a `#0c0c0e` disc the
 headshell simply disappeared the moment it passed over the vinyl — the silhouette has to be drawn,

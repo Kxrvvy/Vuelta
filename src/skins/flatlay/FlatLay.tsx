@@ -47,6 +47,9 @@ import { useArmDrag } from './useArmDrag.js'
  * §2's paper grain, generated rather than fetched: the packaged app's
  * Content-Security-Policy forbids loading an image, and this costs nothing.
  */
+/** Where the tube emerges from the pivot column, in the arm's own frame. */
+const TUBE_START = 20
+
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")"
 
@@ -502,10 +505,14 @@ export function FlatLay({
           <defs>
             {/* §6: a vertical gradient across the tube's width, to fake a
                 cylinder. Not flat grey, and not dark. */}
+            {/* The tube is the only light thing on the arm, and in the
+                reference it is nearly white down its centre line. */}
             <linearGradient id="flatlay-tube" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--metal)" />
-              <stop offset="0.5" stopColor="var(--metal-light)" />
-              <stop offset="1" stopColor="var(--metal-dark)" />
+              <stop offset="0" stopColor="#9a969b" />
+              <stop offset="0.28" stopColor="#e8e6e8" />
+              <stop offset="0.46" stopColor="#ffffff" />
+              <stop offset="0.72" stopColor="#c2bec2" />
+              <stop offset="1" stopColor="#7e7a7f" />
             </linearGradient>
           </defs>
 
@@ -513,12 +520,14 @@ export function FlatLay({
           <g ref={armShift}>
             {/* §6: the bearing base — a hairline circle, and the only visible
                 mechanism in the scene. It does not turn with the arm. */}
-            <circle
-              cx={PIVOT.x}
-              cy={PIVOT.y}
-              r={ARM.BEARING_DIAMETER / 2}
-              fill="rgba(255,255,255,0.22)"
-              stroke="rgba(80,76,70,0.10)"
+            <rect
+              x={PIVOT.x - ARM.BEARING_DIAMETER / 2}
+              y={PIVOT.y - ARM.BEARING_DIAMETER * 0.58}
+              width={ARM.BEARING_DIAMETER}
+              height={ARM.BEARING_DIAMETER * 1.16}
+              rx={ARM.BEARING_DIAMETER * 0.42}
+              fill="rgba(255,255,255,0.20)"
+              stroke="rgba(80,76,70,0.08)"
               strokeWidth={1}
             />
 
@@ -528,11 +537,11 @@ export function FlatLay({
               transform={`rotate(${armBearingDeg(CORE_ARM.START_ANGLE)} ${PIVOT.x} ${PIVOT.y})`}
             >
               <g transform={`translate(${PIVOT.x} ${PIVOT.y})`}>
-                {/* The tube. */}
+                {/* The tube, between the two cast collars it runs into. */}
                 <rect
-                  x={0}
+                  x={TUBE_START}
                   y={-ARM.TUBE_WIDTH / 2}
-                  width={ARM.TUBE_LENGTH}
+                  width={ARM.TUBE_LENGTH - TUBE_START}
                   height={ARM.TUBE_WIDTH}
                   rx={ARM.TUBE_WIDTH / 2}
                   fill="url(#flatlay-tube)"
@@ -545,53 +554,82 @@ export function FlatLay({
                   className="flatlay__arm-headshell"
                   transform={`rotate(${ARM.HEADSHELL_OFFSET_DEG} ${ARM_LOCAL.bend.x} 0)`}
                 >
-                  <path
-                    d={[
-                      `M ${ARM_LOCAL.bend.x} ${-ARM.HEADSHELL_WIDTH / 2}`,
-                      `H ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 9}`,
-                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${-ARM.HEADSHELL_WIDTH / 2 + 9}`,
-                      `V ${ARM.HEADSHELL_WIDTH / 2}`,
-                      `H ${ARM_LOCAL.bend.x}`,
-                      'Z',
-                    ].join(' ')}
+                  {/* The collar at the bend, which is what makes the joint
+                      read as a fitting rather than as a kink in a line. */}
+                  <rect
+                    x={ARM_LOCAL.bend.x - 20}
+                    y={-ARM.TUBE_WIDTH / 2 - 2.5}
+                    width={26}
+                    height={ARM.TUBE_WIDTH + 5}
+                    rx={3}
+                    fill="var(--arm-dark)"
+                  />
+                  <rect
+                    x={ARM_LOCAL.bend.x - 2}
+                    y={-ARM.HEADSHELL_WIDTH / 2}
+                    width={ARM.HEADSHELL_LENGTH + 4}
+                    height={ARM.HEADSHELL_WIDTH}
+                    rx={8}
                     fill="var(--arm-dark)"
                     stroke="var(--arm-edge)"
                     strokeWidth={1}
                   />
-                  {/* §6: the stylus — the point that maps to `armAngle`. It
-                      comes to a point below the shell, as a cartridge does. */}
-                  <path
-                    d={[
-                      `M ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 7} ${ARM.HEADSHELL_WIDTH / 2}`,
-                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${ARM.HEADSHELL_WIDTH / 2 + 7}`,
-                      `L ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH} ${ARM.HEADSHELL_WIDTH / 2}`,
-                      'Z',
-                    ].join(' ')}
-                    fill="var(--arm-dark)"
+                  {/* §6: the stylus — the point that maps to `armAngle`. A
+                      stub off the shell's far corner, as the reference has it. */}
+                  <rect
+                    x={ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 12}
+                    y={ARM.HEADSHELL_WIDTH / 2 - 2}
+                    width={17}
+                    height={5}
+                    rx={2.5}
+                    fill="#2c2c33"
+                    transform={`rotate(26 ${ARM_LOCAL.bend.x + ARM.HEADSHELL_LENGTH - 12} ${ARM.HEADSHELL_WIDTH / 2})`}
                   />
                 </g>
 
-                {/* §6: the pivot housing, boxy, with a small cylinder on top. */}
+                {/* The pivot assembly, in the reference's three pieces: the
+                    column the tube comes out of, the counterweight beside it,
+                    and a smaller block standing proud on top of that. */}
                 <rect
-                  x={-ARM.HOUSING_WIDTH / 2}
-                  y={-ARM.HOUSING_HEIGHT / 2 - 4}
-                  width={ARM.HOUSING_WIDTH}
-                  height={ARM.HOUSING_HEIGHT + 8}
-                  rx={3}
+                  x={-26}
+                  y={-12}
+                  width={48}
+                  height={24}
+                  rx={5}
                   fill="var(--arm-dark)"
                   stroke="var(--arm-edge)"
                   strokeWidth={1}
                 />
-
-                {/* §6: the counterweight, a second block behind the bearing and
-                    standing a little proud of it. */}
                 <rect
-                  x={ARM_LOCAL.counterweightX - ARM.COUNTERWEIGHT / 2}
-                  y={-ARM.COUNTERWEIGHT / 2 - 3}
-                  width={ARM.COUNTERWEIGHT}
-                  height={ARM.COUNTERWEIGHT + 6}
-                  rx={2}
-                  fill="#1a1a1f"
+                  x={-36}
+                  y={2}
+                  width={40}
+                  height={38}
+                  rx={5}
+                  fill="#1b1b20"
+                  stroke="var(--arm-edge)"
+                  strokeWidth={1}
+                />
+                {/* The band of light across it, running *across* the block
+                    and so perpendicular to the tube — along the arm it reads
+                    as a stripe down the casting instead, which is what it did
+                    first. The reference's cast parts are not flat black, and
+                    this is most of what says so. */}
+                <rect
+                  x={-32}
+                  y={11}
+                  width={6}
+                  height={27}
+                  rx={3}
+                  fill="rgba(255,255,255,0.16)"
+                />
+                <rect
+                  x={-31}
+                  y={36}
+                  width={30}
+                  height={14}
+                  rx={3}
+                  fill="#26262d"
                   stroke="var(--arm-edge)"
                   strokeWidth={1}
                 />
