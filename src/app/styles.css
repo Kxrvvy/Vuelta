@@ -949,8 +949,14 @@ input[type='text']:focus {
   --ink: #2a2724;
   --ink-soft: #3d3936;
   --ink-muted: #6b6762;
-  --disc: #42413c;
-  --disc-groove: #4a4944;
+  /* Vinyl is far darker than a dark grey and never flat: almost all of what
+     you see on a record is reflection, not colour. Still not black — nothing
+     in this scene is. */
+  --disc: #2b2a2e;
+  --disc-groove: #343338;
+  /* The smooth lands — the lead-in at the rim and the run-out by the label.
+     No grooves to scatter the light, so they come back glossier. */
+  --disc-land: #323137;
   --metal: #c8c4c6;
   --metal-light: #f0eeef;
   --metal-dark: #9c989b;
@@ -1020,14 +1026,25 @@ input[type='text']:focus {
   inset: 0;
   border-radius: 50%;
   background-color: var(--disc);
-  /* §4, topmost layer first: a solid ring that leaves the grooves showing only
-     between the run-out and the lead-in, then the groove rings themselves. */
+  /* Topmost layer first.
+     1. The rolled edge: a record's rim is not a cut cylinder, it is rounded,
+        so a hairline catches the light just inside it and the last pixel or
+        two falls away dark.
+     2. The lands, which leave the grooves showing only between the run-out
+        and the lead-in, and are a touch glossier for having no grooves.
+     3. The grooves themselves. */
   background-image:
     radial-gradient(
       circle at 50% 50%,
-      var(--disc) 0 var(--inner),
+      rgba(0, 0, 0, 0) 0 calc(100% - 4px),
+      rgba(255, 255, 255, 0.07) calc(100% - 4px) calc(100% - 2px),
+      rgba(0, 0, 0, 0.3) calc(100% - 2px)
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      var(--disc-land) 0 var(--inner),
       rgba(0, 0, 0, 0) var(--inner) var(--outer),
-      var(--disc) var(--outer) 100%
+      var(--disc-land) var(--outer) 100%
     ),
     repeating-radial-gradient(
       circle at 50% 50%,
@@ -1037,9 +1054,9 @@ input[type='text']:focus {
   /* §4: 1px rim highlight on the upper-left arc, 1px darker on the lower-right,
      and a drop shadow on the same light as the sleeve but softer and wider. */
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.1),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.26),
-    8px 14px 40px rgba(var(--cast), 0.16);
+    inset 1px 1px 0 rgba(255, 255, 255, 0.12),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.32),
+    8px 14px 40px rgba(var(--cast), 0.18);
   cursor: pointer;
 }
 
@@ -1069,11 +1086,37 @@ input[type='text']:focus {
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  background: linear-gradient(
-    132deg,
-    rgba(255, 255, 255, 0.085) 0%,
-    rgba(255, 255, 255, 0.03) 26%,
-    rgba(255, 255, 255, 0) 48%
+  /* Two lobes, not one, and not pointed at the lamp.
+     Grooves are a circular diffraction grating, so the highlight does not sit
+     where the light comes from: it forms two arcs about 90 degrees either side
+     of it. The lamp is at the upper left (315deg, where 0 is twelve o'clock
+     and the angle runs clockwise), which puts the arcs at 45 and 225.
+     That is also the half of the disc you can see — the sleeve covers the
+     upper left — so aiming a highlight at the lamp hid it behind the cover,
+     which is exactly what the first attempt did. */
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0.115) 45deg,
+    rgba(255, 255, 255, 0) 92deg,
+    rgba(255, 255, 255, 0) 182deg,
+    rgba(255, 255, 255, 0.062) 225deg,
+    rgba(255, 255, 255, 0) 270deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  /* A highlight dies before it reaches the label and again at the rim, where
+     the surface turns away from the lamp. */
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 0) 0 var(--inner),
+    rgba(0, 0, 0, 1) calc(var(--inner) + 16px) calc(var(--outer) - 8px),
+    rgba(0, 0, 0, 0) var(--outer)
+  );
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 0) 0 var(--inner),
+    rgba(0, 0, 0, 1) calc(var(--inner) + 16px) calc(var(--outer) - 8px),
+    rgba(0, 0, 0, 0) var(--outer)
   );
 }
 

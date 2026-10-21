@@ -73,16 +73,28 @@ export const SLEEVE = {
  */
 export const TUCK_FRACTION = 0.35
 
+/**
+ * How much smaller the record is than the jacket it comes out of.
+ *
+ * A real 12" LP is 302mm in a 315mm sleeve — about 4% under. They were exactly
+ * the same size here, which is the one proportion that gives the trick away:
+ * a disc flush with its jacket does not look like it could ever go back in.
+ *
+ * The whole record scales, not just its rim, so the label, the hole and the
+ * two smooth lands keep the proportions they were drawn with.
+ */
+const RECORD_SCALE = 0.95
+
 export const RECORD = {
-  RADIUS: 220,
-  /** §5: label circle ⌀165. */
-  LABEL_RADIUS: 82.5,
+  RADIUS: (SLEEVE.SIZE / 2) * RECORD_SCALE,
+  /** §5: label circle ⌀165, scaled with the rest. */
+  LABEL_RADIUS: 82.5 * RECORD_SCALE,
   /** §5: spindle hole ⌀12, punched through to the paper. */
-  SPINDLE_RADIUS: 6,
+  SPINDLE_RADIUS: 6 * RECORD_SCALE,
   /** §4: a wider smooth band at the rim, with no ring texture. */
-  LEAD_IN: 14,
+  LEAD_IN: 14 * RECORD_SCALE,
   /** §4: smooth band just outside the label. */
-  RUN_OUT: 10,
+  RUN_OUT: 10 * RECORD_SCALE,
   /** §4: "ring period ~2px. The grooves should be felt, not counted." */
   GROOVE_PERIOD: 2,
   CENTER_Y: BOX.HEIGHT / 2,
@@ -289,8 +301,8 @@ export const RECORD_CENTER_X =
 /**
  * Where the record sits when it is completely hidden.
  *
- * The sleeve and the record are both 440px across, so "fully behind it" is
- * exactly concentric -- there is no fudge factor to tune.
+ * Concentric with the sleeve, which now covers it with a little to spare --
+ * the record is 5% the smaller of the two.
  */
 export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
 

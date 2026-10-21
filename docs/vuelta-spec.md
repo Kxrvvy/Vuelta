@@ -389,9 +389,30 @@ beside it. That is exactly what it did at first.
 **The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
 soft vignette; the sleeve with its art bleeding to all four edges, a 2px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
-disc in a dark warm grey, `#42413C`, never black, with low-contrast groove rings, a smooth lead-in
-at the rim and run-out by the label, and a static sheen that stays where the lamp is while the disc
-turns under it. Nothing in the scene is pure black.
+disc, which has its own section below. Nothing in the scene is pure black.
+
+**The record is 5% smaller than its sleeve**, the way a 302mm LP is smaller than its 315mm jacket.
+They were exactly the same size at first, and that is the one proportion that gives the trick away:
+a disc flush with its jacket does not look like it could ever go back in. The whole record scales
+with it — label, spindle hole and the two smooth lands — so the proportions it was drawn with
+survive.
+
+**The vinyl.** `#42413C` was the colour the design called for and it read as dark plastic, because
+almost everything you see on a record is reflection rather than colour. What it takes:
+
+- A much darker base, `#2b2a2e`, with the groove rings only a shade off it. Still not black.
+- **Two specular arcs, and not pointed at the lamp.** Grooves are a circular diffraction grating,
+  so the highlight does not sit where the light comes from — it forms two arcs about 90° either
+  side of it. With the lamp at the upper left the arcs fall upper-right and lower-left. Aiming one
+  at the lamp instead puts it behind the sleeve, which covers the disc's upper left; the first
+  attempt here did exactly that, and the highlight was invisible until the pixels were read back.
+- **Smooth lands that are glossier than the grooves.** The lead-in at the rim and the run-out by
+  the label have nothing to scatter the light, so they come back a shade lighter.
+- **A rolled edge.** A record's rim is rounded, not a cut cylinder: a hairline catches the light
+  just inside it and the last pixel or two falls away dark.
+
+The arcs are static. The disc turns under them, which is what a real record does — the groove
+pattern is rotationally symmetric, so the highlight belongs to the lamp and not to the record.
 
 **The arm.** Slim and machined rather than a bar: a hairline bearing circle, a white pivot housing,
 a counterweight behind it, a brushed aluminium tube with a gradient across its width, and a

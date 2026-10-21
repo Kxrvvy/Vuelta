@@ -68,16 +68,21 @@ describe('the flat-lay layout', () => {
 
   it('hides the record completely when it is concentric with the sleeve', () => {
     expect(RECORD_HIDDEN_CENTER_X).toBe(SLEEVE.CENTER_X)
-    // Both are 440 across, so concentric really is fully hidden.
-    expect(RECORD.RADIUS * 2).toBe(SLEEVE.SIZE)
+    // The record is the smaller of the two, so concentric covers it with a
+    // little to spare -- as a jacket does.
+    expect(RECORD.RADIUS * 2).toBeLessThan(SLEEVE.SIZE)
     const leftOfSleeve = RECORD_HIDDEN_CENTER_X - RECORD.RADIUS
     const rightOfSleeve = RECORD_HIDDEN_CENTER_X + RECORD.RADIUS
     expect(leftOfSleeve).toBeGreaterThanOrEqual(SLEEVE.LEFT - 0.001)
     expect(rightOfSleeve).toBeLessThanOrEqual(SLEEVE.RIGHT_EDGE_X + 0.001)
   })
 
-  it('travels 286px, and §9 clears 65% of the disc', () => {
-    expect(RECORD_TRAVEL).toBeCloseTo(286, 6)
+  it('travels exactly the gap between the two centres, and §9 clears 65%', () => {
+    // Not a number: the travel is however far it is from resting to
+    // concentric, and it changed the moment the record stopped being the same
+    // size as its sleeve.
+    expect(RECORD_TRAVEL).toBeCloseTo(RECORD_CENTER_X - SLEEVE.CENTER_X, 9)
+    expect(RECORD_TRAVEL).toBeGreaterThan(0)
     const clearedAtRest = RECORD_CENTER_X + RECORD.RADIUS - SLEEVE.RIGHT_EDGE_X
     expect(clearedAtRest / (RECORD.RADIUS * 2)).toBeCloseTo(1 - TUCK_FRACTION, 10)
   })

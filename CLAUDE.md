@@ -106,6 +106,12 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
   `transform`. That is what lets the spec's pixel values — shadow offsets, hairlines, a 2px groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
+- **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
+  jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands
+  scale with it.
+- **Vinyl is drawn as reflection, not colour**: a dark base, two specular arcs set ~90° off the
+  lamp rather than toward it — a groove is a circular grating — smooth lands glossier than the
+  grooved band, and a rolled edge. The arcs are static; the disc turns under them.
 - **The sleeve overlaps the record and occludes it.** 35% of the disc is tucked behind the jacket
   at rest, and `TUCK_FRACTION` is the one number the whole layout and §9's slide derive from. This
   replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where

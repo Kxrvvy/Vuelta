@@ -346,21 +346,21 @@ export function FlatLay({
         <div
           className="flatlay__record"
           ref={record}
-          style={{
-            left: `${recordLeft}px`,
-            top: `${recordTop}px`,
-            width: `${RECORD.RADIUS * 2}px`,
-            height: `${RECORD.RADIUS * 2}px`,
-          }}
+          style={
+            {
+              left: `${recordLeft}px`,
+              top: `${recordTop}px`,
+              width: `${RECORD.RADIUS * 2}px`,
+              height: `${RECORD.RADIUS * 2}px`,
+              // On the wrapper, not the disc: the sheen is a sibling and masks
+              // itself against the same two radii.
+              '--inner': `${GROOVE.INNER}px`,
+              '--outer': `${GROOVE.OUTER}px`,
+            } as CSSProperties
+          }
         >
           <div
             className="flatlay__disc"
-            style={
-              {
-                '--inner': `${GROOVE.INNER}px`,
-                '--outer': `${GROOVE.OUTER}px`,
-              } as CSSProperties
-            }
             onClick={toggle}
             role="button"
             tabIndex={-1}
