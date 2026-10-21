@@ -102,7 +102,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 369×218 box in the top right to frame themselves in, so the only thing that changes is the
+  same camera, given a 413×244 box in the top right to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
 - **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
   `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
@@ -119,11 +119,25 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   thread a wedge above the sleeve's top edge, and that edge *slopes* — the cover behind lies over
   four degrees — so every pixel lower cost about 1.8px of width and it could not be made both
   larger and lower. The right corner is bounded only by the armboard below and the settings gear
-  beside, which leave 12.8px and 12px. Those two are the whole budget now: `top` is 0 and `right`
-  is negative, because the inset you see is the box's own empty margin rather than its edge, which
-  is what lets the box hang off the window and the machine still travel right.
+  beside, which leave 4.8px and 24px. Both `top` and `right` are negative, because the inset you
+  see is the box's own empty margin rather than its edge — which is what lets the box hang off the
+  window while the machine stays inside it. Growing the preview depends on that: the ink runs about
+  73% of the box's height whatever the size, so the bottom margin cannot shrink to clear the
+  armboard and the room has to come from above the window. At under 5px the armboard is now the
+  whole budget.
+- **The preview scales with the window, and must.** Everything in its rule is in design-box pixels
+  carried by `--fit: min(100vw / 1280, 100vh / 800)` — the same fit the flat-lay uses, so the two
+  shrink in step. In fixed px the machine kept its size while the scene shrank around it and
+  swallowed a restored-down window; only maximised looked right, which is the tell.
+- **The settings gear is the one neighbour that does not scale.** It is app chrome, pinned 48px in
+  from the corner at the same size in every look, because a gear that shrank would stop being
+  clickable. So the smaller the window, the more of the corner it takes, and a purely scaled offset
+  walks the machine into it — measured at −5.7px on an 820×560 window. Hence the `max()` on
+  `right`: the scaled offset while there is room, a gear-relative one below a ~930px window.
+  Verified per pixel at 640×520 (the app's minimum), 820×560, 960×620 and 1100×700, both resting
+  arrangements: nothing covered, 9–14px clear of the gear.
 - **What has to clear them is the machine, not the box.** With no field behind it the box's empty
-  margins lie over anything with nothing showing; the ink is 170×161 of the 369×218.
+  margins lie over anything with nothing showing; the ink is 191×179 of the 413×244 (figures at a 1280×800 window).
 - **Measuring that needs care, and two obvious methods are both wrong.** Never box against box:
   the cover behind is a turned square, so the corners of its rect are bare paper and a rect
   overlap there covers nothing — that test reported a collision on the left that did not exist.

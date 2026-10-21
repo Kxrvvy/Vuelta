@@ -401,37 +401,68 @@ input[type='text']:focus {
    bar and the settings corner. */
 .stage__machine--preview {
   inset: auto;
-  top: 0;
-  /* Negative, so the box hangs past the window's right edge. Only its empty
-     margin goes over -- the machine sits 98px in from that edge, and the box
-     has no field of its own to show. It buys the machine its travel right
-     without making it smaller. */
-  right: -40px;
-  /* It sits in the top *right*, which is where the room is. On the left it
-     had to thread a wedge above the sleeve's top edge, and that edge slopes
-     -- the cover behind lies over four degrees -- so every pixel lower cost
-     about 1.8px of width and the thing could not be both larger and lower.
-     Here it is boxed in by only two things, and clears both in either resting
-     arrangement: 12.8px above the armboard, 12px short of the settings gear.
-     That is the whole budget now.
 
-     What has to clear them is the *machine*, not the box: with no field
-     behind it the box's empty margins lie over anything without showing, and
-     the ink is only 170x161 of the 369x218. It is also why `top` is 0 and
-     `right` is negative -- the inset you see is the box's own margin, not the
-     box's edge, so the box is free to hang off the window.
+  /* Every number in this rule is in design-box pixels -- what it measures at a
+     1280x800 window -- and `--fit` carries them to every other size. It is the
+     same fit the flat-lay itself uses, so the preview shrinks and grows in
+     step with the scene around it.
+
+     In fixed px it did not. The scene scales with the window and the preview
+     did not, so on a restored-down window the machine kept its size while
+     everything else shrank, swallowed the frame and ran over the disc. Only
+     maximised looked right, which is the giveaway. */
+  --fit: min(100vw / 1280, 100vh / 800);
+
+  /* The box's width, which everything else here is derived from. */
+  --w: calc(413 * var(--fit));
+
+  /* Both negative, so the box hangs past the window's top and right edges.
+     Only its empty margin goes over -- the box has no field of its own to
+     show, so nothing is lost off the edge. Hanging it off the top is what
+     lets the machine grow at all: the ink runs about 73% of the box's height
+     whatever the size, so the bottom margin cannot shrink to clear the
+     armboard, and the room has to come from above the window instead. */
+  top: calc(-14 * var(--fit));
+
+  /* The settings gear is the one neighbour that does *not* scale: it is app
+     chrome, pinned a fixed 48px in from the corner and the same size in every
+     look, because a gear that shrank with the scene would be unclickable on a
+     small window. So as the scene shrinks the gear takes proportionally more
+     of the corner, and a purely scaled offset walks the machine straight into
+     it -- measured at -5.7px overlap on an 820x560 window.
+
+     Hence the max(): the scaled offset while there is room for it, and a
+     gear-relative one below that. The crossover is around a 930px window.
+     0.2712 is where the machine's right edge sits inside its box, so the
+     second term keeps 10px between the two whatever the size. */
+  right: max(calc(-40 * var(--fit)), calc(58px - 0.2712 * var(--w)));
+
+  /* It sits in the top *right*, which is where the room is. On the left it had
+     to thread a wedge above the sleeve's top edge, and that edge slopes -- the
+     cover behind lies over four degrees -- so every pixel lower cost about
+     1.8px of width and the thing could not be both larger and lower.
+
+     Here it is boxed in by two things, and clears both in either resting
+     arrangement: 4.8px above the armboard, 24px short of the settings gear,
+     with the machine 17px down from the top of the window. Under 5px is the
+     whole remaining budget, so this is about as large as it goes without
+     moving something else.
+
+     What has to clear them is the *machine*, not the box: with no field behind
+     it the box's empty margins lie over anything without showing, and the ink
+     is only 191x179 of the 413x244.
 
      Measured by difference -- hide the preview, shoot, show it, shoot again,
      and ask what each changed pixel was drawn over. Two obvious methods are
      both wrong, and both were tried: box against box says this collides, but
-     the cover behind is a turned square whose rect corners are bare paper;
-     and diffing while the deck plays counts the turning record as machine,
-     which leaks through a stability mask too because the groove pattern is
-     near-periodic. Pause the deck first. Threshold generously as well --
-     compositing the canvas lifts near-black disc pixels by about 15 levels
-     on its own. */
-  width: 369px;
-  height: 218px;
+     the cover behind is a turned square whose rect corners are bare paper; and
+     diffing while the deck plays counts the turning record as machine, which
+     leaks through a stability mask too, because the groove pattern is
+     near-periodic. Pause the deck first -- and check it is actually stopped,
+     since the control is a toggle. Threshold generously as well: compositing
+     the canvas lifts near-black disc pixels by about 15 levels on its own. */
+  width: var(--w);
+  height: calc(var(--w) * 244 / 413);
   z-index: 10;
   overflow: hidden;
   pointer-events: none;
