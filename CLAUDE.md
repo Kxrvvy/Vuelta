@@ -118,8 +118,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The preview lives in the top right because that is where the room is.** On the left it had to
   thread a wedge above the sleeve's top edge, and that edge *slopes* — the cover behind lies over
   four degrees — so every pixel lower cost about 1.8px of width and it could not be made both
-  larger and lower. The right corner is bounded only by the armboard below and the settings gear
-  beside, which leave 4.8px and 24px. Both `top` and `right` are negative, because the inset you
+  larger and lower. The right corner is bounded only by the armboard below it, which leaves 4.8px. Both `top` and `right` are negative, because the inset you
   see is the box's own empty margin rather than its edge — which is what lets the box hang off the
   window while the machine stays inside it. Growing the preview depends on that: the ink runs about
   73% of the box's height whatever the size, so the bottom margin cannot shrink to clear the
@@ -129,13 +128,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   carried by `--fit: min(100vw / 1280, 100vh / 800)` — the same fit the flat-lay uses, so the two
   shrink in step. In fixed px the machine kept its size while the scene shrank around it and
   swallowed a restored-down window; only maximised looked right, which is the tell.
-- **The settings gear is the one neighbour that does not scale.** It is app chrome, pinned 48px in
-  from the corner at the same size in every look, because a gear that shrank would stop being
-  clickable. So the smaller the window, the more of the corner it takes, and a purely scaled offset
-  walks the machine into it — measured at −5.7px on an 820×560 window. Hence the `max()` on
-  `right`: the scaled offset while there is room, a gear-relative one below a ~930px window.
-  Verified per pixel at 640×520 (the app's minimum), 820×560, 960×620 and 1100×700, both resting
-  arrangements: nothing covered, 9–14px clear of the gear.
+- **Chrome does not scale, and that used to cost the preview its corner.** The settings gear is
+  app chrome: fixed size, pinned a fixed distance in, because a gear that shrank with the scene
+  would stop being clickable. While it sat in the top right it therefore took proportionally more
+  of that corner as the window shrank, and the preview's scaled offset walked the machine into it
+  — −5.7px on an 820×560 window — which needed a `max()` clamp. **The gear has since moved to the
+  browser bar's line and the clamp is gone.** Anything fixed-size put back in that corner brings
+  the problem with it. Verified per pixel at 640×520 (the app's minimum), 820×560, 960×620 and
+  1100×700, both resting arrangements: nothing covered.
 - **What has to clear them is the machine, not the box.** With no field behind it the box's empty
   margins lie over anything with nothing showing; the ink is 191×179 of the 413×244 (figures at a 1280×800 window).
 - **Measuring that needs care, and two obvious methods are both wrong.** Never box against box:
@@ -213,6 +213,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is
   purely visual — playback is untouched.
+- **The settings gear stands on the browser bar's line**, out at the right edge, in every look. The
+  two are summoned and dismissed by the same gesture, so putting them on one level reads as a
+  single piece of chrome instead of two in opposite corners. The bar is centred and much narrower
+  than the window, so the corner past it is free in all three: the now-playing panel stops 75px
+  above that line and the lyrics column likewise. Its menu opens **upward** — a plain column opens
+  downward, which from there leaves the window. The 3px in its `bottom` is half the difference
+  between the bar's height and the button's, which is what puts them on a shared centre line
+  rather than a shared bottom edge.
 - **One bar for all three looks.** The flat-lay uses the same `BrowserBar` as the machine looks,
   summoned and dismissed by the same click on the empty field. It had a transport pill of its own
   for a while, with a gear and a `···` view switcher in the corners; two pieces of chrome doing one

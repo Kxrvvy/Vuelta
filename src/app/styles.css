@@ -59,14 +59,29 @@ body {
 }
 
 /* The settings corner. Above the scene, including the flat-lay's arm, which
-   sits at z-index 4 in the same stacking context. */
+   sits at z-index 4 in the same stacking context.
+
+   It sits on the browser bar's own line, out at the right edge: the two come
+   and go together on the same gesture, so standing them on the same level
+   reads as one piece of chrome rather than two in opposite corners. The bar is
+   centred and much narrower than the window, so the corner past it is free in
+   all three looks -- the now-playing panel stops 75px above this line, and the
+   lyrics column likewise.
+
+   The 3px is half the difference between the bar's 38px height and this
+   button's 32px, which is what puts the two on a shared centre line rather
+   than a shared bottom edge. If the bar's height changes, this follows it. */
 .settings {
   position: absolute;
-  top: 0.85rem;
+  bottom: calc(0.85rem + 3px);
   right: 1rem;
   z-index: 50;
-  display: grid;
-  justify-items: end;
+  /* Reversed, so the menu opens *upward* off the button. In a plain column it
+     opens downward, which from here goes straight off the bottom of the
+     window. The button stays first in the DOM, where it belongs. */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
   gap: 0.5rem;
   /* The same fade as the browser bar, so the two come and go together. */
   transition: opacity 260ms ease;
@@ -424,18 +439,13 @@ input[type='text']:focus {
      armboard, and the room has to come from above the window instead. */
   top: calc(-14 * var(--fit));
 
-  /* The settings gear is the one neighbour that does *not* scale: it is app
-     chrome, pinned a fixed 48px in from the corner and the same size in every
-     look, because a gear that shrank with the scene would be unclickable on a
-     small window. So as the scene shrinks the gear takes proportionally more
-     of the corner, and a purely scaled offset walks the machine straight into
-     it -- measured at -5.7px overlap on an 820x560 window.
-
-     Hence the max(): the scaled offset while there is room for it, and a
-     gear-relative one below that. The crossover is around a 930px window.
-     0.2712 is where the machine's right edge sits inside its box, so the
-     second term keeps 10px between the two whatever the size. */
-  right: max(calc(-40 * var(--fit)), calc(58px - 0.2712 * var(--w)));
+  /* Plainly scaled, because this corner is its own now. It used to have to
+     dodge the settings gear, which is app chrome and does not scale -- pinned
+     a fixed distance in from the corner at the same size whatever the window,
+     so the smaller the window the more of the corner it took, and a scaled
+     offset walked the machine into it. The gear has moved down to the browser
+     bar's line, and the clamp went with it. */
+  right: calc(-40 * var(--fit));
 
   /* It sits in the top *right*, which is where the room is. On the left it had
      to thread a wedge above the sleeve's top edge, and that edge slopes -- the
