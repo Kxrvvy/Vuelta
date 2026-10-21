@@ -521,11 +521,11 @@ export function FlatLay({
             {/* §6: the bearing base — a hairline circle, and the only visible
                 mechanism in the scene. It does not turn with the arm. */}
             <rect
-              x={PIVOT.x - ARM.BEARING_DIAMETER / 2}
-              y={PIVOT.y - ARM.BEARING_DIAMETER * 0.58}
-              width={ARM.BEARING_DIAMETER}
-              height={ARM.BEARING_DIAMETER * 1.16}
-              rx={ARM.BEARING_DIAMETER * 0.42}
+              x={PIVOT.x - ARM.BOARD_WIDTH / 2}
+              y={PIVOT.y - ARM.BOARD_HEIGHT / 2}
+              width={ARM.BOARD_WIDTH}
+              height={ARM.BOARD_HEIGHT}
+              rx={ARM.BOARD_WIDTH * 0.4}
               fill="rgba(255,255,255,0.20)"
               stroke="rgba(80,76,70,0.08)"
               strokeWidth={1}

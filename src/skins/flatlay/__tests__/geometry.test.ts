@@ -95,11 +95,16 @@ describe('the flat-lay layout', () => {
     expect((SLEEVE.LEFT + COMPOSITION_RIGHT_X) / 2).toBeCloseTo(BOX.WIDTH / 2, 6)
   })
 
-  it('has the bearing circle as its right-hand edge, not the record', () => {
+  it('has the armboard as its right-hand edge, not the record', () => {
     // If this ever stopped being true the centring above would be measuring
     // the wrong thing, and nothing else would notice.
     expect(COMPOSITION_RIGHT_X).toBeGreaterThan(RECORD_CENTER_X + RECORD.RADIUS)
-    expect(COMPOSITION_RIGHT_X).toBeCloseTo(PIVOT.x + ARM.BEARING_DIAMETER / 2, 6)
+    expect(COMPOSITION_RIGHT_X).toBeCloseTo(PIVOT.x + ARM.BOARD_WIDTH / 2, 6)
+  })
+
+  it('keeps the armboard taller than it is wide', () => {
+    // It reads as a disc otherwise, which is what it did at 95 square-ish.
+    expect(ARM.BOARD_WIDTH).toBeLessThan(ARM.BOARD_HEIGHT)
   })
 
   it('hides the record completely when it is concentric with the sleeve', () => {
@@ -128,8 +133,8 @@ describe('the flat-lay layout', () => {
     expect(SLEEVE.TOP).toBeGreaterThan(0)
     expect(SLEEVE.TOP + SLEEVE.SIZE).toBeLessThan(BOX.HEIGHT)
     expect(RECORD_CENTER_X + RECORD.RADIUS).toBeLessThan(BOX.WIDTH)
-    expect(PIVOT.x + ARM.BEARING_DIAMETER / 2).toBeLessThan(BOX.WIDTH)
-    expect(PIVOT.y - ARM.BEARING_DIAMETER / 2).toBeGreaterThan(0)
+    expect(PIVOT.x + ARM.BOARD_WIDTH / 2).toBeLessThan(BOX.WIDTH)
+    expect(PIVOT.y - ARM.BOARD_HEIGHT / 2).toBeGreaterThan(0)
   })
 })
 

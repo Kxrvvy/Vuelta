@@ -155,7 +155,16 @@ export const ARM = {
   HEADSHELL_WIDTH: 26,
   HEADSHELL_OFFSET_DEG: 20,
   /** §6: a hairline circle, the only visible mechanism in the scene. */
-  BEARING_DIAMETER: 95,
+  /**
+   * The armboard: the soft plate the pivot assembly sits on.
+   *
+   * Its width is the arrangement's right-hand edge — further out than the
+   * record's rim or the arm at any angle — so it is what the layout centres
+   * against, and slimming it moves everything. Width and height are separate
+   * because it is not a circle: it was 95 square-ish and read as a disc.
+   */
+  BOARD_WIDTH: 78,
+  BOARD_HEIGHT: 110,
   HOUSING_WIDTH: 46,
   HOUSING_HEIGHT: 38,
   COUNTERWEIGHT: 30,
@@ -328,7 +337,7 @@ export type Layout = {
  */
 function layoutFor(tuck: number): Layout {
   const recordFromCoverLeft = SLEEVE.SIZE - tuck * RECORD.RADIUS * 2 + RECORD.RADIUS
-  const width = recordFromCoverLeft + PIVOT_DX + ARM.BEARING_DIAMETER / 2
+  const width = recordFromCoverLeft + PIVOT_DX + ARM.BOARD_WIDTH / 2
   const coverLeft = (BOX.WIDTH - width) / 2
   return { coverLeft, recordCenterX: coverLeft + recordFromCoverLeft, width }
 }
@@ -368,8 +377,8 @@ export const RECORD_HIDDEN_CENTER_X = SLEEVE.CENTER_X
 /** §9's travel: 286px. */
 export const RECORD_TRAVEL = RECORD_CENTER_X - RECORD_HIDDEN_CENTER_X
 
-/** The outside of the bearing circle: the arrangement's right-hand edge. */
-export const COMPOSITION_RIGHT_X = RECORD_CENTER_X + PIVOT_DX + ARM.BEARING_DIAMETER / 2
+/** The outside of the armboard: the arrangement's right-hand edge. */
+export const COMPOSITION_RIGHT_X = RECORD_CENTER_X + PIVOT_DX + ARM.BOARD_WIDTH / 2
 
 export const PIVOT = {
   x: RECORD_CENTER_X + ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG),
