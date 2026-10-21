@@ -383,8 +383,8 @@ input[type='text']:focus {
   inset: 0;
 }
 
-/* The machine, shrunk into the corner of the flat-lay: the same canvas and
-   camera, given a small box to frame themselves in.
+/* The machine, shrunk into the top-right corner of the flat-lay: the same
+   canvas and camera, given a small box to frame themselves in.
 
    It has no field behind it -- `Staging` leaves its background off here -- so
    the machine stands on the paper rather than on a dark card. Nothing else in
@@ -402,20 +402,27 @@ input[type='text']:focus {
 .stage__machine--preview {
   inset: auto;
   top: 18px;
-  left: 18px;
-  /* What has to clear the sleeve is the *machine*, not the box: with no field
-     behind it, the box's empty margins lie over the cover without anything
-     showing, and at this size they do. The machine's own ink is 109x103 of
-     the 237x140, centred, and every pixel of it lands on bare paper in both
-     resting arrangements.
+  right: 18px;
+  /* It sits in the top *right*, which is where the room is. On the left it
+     had to thread a wedge above the sleeve's top edge, and that edge slopes
+     -- the cover behind lies over four degrees -- so every pixel lower cost
+     about 1.8px of width and the thing could not be both larger and lower.
+     The right-hand corner is bounded by the armboard below it and the
+     settings gear beside it, and both are far enough off that the box fits
+     at this size with room to spare: 37.8px above the board, 46px clear of
+     the gear, in both resting arrangements.
 
-     Checked by difference -- shoot the frame with the preview hidden, shoot it
-     again with it shown, and ask what each changed pixel was drawn over. A
-     box-against-box test says this overlaps and is wrong: the cover behind is
-     a square turned four degrees, so the corners of its rect are bare paper
-     and a rect overlap there covers nothing. */
-  width: 237px;
-  height: 140px;
+     What has to clear them is the *machine*, not the box: with no field
+     behind it the box's empty margins lie over anything without showing. The
+     ink is 132x123 of the 284x168, centred.
+
+     Measured by difference -- shoot the frame with the preview hidden, shoot
+     it again with it shown, and ask what each changed pixel was drawn over.
+     Never box against box: the cover behind is a turned square, so the
+     corners of its rect are bare paper and a rect overlap there covers
+     nothing. That test said the left-hand placement collided when it did not. */
+  width: 284px;
+  height: 168px;
   z-index: 10;
   overflow: hidden;
   pointer-events: none;

@@ -102,7 +102,7 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   reserved band in the camera fit; all of that is deleted.
 - **The machine is a preview in the corner, not absent.** This reverses "no machine at all, not even
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
-  same camera, given a 237×140 box to frame themselves in, so the only thing that changes is the
+  same camera, given a 284×168 box in the top right to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
 - **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
   `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
@@ -115,13 +115,18 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   click-through too, which is the opposite of the disc and the cover — those are objects lying on
   the paper and absorb their own click, but an invisible box is not an object, and swallowing
   clicks there would leave a dead rectangle in a corner that otherwise responds everywhere.
-- **What has to clear the sleeve is the machine, not the box.** With no field behind it the box's
-  empty margins lie over the cover with nothing showing — two thirds of it is bare paper, and the
-  machine's ink is 109×103 of the 237×140. Measure it **by difference and per pixel**, never box
-  against box: the cover behind is a square turned four degrees, so the corners of its rect are
-  bare paper, and a rect overlap there covers nothing. Shoot the frame with the preview hidden,
-  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE` and
-  the preview's size both move this, so re-measure when either changes.
+- **The preview lives in the top right because that is where the room is.** On the left it had to
+  thread a wedge above the sleeve's top edge, and that edge *slopes* — the cover behind lies over
+  four degrees — so every pixel lower cost about 1.8px of width and it could not be made both
+  larger and lower. The right corner is bounded only by the armboard below and the settings gear
+  beside, which leave 37.8px and 46px.
+- **What has to clear them is the machine, not the box.** With no field behind it the box's empty
+  margins lie over anything with nothing showing; the ink is 132×123 of the 284×168. Measure it
+  **by difference and per pixel**, never box against box: the cover behind is a turned square, so
+  the corners of its rect are bare paper and a rect overlap there covers nothing — that test
+  reported a collision on the left that did not exist. Shoot the frame with the preview hidden,
+  shoot it again with it shown, and ask what each changed pixel was drawn over. `SCENE_SCALE`, the
+  preview's size and the card swap all move this, so re-measure when any of them changes.
 - **The scene's size is one multiplier, applied last.** `SCENE_SCALE` zooms the whole design box in
   `fitBox`; every other number keeps the value the spec gives it, and nothing moves relative to
   anything else. It is folded into `fitBox` rather than applied by the skin so the box re-centres
