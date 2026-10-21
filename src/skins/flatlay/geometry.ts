@@ -80,6 +80,20 @@ export const SLEEVE = {
 export const TUCK_FRACTION = 0.5
 
 /**
+ * And how much it covers once it is behind the record: a quarter.
+ *
+ * The cover does not sit in the same place on both sides of the stack. In
+ * front it hides half the disc, which is the arrangement the layout is drawn
+ * around; behind, it draws back to a quarter, so the record it is now under
+ * is mostly clear of it and the label is readable.
+ *
+ * Both arrangements are centred in the box, which is what makes the move
+ * symmetrical: the widths differ by half the disc's radius, so the cover goes
+ * left by half of that and the record and arm go right by the same.
+ */
+export const TUCK_FRACTION_BACK = 0.25
+
+/**
  * How much smaller the record is than the jacket it comes out of.
  *
  * A real 12" LP is 302mm in a 315mm sleeve — about 4% under. They were exactly
@@ -288,37 +302,56 @@ export const ARM_SOLUTION = solveArm({
 /** How far right of the record's centre the pivot sits. */
 const PIVOT_DX = ARM_SOLUTION.pivotDistance * Math.cos(PIVOT_BEARING_DEG * DEG)
 
-/**
- * How wide the arrangement is, measured from the sleeve's left edge to the
- * outside of the bearing circle — which is its rightmost point, further out
- * than either the record's rim or the counterweight at any angle.
- *
- * Independent of where the arrangement is put, which is what lets the next
- * constant solve for a position rather than be told one.
- */
-const COMPOSITION_WIDTH =
-  SLEEVE.SIZE -
-  TUCK_FRACTION * RECORD.RADIUS * 2 +
-  RECORD.RADIUS +
-  PIVOT_DX +
-  ARM.BEARING_DIAMETER / 2
+export type Layout = {
+  /** The sleeve's left edge. */
+  coverLeft: number
+  recordCenterX: number
+  /** Sleeve's left edge to the outside of the bearing circle. */
+  width: number
+}
 
 /**
- * Where the sleeve's left edge goes, so the whole arrangement sits centred.
+ * Where everything goes for a given overlap, with the arrangement centred.
  *
- * It used to be 70, which put the sleeve near the left edge and left a third
- * of the frame empty on the right: the arm reaches a long way past the record,
- * so the composition is much wider than the two cards suggest and eyeballing
- * its left edge does not centre it. Solved here instead, and a test holds it.
+ * The width runs from the sleeve's left edge to the outside of the bearing
+ * circle — its rightmost point, further out than either the record's rim or
+ * the counterweight at any angle — and is independent of where the thing is
+ * put, which is what lets this solve for a position rather than be told one.
+ *
+ * The sleeve used to sit at x=70, chosen by eye against the two cards. The arm
+ * reaches a long way past the record, so the arrangement is much wider than
+ * the cards suggest and that left a third of the frame empty on the right.
  */
-const SLEEVE_LEFT = (BOX.WIDTH - COMPOSITION_WIDTH) / 2
+function layoutFor(tuck: number): Layout {
+  const recordFromCoverLeft = SLEEVE.SIZE - tuck * RECORD.RADIUS * 2 + RECORD.RADIUS
+  const width = recordFromCoverLeft + PIVOT_DX + ARM.BEARING_DIAMETER / 2
+  const coverLeft = (BOX.WIDTH - width) / 2
+  return { coverLeft, recordCenterX: coverLeft + recordFromCoverLeft, width }
+}
+
+/** The cover in front, hiding half the disc. The layout everything is drawn at. */
+export const LAYOUT_FRONT = layoutFor(TUCK_FRACTION)
+
+/** The cover behind, drawn back to a quarter. */
+export const LAYOUT_BACK = layoutFor(TUCK_FRACTION_BACK)
+
+/**
+ * What each object does when the cover goes behind, relative to where it is
+ * drawn. Equal and opposite, because both arrangements are centred.
+ */
+export const BACK_SHIFT = {
+  COVER: LAYOUT_BACK.coverLeft - LAYOUT_FRONT.coverLeft,
+  /** The arm travels with the record, so the stylus keeps its groove. */
+  RECORD: LAYOUT_BACK.recordCenterX - LAYOUT_FRONT.recordCenterX,
+} as const
+
+const SLEEVE_LEFT = LAYOUT_FRONT.coverLeft
 
 /**
  * Where the record sits at rest, derived so that exactly `TUCK_FRACTION` of it
  * is behind the sleeve.
  */
-export const RECORD_CENTER_X =
-  SLEEVE.RIGHT_EDGE_X - TUCK_FRACTION * RECORD.RADIUS * 2 + RECORD.RADIUS
+export const RECORD_CENTER_X = LAYOUT_FRONT.recordCenterX
 
 /**
  * Where the record sits when it is completely hidden.
@@ -411,6 +444,15 @@ export const ARM_LOCAL = {
 const SWAP_AIR = 16
 
 export const SWAP = {
+  /**
+   * How far the cover lies over once it is behind the record, in degrees.
+   *
+   * Negative is anticlockwise on screen, which lifts the upper *right* corner
+   * and drops the upper left — a sleeve pushed under something and left askew,
+   * rather than one squared up to the frame. Only the back of the stack gets
+   * it; the front sits square.
+   */
+  BACK_TILT_DEG: -4,
   /**
    * Far enough left to be wholly clear of the record, plus a little air.
    *

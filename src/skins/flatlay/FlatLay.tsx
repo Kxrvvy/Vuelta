@@ -35,6 +35,7 @@ import {
   PIVOT,
   RECORD,
   RECORD_CENTER_X,
+  BACK_SHIFT,
   RECORD_TRAVEL,
   SLEEVE,
   SWAP,
@@ -105,6 +106,10 @@ export function FlatLay({
   const armLift = useRef<SVGGElement | null>(null)
   /** The whole arm assembly, which travels with the record during a card move. */
   const sleeve = useRef<HTMLDivElement | null>(null)
+  /** The arm assembly, which travels with the record when it adjusts. */
+  const armShift = useRef<SVGGElement | null>(null)
+  /** The record's current shift, shared with the drag. */
+  const shiftRef = useRef(0)
 
   // Which of the two cards is on top. Skin-local and purely visual: it moves
   // nothing but the stacking, and playback is untouched.
@@ -178,6 +183,7 @@ export function FlatLay({
     stateRef: state,
     hostRef: host,
     fitRef,
+    shiftRef,
     onDragStart: onArmDragStart,
     onDragTo: onArmDragTo,
     onDragEnd: endDrag,
@@ -205,6 +211,8 @@ export function FlatLay({
     let bearing = armBearingDeg(CORE_ARM.START_ANGLE)
     let lifted: boolean | null = null
     let front: boolean | null = null
+    /** Where the record has got to on its way between the two layouts. */
+    let recordShift = coverInFrontRef.current ? 0 : BACK_SHIFT.RECORD
 
     const frame = (now: number) => {
       // Clamped: a backgrounded window hands back one enormous delta, and an
@@ -240,22 +248,26 @@ export function FlatLay({
           if (progress >= 1) swapElapsed.current = null
         }
 
-        // §9's slide, and the only thing that moves the record: `transitionOut`
-        // is 1 at rest and 0 fully behind the sleeve. The card move leaves it
-        // alone entirely.
+        // The record follows the cover rather than moving with it: it eases
+        // toward the layout the stacking has settled on, which starts when the
+        // flip happens and finishes after the cover is home. That is the
+        // "and then the disc adjusts" half of the gesture, and damping is what
+        // makes it read as settling rather than as a second slide.
+        const shiftTarget = front === false ? BACK_SHIFT.RECORD : 0
+        recordShift = damp(recordShift, shiftTarget, 7, delta)
+        shiftRef.current = recordShift
+
+        // §9's slide rides on top of it: `transitionOut` is 1 at rest and 0
+        // fully behind the sleeve. The two offsets simply add.
         if (record.current) {
           const hidden = 1 - live.transitionOut
-          record.current.style.transform = `translateX(${-hidden * RECORD_TRAVEL}px)`
+          record.current.style.transform =
+            `translateX(${(recordShift - hidden * RECORD_TRAVEL).toFixed(2)}px)`
         }
-        // The cover squares up to the frame on both sides of the stack: it
-        // wore a four-degree tilt at the back for a while, and the only
-        // difference between front and behind is which one is on top.
-        if (sleeve.current) {
-          sleeve.current.style.transform = `translateX(${out * SWAP.COVER_SHIFT}px)`
-        }
-
+        armShift.current?.setAttribute('transform', `translate(${recordShift.toFixed(2)} 0)`)
         // The stacking flips in the middle of the hold, where nothing
-        // overlaps, so the change is never seen as a pop.
+        // overlaps, so the change is never seen as a pop. Decided before the
+        // record reads it, because the record's adjustment hangs off it.
         const wantFront =
           swapElapsed.current === null
             ? coverInFrontRef.current
@@ -267,6 +279,31 @@ export function FlatLay({
           if (sleeve.current) sleeve.current.style.zIndex = wantFront ? '2' : '1'
           if (record.current) record.current.style.zIndex = wantFront ? '1' : '2'
         }
+
+        // How far through to the back of the stack the cover is, 0 at the
+        // front and 1 behind. At rest `crossed` is 1, so this is simply which
+        // side it is on; mid-move it eases.
+        const behind = coverInFrontRef.current ? 1 - crossed : crossed
+
+        // The cover's resting place is not the same on both sides: in front it
+        // covers half the disc, behind it draws back to a quarter. It changes
+        // places during the hold, where it is clear of the record, so the
+        // reposition and the change of depth happen in the same breath and
+        // neither is seen against the other.
+        if (sleeve.current) {
+          const rest = behind * BACK_SHIFT.COVER
+          // Toward the clearance position, not by it. Adding the two would
+          // stack the reposition on top of the travel and take the cover off
+          // the left of the box by 13px at the end of the hold, where both are
+          // at full value; landing *on* COVER_SHIFT means the clearance is the
+          // same however far the cover has already drawn back.
+          const x = rest + out * (SWAP.COVER_SHIFT - rest)
+          sleeve.current.style.transform =
+            `translateX(${x.toFixed(2)}px) ` +
+            `rotate(${(behind * SWAP.BACK_TILT_DEG).toFixed(3)}deg)`
+        }
+
+
 
         // The arm. Anything at or below START_ANGLE is parked, which is a
         // *pose* and not a bearing on the groove band -- that is what lets
@@ -449,18 +486,20 @@ export function FlatLay({
             </linearGradient>
           </defs>
 
-          {/* §6: the bearing base — a hairline circle, and the only visible
-              mechanism in the scene. It does not turn with the arm. */}
-          <circle
-            cx={PIVOT.x}
-            cy={PIVOT.y}
-            r={ARM.BEARING_DIAMETER / 2}
-            fill="none"
-            stroke="rgba(80,76,70,0.28)"
-            strokeWidth={1}
-          />
+          {/* Everything below travels with the record when it adjusts. */}
+          <g ref={armShift}>
+            {/* §6: the bearing base — a hairline circle, and the only visible
+                mechanism in the scene. It does not turn with the arm. */}
+            <circle
+              cx={PIVOT.x}
+              cy={PIVOT.y}
+              r={ARM.BEARING_DIAMETER / 2}
+              fill="none"
+              stroke="rgba(80,76,70,0.28)"
+              strokeWidth={1}
+            />
 
-          <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
+            <g className="flatlay__arm-lift" ref={armLift} data-lifted="true">
             <g
               ref={armGroup}
               transform={`rotate(${armBearingDeg(CORE_ARM.START_ANGLE)} ${PIVOT.x} ${PIVOT.y})`}
@@ -554,6 +593,7 @@ export function FlatLay({
                   fill="rgba(0,0,0,0)"
                   onClick={toggle}
                 />
+                </g>
               </g>
             </g>
           </g>

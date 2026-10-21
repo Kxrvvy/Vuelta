@@ -116,11 +116,11 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   hands it to CSS. The design's ~2px at nine levels of contrast was invisible; what fixed it was
   mostly contrast, and the wider period keeps the spacing even rather than beating against the
   pixel grid once the box is scaled.
-- **The sleeve covers half the disc**, and the same half whichever of the two is on top — the swap
-  changes the stacking and nothing else. `TUCK_FRACTION` is the one number the whole layout, the
-  cover's swap travel and §9's slide derive from; at a half the spindle sits exactly on the
-  sleeve's right edge. The cost is the label: with the cover in front its left half is hidden, so
-  the title and artist are only fully legible with the record forward. This
+- **Two resting arrangements, both centred.** In front the sleeve covers **half** the disc
+  (`TUCK_FRACTION`, and the spindle lands exactly on the sleeve's right edge); behind it draws back
+  to a **quarter** (`TUCK_FRACTION_BACK`), so the record it is now under is mostly clear of it and
+  the label reads. `layoutFor` solves each, and because both are centred the move is symmetrical —
+  the cover gives up exactly what the record takes, 52px each way. This
   replaces the earlier rule that the two never overlap, which belonged to the 3D close-up, where
   whichever card sat behind had a bite taken out of it by the other. In DOM, paint order settles it
   and nothing is lost.
@@ -128,17 +128,20 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   after; only which one is on top changes. The move is the three ordered phases of
   `core/cardSwap.ts` — apart, flip, home — and the flip happens during the hold, where the two are
   clear of each other, so it is never seen as a pop inside the overlap band.
-- **Only the cover moves.** It slides clear, trades places with the record out there where nothing
-  overlaps, and slides home; the record does not stir, so the arm has nothing to follow and the
-  stylus never leaves the groove it is playing. Both used to move, because with the sleeve at the
-  frame's left edge there was less room beside it than the overlap was wide — centring the
-  arrangement gave the cover room to do the whole move itself.
+- **The cover moves first, then the disc adjusts.** The cover slides clear, trades places and
+  repositions during the hold — all while nothing overlaps — and only once the stacking has flipped
+  does the record ease across to the other layout, arm with it. Damped, not timed, so it reads as
+  settling rather than as a second slide.
+- **The cover's clearance travel lerps toward `COVER_SHIFT`, it does not add to it.** The
+  reposition and the travel are both at full value at the end of the hold; adding them took the
+  cover 13px off the left of the box.
 - **The arrangement is centred by derivation, not by eye** — `SLEEVE_LEFT` solves for it from the
   composition's width. The arm reaches well past the record, so the bearing circle is the
   right-hand edge and the thing is much wider than the two cards suggest; centring on the cards
   left a third of the frame empty.
-- **The cover is square on both sides of the stack.** It wore a four-degree tilt at the back for a
-  while; front and behind differ only in which one is on top.
+- **The cover lies askew when it is behind**, tilted four degrees anticlockwise so its upper right
+  corner rides higher than its upper left. Only the back of the stack gets it; the front sits
+  square, and the tilt eases on with the depth rather than snapping once the move lands.
 - **The arm sits above both cards** (`z-index: 4`). The card move raises the record to 2, and
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is

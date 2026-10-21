@@ -37,11 +37,17 @@ export function useArmDrag(options: {
   /** The element the design box is laid out in, for client-to-box conversion. */
   hostRef: RefObject<HTMLElement | null>
   fitRef: RefObject<BoxFit>
+  /**
+   * How far the record is currently shifted, in design pixels. The arm travels
+   * with it, so the pointer has to come back into the arm's own frame before
+   * it means an angle.
+   */
+  shiftRef: RefObject<number>
   onDragStart: () => void
   onDragTo: (progressMs: number) => void
   onDragEnd: () => void
 }): ArmDragHandlers {
-  const { stateRef, hostRef, fitRef, onDragStart, onDragTo, onDragEnd } = options
+  const { stateRef, hostRef, fitRef, shiftRef, onDragStart, onDragTo, onDragEnd } = options
 
   const dragging = useRef(false)
   /** The angle the arm had when grabbed, and where the pointer was then. */
@@ -56,11 +62,11 @@ export function useArmDrag(options: {
       if (!host || !fit || fit.scale <= 0) return null
       const rect = host.getBoundingClientRect()
       return {
-        x: (clientX - rect.left - fit.x) / fit.scale,
+        x: (clientX - rect.left - fit.x) / fit.scale - (shiftRef.current ?? 0),
         y: (clientY - rect.top - fit.y) / fit.scale,
       }
     },
-    [hostRef, fitRef],
+    [hostRef, fitRef, shiftRef],
   )
 
   const onPointerDown = useCallback(

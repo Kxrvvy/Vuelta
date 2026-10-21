@@ -8,8 +8,11 @@ import {
   ARM_SOLUTION,
   armAngleAtPoint,
   armBearingDeg,
+  BACK_SHIFT,
   BOX,
   COMPOSITION_RIGHT_X,
+  LAYOUT_BACK,
+  LAYOUT_FRONT,
   fitBox,
   GROOVE,
   PIVOT,
@@ -25,6 +28,7 @@ import {
   STYLUS_OFFSET_DEG,
   stylusAt,
   TUCK_FRACTION,
+  TUCK_FRACTION_BACK,
 } from '../geometry.js'
 
 const DEG = Math.PI / 180
@@ -60,11 +64,28 @@ describe('the flat-lay layout', () => {
     expect(RECORD_CENTER_X).toBeCloseTo(SLEEVE.RIGHT_EDGE_X, 9)
   })
 
-  it('leaves the cover where it was when it goes behind', () => {
-    // Front or back, the overlap is the same and neither object moves. The
-    // swap changes which is on top and nothing else.
-    const covered = SLEEVE.RIGHT_EDGE_X - (RECORD_CENTER_X - RECORD.RADIUS)
-    expect(covered / (RECORD.RADIUS * 2)).toBeCloseTo(TUCK_FRACTION, 9)
+  it('covers half the disc in front and a quarter behind', () => {
+    const coveredIn = (l: typeof LAYOUT_FRONT) =>
+      (l.coverLeft + SLEEVE.SIZE - (l.recordCenterX - RECORD.RADIUS)) / (RECORD.RADIUS * 2)
+    expect(coveredIn(LAYOUT_FRONT)).toBeCloseTo(TUCK_FRACTION, 9)
+    expect(coveredIn(LAYOUT_BACK)).toBeCloseTo(TUCK_FRACTION_BACK, 9)
+    expect(TUCK_FRACTION_BACK).toBeLessThan(TUCK_FRACTION)
+  })
+
+  it('centres both arrangements, which is what makes the move symmetrical', () => {
+    for (const layout of [LAYOUT_FRONT, LAYOUT_BACK]) {
+      expect(layout.coverLeft + layout.width / 2).toBeCloseTo(BOX.WIDTH / 2, 9)
+    }
+    // Equal and opposite: the cover gives up exactly what the record takes.
+    expect(BACK_SHIFT.COVER).toBeCloseTo(-BACK_SHIFT.RECORD, 9)
+    expect(BACK_SHIFT.COVER).toBeLessThan(0)
+  })
+
+  it('still clears the record at full travel, from either resting place', () => {
+    // The cover has to get clear of the record where the record actually is,
+    // and at the moment of the flip the record has not adjusted yet.
+    const coverRightAtFullTravel = LAYOUT_FRONT.coverLeft + SLEEVE.SIZE + SWAP.COVER_SHIFT
+    expect(LAYOUT_FRONT.recordCenterX - RECORD.RADIUS).toBeGreaterThan(coverRightAtFullTravel)
   })
 
   it('centres the whole arrangement in the design box', () => {

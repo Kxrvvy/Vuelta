@@ -356,10 +356,15 @@ a picture of one. The record is half pulled out of its jacket, and exactly half:
 derives from — the cover's travel during a swap included. At a half the record's centre, and so the
 spindle, sits precisely on the sleeve's right edge.
 
-**The same half stays covered whichever card is on top.** Neither object moves when they trade
-places, so front and back differ only in stacking. What that costs is the label: with the cover in
-front its left half is behind the jacket, so the title and artist read fully only once the record
-comes forward. It was 35% before, where a sliver of the label was clipped rather than half of it.
+**The cover does not cover the same amount on both sides of the stack.** In front it hides half the
+disc; behind it draws back to a **quarter**, so the record it is now under is mostly clear of it and
+the label — the only place the title and artist appear in this look — reads properly. Half of the
+label is behind the jacket while the cover is in front, which is the cost of the half overlap and
+the reason the quarter exists.
+
+Both arrangements are centred in the box, and that is what makes the move symmetrical: the two
+widths differ by half the disc's radius, so the cover gives up exactly what the record takes —
+about 52px each way.
 
 **It is a second skin, not a second camera.** `skins/flatlay/` draws it in DOM and SVG;
 `skins/3d/` keeps the other two looks. That is a reversal: it began as one scene rendered through
@@ -444,10 +449,11 @@ then plays. That is what a real deck does, and it also settles something pause i
 arm parking on pause, a scrub while paused used to end with the arm travelling straight back to its
 rest position the moment you let go. Now it stays where you put it, and the record starts.
 
-**The cover is square on both sides of the stack.** It lay askew at the back for a while — four
-degrees anticlockwise, a sleeve pushed under something and left where it fell — and went back to
-square: with half the disc covering it, front and behind are better told apart by the stacking
-alone than by a tilt that only the uncovered half shows.
+**The cover lies askew when it is behind.** Four degrees anticlockwise, so its upper right corner
+rides higher than its upper left — a sleeve pushed under something and left where it fell, rather
+than one squared up to the frame. Only the back of the stack is tilted; whichever card is in front
+sits straight, and the tilt eases on with the change of depth rather than snapping once the move
+has landed.
 
 **Clicking the cover sends it behind the record, or brings it back in front.** Neither one changes
 place: positions are identical before and after, and all that changes is which is on top. The move
@@ -455,9 +461,16 @@ is the one you would make with a card — the two slide apart, trade places in t
 nothing is overlapping, and slide home — three ordered phases over about 600ms, in
 `core/cardSwap.ts` so its shape can be stepped in a test.
 
-**Only the cover moves.** The record stays exactly where it is, which means the tonearm has nothing
-to follow and the stylus never leaves the groove it is playing. A card you push out and tuck under
-is one object moving, not two.
+**The cover moves, and then the disc adjusts.** Two beats, not one. The cover slides clear of the
+record, trades places with it and takes up its new position — all during the hold, where nothing
+overlaps — and only once the stacking has flipped does the record ease across to the other layout,
+taking the tonearm with it so the stylus keeps the groove it is playing. The record's half is
+damped rather than timed, which is what makes it read as settling rather than as a second slide.
+
+The cover's clearance travel moves *toward* its fixed clearance position rather than adding to
+wherever it has drawn back to. Both are at full value at the end of the hold, so adding them took
+the cover 13px off the left edge of the box — visible only as a clipped corner, and only at the
+reference width where the design box fills the window exactly.
 
 It could not always. With the sleeve at the left edge of the frame there was less room beside it
 than the overlap was wide, so the cover could never get clear on its own and the record had
