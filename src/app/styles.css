@@ -1485,7 +1485,9 @@ input[type='text']:focus {
   /* Above the record by default: the cover starts in front. The frame loop
      swaps these two during a card move, in the middle of its hold. */
   z-index: 2;
-  border-radius: 2px;
+  /* The radius is set inline from `SLEEVE.CORNER_RADIUS`; it was duplicated
+     here, which is how the two came apart. `overflow` is what carries it to
+     the artwork inside. */
   overflow: hidden;
   background: #dcd6d0;
   cursor: pointer;

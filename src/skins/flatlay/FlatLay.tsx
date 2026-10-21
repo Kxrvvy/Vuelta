@@ -586,6 +586,9 @@ export function FlatLay({
             top: `${SLEEVE.TOP}px`,
             width: `${SLEEVE.SIZE}px`,
             height: `${SLEEVE.SIZE}px`,
+            // From the constant rather than from the stylesheet, which carried
+            // its own copy of the figure and had been drifting from it.
+            borderRadius: `${SLEEVE.CORNER_RADIUS}px`,
           }}
         >
           {slots.back ? (
