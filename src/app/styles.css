@@ -1046,39 +1046,39 @@ input[type='text']:focus {
   padding: 40% 0;
 }
 
-/* Set in bold and large, and lit by distance from the vocal rather than by a
-   single "not now" value. That grading is most of the look: the lines either
-   side of the sung one stay readable, the column falls away from there, and
-   the present reads as the bright band in the middle.
+/* Large and bold, and only one line of it lit at a time.
+   Roughly double what it was, which is what halves the number of lines the
+   column holds: about five, against ten before. The column itself is
+   untouched -- the type grew into it.
 
-   `--d` is how many lines away this one is; the component sets it. */
+   Everything that is not being sung is faded to the same value, whether it
+   has gone or is still coming. It was graded by distance, so the lines either
+   side stayed bright and the eye had three or four places to be; one lit line
+   leaves it nowhere to go but the right one. */
 .lyrics__line {
-  --d: 6;
-  margin: 0 0 1.05rem;
+  margin: 0 0 1.35rem;
   /* Scales with the column, which itself is a clamp against the window. */
-  font-size: clamp(1rem, 1.75vw, 1.4rem);
+  font-size: clamp(1.4rem, 2.7vw, 2.15rem);
   font-weight: 700;
-  line-height: 1.24;
-  letter-spacing: -0.012em;
+  line-height: 1.22;
+  letter-spacing: -0.014em;
   color: #fff;
-  /* Ahead of the vocal: still to come, so brighter than what has gone. */
-  opacity: max(0.14, calc(0.62 - var(--d) * 0.15));
+  opacity: 0.25;
   transition:
     opacity 420ms ease,
     transform 420ms ease;
 }
 
 /* The lead is what makes this land before the vocal: core/lyrics.ts moves the
-   index half a second early, and this transition is the fade itself. */
+   index half a second early, and this transition is the fade itself.
+
+   Before the first line is due, `activeLyricIndex` returns -1 and no line
+   carries this state -- so through an intro the whole column sits faded and
+   nothing is lit until the singing actually starts. That falls out of the
+   rule rather than being a case of its own. */
 .lyrics__line[data-state='now'] {
   color: #fff;
   opacity: 1;
-}
-
-/* Sung already: dimmer than the same distance ahead, so the column reads in
-   the direction it is going. */
-.lyrics__line[data-state='past'] {
-  opacity: max(0.1, calc(0.34 - var(--d) * 0.07));
 }
 
 /* Nothing to follow, so the sentence goes in the middle of the column. The

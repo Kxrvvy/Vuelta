@@ -256,11 +256,15 @@ service that is not part of the API and must not be called. Lyrics come from **L
   `main/lyrics/client.ts` — not in `spotify/client.ts`, which maps every 403 to `not-allowlisted`.
 - Any non-200 means "no lyrics", never an error screen: an unmatched lookup was observed returning
   503 rather than the documented 404.
-- The column is set after Spotify's own lyrics view: **large and bold**, the sung line in full
-  white, and everything else **graded by distance from it** rather than by one "not now" value —
-  the lines either side stay readable and the column falls away from there, which is what makes
-  the middle read as the present. Lines ahead are brighter than lines the same distance behind,
-  so it reads in the direction it is going. `--d` carries the distance from the component.
+- The column is set after Spotify's own lyrics view: **large and bold**, and **one line lit at a
+  time**. Everything not being sung is faded to the same value, whether it has gone or is still
+  coming. It was graded by distance for a while, so the lines either side stayed bright and the
+  eye had three or four places to be; one lit line leaves it nowhere to go but the right one.
+- **The type is sized to hold about five lines**, not ten — roughly double what it was. The column
+  is unchanged; the type grew into it.
+- **Through an intro nothing is lit.** `activeLyricIndex` returns −1 until the first line is due,
+  so no line carries `data-state='now'` and the whole column sits faded until the singing starts.
+  That falls out of the rule rather than being a case of its own, so do not add one.
 - **The column is the words and nothing else.** No card, no background, no border, no shadow — the
   lyrics stand on the field with no edge around them. It had a title and artist above and a
   transport below, each in its own grid track, and for a short while a blurred sleeve behind as a

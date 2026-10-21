@@ -185,11 +185,6 @@ function Body({
           ref={at === index ? activeRef : undefined}
           className="lyrics__line"
           data-state={at === index ? 'now' : at < index ? 'past' : 'ahead'}
-          // How far this line is from the one being sung. The fade is graded
-          // by it rather than being one value for "not now": the lines either
-          // side of the vocal stay readable and the column falls away from
-          // there, which is what makes the middle of it read as the present.
-          style={{ '--d': index < 0 ? 6 : Math.abs(at - index) } as React.CSSProperties}
         >
           {/* A sung-less gap still takes a line, so the column keeps moving
               through a long instrumental break instead of appearing stuck. */}
