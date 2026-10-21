@@ -421,19 +421,6 @@ export const SWAP = {
    * prevent.
    */
   COVER_SHIFT: -(TUCK_FRACTION * RECORD.RADIUS * 2 + SWAP_AIR),
-  /**
-   * How far the cover lies over once it is behind the record, in degrees.
-   *
-   * Negative is anticlockwise on screen, which lifts the upper *right* corner
-   * and drops the upper left — a sleeve pushed under something and left askew,
-   * rather than one squared up to the frame. Only the back of the stack gets
-   * it; the front sits square.
-   *
-   * Small on purpose. At 440px square even four degrees moves a corner 16px,
-   * which is plenty to read as "put down carelessly" and little enough that
-   * the cover stays inside the design box.
-   */
-  BACK_TILT_DEG: -4,
 } as const
 
 /** Gap between the two at full travel. Must be positive, or the flip shows. */

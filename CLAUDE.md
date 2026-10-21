@@ -137,9 +137,8 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   composition's width. The arm reaches well past the record, so the bearing circle is the
   right-hand edge and the thing is much wider than the two cards suggest; centring on the cards
   left a third of the frame empty.
-- **The cover lies askew when it is behind**, tilted four degrees anticlockwise so its upper right
-  corner rides higher than its upper left. Only the back of the stack gets it; the front sits
-  square. The tilt eases on with the depth rather than snapping once the move lands.
+- **The cover is square on both sides of the stack.** It wore a four-degree tilt at the back for a
+  while; front and behind differ only in which one is on top.
 - **The arm sits above both cards** (`z-index: 4`). The card move raises the record to 2, and
   without it the record paints over the arm for as long as the cover is behind.
 - The disc stays the play/pause target, so the two gestures never collide, and the card move is

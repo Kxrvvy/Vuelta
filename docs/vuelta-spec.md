@@ -444,11 +444,10 @@ then plays. That is what a real deck does, and it also settles something pause i
 arm parking on pause, a scrub while paused used to end with the arm travelling straight back to its
 rest position the moment you let go. Now it stays where you put it, and the record starts.
 
-**The cover lies askew when it is behind.** Four degrees anticlockwise, so its upper right corner
-rides higher than its upper left — a sleeve pushed under something and left where it fell, rather
-than one squared up to the frame. Only the back of the stack is tilted; whichever card is in front
-sits straight, and the tilt eases on with the change of depth rather than snapping once the move
-has landed.
+**The cover is square on both sides of the stack.** It lay askew at the back for a while — four
+degrees anticlockwise, a sleeve pushed under something and left where it fell — and went back to
+square: with half the disc covering it, front and behind are better told apart by the stacking
+alone than by a tilt that only the uncovered half shows.
 
 **Clicking the cover sends it behind the record, or brings it back in front.** Neither one changes
 place: positions are identical before and after, and all that changes is which is on top. The move

@@ -247,15 +247,11 @@ export function FlatLay({
           const hidden = 1 - live.transitionOut
           record.current.style.transform = `translateX(${-hidden * RECORD_TRAVEL}px)`
         }
-        // How far through to the back of the stack the cover is, 0 at the
-        // front and 1 behind. At rest `crossed` is 1, so this is simply which
-        // side it is on; mid-move it eases, and the tilt goes on with the
-        // depth rather than snapping once it arrives.
-        const behind = coverInFrontRef.current ? 1 - crossed : crossed
+        // The cover squares up to the frame on both sides of the stack: it
+        // wore a four-degree tilt at the back for a while, and the only
+        // difference between front and behind is which one is on top.
         if (sleeve.current) {
-          sleeve.current.style.transform =
-            `translateX(${out * SWAP.COVER_SHIFT}px) ` +
-            `rotate(${(behind * SWAP.BACK_TILT_DEG).toFixed(3)}deg)`
+          sleeve.current.style.transform = `translateX(${out * SWAP.COVER_SHIFT}px)`
         }
 
         // The stacking flips in the middle of the hold, where nothing

@@ -254,11 +254,9 @@ describe('the card move', () => {
   })
 
   it('keeps the cover inside the design box at full travel', () => {
-    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThanOrEqual(0)
-    // And the tilt it wears at the back pushes a corner further out still.
-    const corner = (SLEEVE.SIZE / 2) * Math.SQRT2
-    const overhang = corner * Math.sin((45 + Math.abs(SWAP.BACK_TILT_DEG)) * DEG) - SLEEVE.SIZE / 2
-    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT - overhang).toBeGreaterThan(0)
+    // Square on both sides of the stack now, so the travel is the whole of it
+    // -- there is no rotated corner reaching further out than the edge.
+    expect(SLEEVE.LEFT + SWAP.COVER_SHIFT).toBeGreaterThan(0)
   })
 
   it('leaves the record and the arm exactly where they were', () => {
