@@ -184,6 +184,12 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
   `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
+- **The sleeve's art is filled and slightly overscanned.** `object-fit: cover` and a 3% scale, so
+  it runs past the sleeve and is clipped. Plenty of covers are drawn with a pale border baked into
+  the artwork: the file is square and fills the sleeve exactly, and the band at the top and bottom
+  is the picture's own. Nothing in the layout can tell that from the art, so overscanning is the
+  only way to be sure none shows. It costs about 8px a side of a 528px cover — enough for a
+  hairline border, not for a thick one, and it should not try to be.
 - **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
   jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands
   scale with it.
