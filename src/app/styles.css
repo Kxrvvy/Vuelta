@@ -1175,7 +1175,12 @@ input[type='text']:focus {
    =========================================================================== */
 
 .flatlay {
-  --paper: #eeeae7;
+  /* The same field the machine looks stand on, which is `--bg`.
+     It was #eeeae7, warm paper, and the whole scene was drawn for it: the
+     vinyl is near-black, the shadows are dark and soft, and the sleeve has a
+     contact shadow holding it down. All of that was contrast against light.
+     See the note below `.flatlay` for what that costs. */
+  --paper: #141210;
   --ink: #2a2724;
   --ink-soft: #3d3936;
   --ink-muted: #6b6762;

@@ -196,6 +196,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **Switching to it shrinks the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
   away the generated environment map and every texture and rebuilds both on the way back, so
   `Stage` sets `display: none` on `.stage__machine` instead.
+- **One field for all three looks.** The flat-lay's `--paper` is `#141210`, the same dark the
+  machine floats on, and the spindle hole still punches through to it. It was warm paper for a
+  long time, and **the scene is still drawn for light**: the vinyl is near-black, so the disc's rim
+  now sits about nine levels off its own ground and all but vanishes; the sleeve's contact shadow
+  and the record's cast shadow are dark on dark and hold nothing down; and the armboard, a pale
+  plate meant to read as light card, is the brightest thing in the frame. That is the price of the
+  field, not a fault to be discovered — the levers are lifting the vinyl, inverting the shadows,
+  and restyling the board.
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
   `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
