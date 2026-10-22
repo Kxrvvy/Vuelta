@@ -248,6 +248,33 @@ export function elevationFor(pose: CameraPose): number {
 }
 
 /**
+ * A bookshelf speaker, one either side of the deck.
+ *
+ * Main only. They are part of the same unit rather than separates standing
+ * about: the same plinth wood, a grille cloth facing forward, and feet of the
+ * same plastic, sitting on the surface the deck's feet sit on.
+ *
+ * Shorter than the deck is tall with its lid shut, so they never argue with
+ * the lid for the top of the frame -- the vertical fit is solved against the
+ * lid's open tip, and these stay well under it. They cost width instead.
+ */
+export const SPEAKER = {
+  WIDTH: 0.09,
+  HEIGHT: 0.135,
+  DEPTH: 0.19,
+  /** Daylight between a speaker and the plinth. */
+  GAP: 0.024,
+  /** Inset of the grille cloth from the cabinet's own edges. */
+  GRILLE_INSET: 0.011,
+} as const
+
+/** Centre of the left and right speaker, in x. */
+export const SPEAKER_CENTER_X = {
+  LEFT: PLINTH.CENTER_X - (PLINTH.WIDTH / 2 + SPEAKER.GAP + SPEAKER.WIDTH / 2),
+  RIGHT: PLINTH.CENTER_X + (PLINTH.WIDTH / 2 + SPEAKER.GAP + SPEAKER.WIDTH / 2),
+} as const
+
+/**
  * The volume the camera frames against.
  *
  * Slightly larger than the cabinet itself: the lid overhangs it a little, and
@@ -259,6 +286,25 @@ export const FIT_BOX = {
   /** Feet to the top of the closed lid. */
   HEIGHT: PLINTH.HEIGHT + FOOT.HEIGHT + LID.WALL_HEIGHT,
   CENTER_X: PLINTH.CENTER_X,
+} as const
+
+/**
+ * And the same volume with the speakers out, which is what Main frames
+ * against.
+ *
+ * Only the width changes. The speakers stand well below the lid's open tip,
+ * so the vertical solve -- which works off a profile of the machine, not off
+ * this box -- is untouched, and they are shallower than the lid, so the depth
+ * is too. They are symmetric about the plinth, so the centre holds.
+ *
+ * It is about 47% wider than the bare machine, and the deck gives that up:
+ * the camera fits the wider thing into the same window, so the turntable is
+ * smaller in Main than it is in the Lyrics view. That is the cost of having
+ * them in one look and not the other, and it was chosen with that known.
+ */
+export const FIT_BOX_WITH_SPEAKERS = {
+  ...FIT_BOX,
+  WIDTH: PLINTH.WIDTH + 2 * (SPEAKER.GAP + SPEAKER.WIDTH),
 } as const
 
 /**

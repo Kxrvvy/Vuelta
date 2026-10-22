@@ -28,6 +28,7 @@ import {
   type CameraPose,
   elevationFor,
   FIT_BOX,
+  FIT_BOX_WITH_SPEAKERS,
   type ProfilePoint,
   profilePoints,
 } from './dimensions.js'
@@ -95,6 +96,13 @@ export type Viewport = {
   reserveRightPx: number
   /** Which way the machine is being looked at. Defaults to the overhead view. */
   pose?: CameraPose
+  /**
+   * Whether the speakers are out, which makes the machine half again as wide.
+   *
+   * It has to be an input and not a constant because only Main shows them: the
+   * same scene is framed two different ways depending on the look.
+   */
+  speakers?: boolean
 }
 
 export type Framing = {
@@ -284,6 +292,7 @@ const cache = new Map<string, Framing>()
 
 export function fitCamera(viewport: Viewport): Framing {
   const pose = viewport.pose ?? 'top'
+  const speakers = viewport.speakers === true
 
   // A minimised window reports 0 x 0. Every ratio below would become Infinity
   // or NaN and poison the camera's matrix, so fall back to something sane and
@@ -303,11 +312,11 @@ export function fitCamera(viewport: Viewport): Framing {
   // Every argument that changes the answer has to be in the key. A reserve
   // left out of it returns a stale framing, and the symptom is a band that is
   // simply ignored -- which looks exactly like not having implemented it.
-  const key = pose + '|' + width + '|' + height + '|' + reserved
+  const key = pose + '|' + width + '|' + height + '|' + reserved + '|' + (speakers ? 'spk' : '-')
   const hit = cache.get(key)
   if (hit) return hit
 
-  const box = FIT_BOX
+  const box = speakers ? FIT_BOX_WITH_SPEAKERS : FIT_BOX
   const elevationDeg = elevationFor(pose)
   const elevation = elevationDeg * DEG
   const halfFovTan = Math.tan((CAMERA.FOV * DEG) / 2)

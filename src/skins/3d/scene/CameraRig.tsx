@@ -63,8 +63,11 @@ type Pose = {
 export function CameraRig({
   reserveRightPx,
   pose,
+  speakers,
 }: {
   reserveRightPx: number
+  /** Main shows speakers, which makes the machine half again as wide. */
+  speakers?: boolean
   /**
    * A prop rather than a read of the render state, because it has to be a
    * React-visible change: `useFrame` does not run at all in demand mode, so a
@@ -89,6 +92,7 @@ export function CameraRig({
       height: size.height,
       reserveRightPx,
       pose,
+      speakers,
     })
 
     const target: Pose = {
