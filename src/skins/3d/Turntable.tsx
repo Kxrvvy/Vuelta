@@ -18,6 +18,7 @@ import { CameraRig } from './scene/CameraRig.js'
 import { InteractionProvider, type SkinInteraction } from './interaction/context.js'
 import { NeedleReadout } from './interaction/NeedleReadout.js'
 import { Cabinet } from './scene/Cabinet.js'
+import { Speakers } from './scene/Speakers.js'
 import { Knob } from './scene/Knob.js'
 import { Lid } from './scene/Lid.js'
 import { OpenButton } from './scene/OpenButton.js'
@@ -53,6 +54,12 @@ export type TurntableProps = {
    * sits on the flat-lay's paper. The scene is otherwise identical.
    */
   preview?: boolean
+  /**
+   * A speaker either side of the deck. Main only, so it is a prop rather than
+   * a fixture: the camera has to frame a wider machine when they are out, and
+   * the Lyrics view and the corner preview show the bare deck.
+   */
+  speakers?: boolean
 }
 
 /** How long to keep rendering after things stop, so spin-down can finish. */
@@ -73,6 +80,7 @@ export function Turntable({
   onBackgroundClick,
   reserveRightPx,
   preview = false,
+  speakers = false,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
   // frames a second at a motionless record would burn GPU and battery for
@@ -133,10 +141,11 @@ export function Turntable({
       >
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
-            <CameraRig reserveRightPx={reserveRightPx} pose={pose} />
+            <CameraRig reserveRightPx={reserveRightPx} pose={pose} speakers={speakers} />
             <Staging transparent={preview} />
 
             <Cabinet />
+            {speakers ? <Speakers /> : null}
             <TimeDisplay lidOpen={lidOpen} />
             <Knob volumePercent={volumePercent} />
             <Lid />

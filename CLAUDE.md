@@ -110,10 +110,25 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 
 | | |
 |---|---|
-| **Main** | The whole machine, centred, now-playing panel at the right. The original view. |
+| **Main** | The whole machine with a speaker either side, centred, now-playing panel at the right. |
 | **Lyrics** | Machine left, a bare column of synced lyrics at the side **in place of** the panel. |
 | **Close-up** | A sleeve and a record lying on a sheet of paper, seen from overhead, with a tonearm, and the machine shrunk to a **preview in the top-left corner**. |
 
+- **The speakers are Main's alone.** A bookshelf cabinet either side of the deck, in the plinth's
+  wood with grille cloth and the same plastic feet — part of the unit, not separates standing
+  nearby. The Lyrics view and the close-up's corner preview show the bare deck.
+- **Which means the camera frames two different machines.** `FIT_BOX_WITH_SPEAKERS` is about 47%
+  wider than `FIT_BOX`, and `fitCamera` takes a `speakers` flag and picks between them — it is
+  also in the cache key, or the second look would be handed the first one's answer. The deck pays
+  for the width: the turntable is visibly smaller in Main than in Lyrics. That is the price of
+  having them in one look and not the others, and it was chosen knowing it.
+- **Only the width changes.** The speakers stand well below the lid's open tip, and the vertical
+  solve works off a profile of the machine rather than off that box, so it is untouched; they are
+  shallower than the lid, so the depth is too; and they are symmetric about the plinth, so the
+  centre holds.
+- **Nothing about them moves or responds.** They do not pulse with the music, because Vuelta has
+  no idea what the music is doing — `audio-features` and `audio-analysis` both return 403. A
+  speaker that bounced would be inventing it.
 - The lyrics column is **content, not chrome**: it does not fade with the click gesture, and it
   reserves the right edge so the camera frames the machine beside it.
 - **The close-up is a different skin, not a second camera.** `skins/flatlay/` draws it in DOM and

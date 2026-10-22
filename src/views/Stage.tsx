@@ -211,6 +211,9 @@ export function Stage({
           // In the corner preview the dark field comes off, so the machine
           // sits on the paper rather than on a card.
           preview={flatlayShown}
+          // Main only: the Lyrics view and the corner preview show the bare
+          // deck, and the camera frames a wider machine when these are out.
+          speakers={view === 'main'}
           lidOpen={sync.lidOpen}
           onOpenLid={sync.openLid}
           onCloseLid={sync.closeLid}
