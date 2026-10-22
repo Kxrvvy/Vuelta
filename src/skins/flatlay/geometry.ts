@@ -76,8 +76,20 @@ export const SLEEVE = {
   get RIGHT_EDGE_X() {
     return this.LEFT + this.SIZE
   },
-  /** §3: "Corner radius 2px. Not 0, not 12." */
-  CORNER_RADIUS: 2,
+  /**
+   * The sleeve's corners.
+   *
+   * The spec is emphatic here -- "Corner radius 2px. Not 0, not 12." -- and
+   * this is 15, so the rule is overruled rather than misread. 2px draws a
+   * square of card with a hairline break on the corner, which is what a real
+   * jacket is; this is a softer card than that, and deliberately so.
+   *
+   * Settled at 10 by eye, by way of 30 and 15.
+   *
+   * In design-box pixels like everything else here, so at `SCENE_SCALE` it
+   * draws at about 12 on a 1280-wide window.
+   */
+  CORNER_RADIUS: 10,
 } as const
 
 /**

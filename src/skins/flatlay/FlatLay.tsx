@@ -24,6 +24,7 @@ import type { CSSProperties, RefObject } from 'react'
 
 import { cardSwap, CARD_SWAP_MS } from '../../core/cardSwap.js'
 import { ARM as CORE_ARM, PLATTER_RPM, type Actions, type RenderState } from '../../core/contract.js'
+import { isSwipeDrag, swipeOffset, swipeOutcome } from '../../core/discSwipe.js'
 import {
   ARM,
   ARM_LOCAL,
@@ -193,12 +194,88 @@ export function FlatLay({
     onDragEnd: endDrag,
   })
 
+  // ---- pushing the record sideways ----------------------------------------
+  // Press the disc, slide, release: left for the next track, right for the
+  // previous. `core/discSwipe.ts` owns what counts as a drag and what a
+  // release means; this only turns pointer events into distances and writes
+  // the offset the frame loop draws.
+  /** Where the press landed, in screen pixels. */
+  const swipeFrom = useRef<{ x: number; y: number } | null>(null)
+  /** How far the record is held from home, in design-box pixels. */
+  const swipeHeld = useRef(0)
+  const swipeDragging = useRef(false)
+  /** Set once a press has travelled far enough to stop being a click. */
+  const swiped = useRef(false)
+  /**
+   * The design box is scaled to the window, so a pointer moves in screen
+   * pixels while the record is drawn in design pixels. The gesture is judged
+   * in the first -- it is the hand's distance that matters -- and drawn in the
+   * second.
+   */
+  const scaleRef = useRef(1)
+  scaleRef.current = fit.scale
+
+  /**
+   * Start a swipe, and follow it on the *window* rather than on the disc.
+   *
+   * A throw worth 90 pixels leaves the disc long before the release, and once
+   * the pointer is off it the element stops hearing. Pointer capture is the
+   * obvious answer and does not hold: measured in the machine look, a drag
+   * from the record out past its rim landed two moves and no release at all,
+   * and the distance it did report was nonsense picked up from a later pass
+   * back over the disc. The window hears everything, so the gesture finishes
+   * wherever the hand ends up -- which is also what stops a half-finished
+   * drag leaving the record held off-centre.
+   */
+  const onDiscDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const from = { x: event.clientX, y: event.clientY }
+      swipeFrom.current = from
+      swipeDragging.current = true
+      swiped.current = false
+
+      const move = (moved: PointerEvent) => {
+        if (!swipeFrom.current) return
+        const dx = moved.clientX - from.x
+        const dy = moved.clientY - from.y
+        if (!isSwipeDrag(dx, dy)) return
+        swiped.current = true
+        swipeHeld.current = swipeOffset(dx) / (scaleRef.current || 1)
+      }
+
+      const up = (released: PointerEvent) => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+        window.removeEventListener('pointercancel', up)
+        swipeFrom.current = null
+        swipeDragging.current = false
+        // Home either way; the frame loop eases it back from wherever it is.
+        swipeHeld.current = 0
+        const outcome = swipeOutcome(released.clientX - from.x, released.clientY - from.y)
+        if (outcome === 'next') actions.next()
+        else if (outcome === 'previous') actions.previous()
+      }
+
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+      window.addEventListener('pointercancel', up)
+    },
+    [actions],
+  )
+
   const toggle = useCallback(
     (event: { stopPropagation(): void }) => {
       // Everything lying on the paper absorbs its own click. Without that the
       // click reaches the field underneath and toggles the chrome as well, so
       // play/pause would summon or dismiss the bar every time.
       event.stopPropagation()
+      // A drag ends in a click as well, and a swipe that took the song away
+      // must not also stop it. The slop in `isSwipeDrag` is what makes this
+      // safe: a press that wobbles two pixels is still a click.
+      if (swiped.current) {
+        swiped.current = false
+        return
+      }
       if (state.current?.isPlaying) actions.pause()
       else actions.play()
     },
@@ -213,6 +290,8 @@ export function FlatLay({
     let angle = 0
     let degPerSec = 0
     let bearing = armBearingDeg(CORE_ARM.START_ANGLE)
+    /** Where the record actually sits under the swipe, easing home on release. */
+    let swipeNow = 0
     let lifted: boolean | null = null
     let front: boolean | null = null
     /** Where the record has got to on its way between the two layouts. */
@@ -265,10 +344,18 @@ export function FlatLay({
 
         // §9's slide rides on top of it: `transitionOut` is 1 at rest and 0
         // fully behind the sleeve. The two offsets simply add.
+        // Held exactly where the hand has it while the press lasts, and
+        // eased home the moment it ends -- damping during the drag would put
+        // the record behind the pointer, which reads as lag rather than as
+        // weight. The resistance is in `swipeOffset`, not here.
+        swipeNow = swipeDragging.current
+          ? swipeHeld.current
+          : damp(swipeNow, 0, 9, delta)
+
         if (record.current) {
           const hidden = 1 - live.transitionOut
           record.current.style.transform =
-            `translateX(${(recordShift - hidden * RECORD_TRAVEL).toFixed(2)}px)`
+            `translateX(${(recordShift - hidden * RECORD_TRAVEL + swipeNow).toFixed(2)}px)`
         }
         armShift.current?.setAttribute('transform', `translate(${recordShift.toFixed(2)} 0)`)
         if (board.current) board.current.style.transform = `translateX(${recordShift.toFixed(2)}px)`
@@ -421,6 +508,7 @@ export function FlatLay({
           <div
             className="flatlay__disc"
             onClick={toggle}
+            onPointerDown={onDiscDown}
             role="button"
             tabIndex={-1}
             aria-label="Play or pause"
@@ -498,6 +586,9 @@ export function FlatLay({
             top: `${SLEEVE.TOP}px`,
             width: `${SLEEVE.SIZE}px`,
             height: `${SLEEVE.SIZE}px`,
+            // From the constant rather than from the stylesheet, which carried
+            // its own copy of the figure and had been drifting from it.
+            borderRadius: `${SLEEVE.CORNER_RADIUS}px`,
           }}
         >
           {slots.back ? (

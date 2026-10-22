@@ -232,6 +232,8 @@ It has **no field behind it**. `Staging` takes a `transparent` prop and leaves i
 
 It is wholly inert. Its contents take no clicks, so the deck you can operate is the one on the paper, and the box passes clicks through to that paper as well: a card was an object lying on the page and absorbed its own click the way the disc and the cover do, but an invisible box is not an object, and swallowing clicks there would leave a dead rectangle in the corner.
 
+**The sleeve's corners are 10px**, not the 2px written above. That figure was emphatic — "Not 0, not 12" — and it is overruled rather than misread: 2px draws a square of card with a hairline break on the corner, which is what a real jacket is, and 10 draws a softer card than that. `SLEEVE.CORNER_RADIUS` is the one authority for it, and the stylesheet no longer keeps a second copy; `overflow: hidden` is what carries the radius to the artwork inside. In design-box pixels, so it draws at about 12 on a 1280-wide window.
+
 **Rest position.** In the machine looks the arm rests in its cradle at `REST_ANGLE`. In the flat-lay it parks **vertically, straight down from the pivot and entirely clear of the disc**.
 
 The park is a *pose*, not a bearing on the groove band. The skin draws any `armAngle` at or below `START_ANGLE` as the park and eases between the two, which is what lets `REST_ANGLE` keep meaning "parked" in core without being re-tuned per skin.
@@ -413,7 +415,7 @@ centred on the two cards by eye sits well to the left, with about a third of the
 beside it. That is exactly what it did at first.
 
 **The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
-soft vignette; the sleeve with its art bleeding to all four edges, a 2px corner radius, a
+soft vignette; the sleeve with its art bleeding to all four edges, a 10px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
 disc, which has its own section below. Nothing in the scene is pure black.
 

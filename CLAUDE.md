@@ -67,7 +67,28 @@ the read fail with a 403.
 - Arm sweep: `REST_ANGLE` −12°, `START_ANGLE` 0°, `END_ANGLE` 22°.
 - **The park is a pose, not an angle.** The flat-lay parks the arm vertically, clear of the disc, by drawing any `armAngle` at or below `START_ANGLE` as that pose and easing between. `REST_ANGLE` keeps its meaning in core and is never re-tuned per skin.
 - **The flat-lay's arm geometry is solved** (`skins/flatlay/geometry.ts`), because placing it by eye does not close: a pivot far enough out to look right cannot reach the inner groove, and forcing it needs an arm half the width of the window. `solveArm` bisects for the one pivot distance that puts `armAngle` 0 on the outer groove and 22 on the inner.
-- **Disc click** = play/pause. **Arm** = drag only.
+- **Disc click** = play/pause. **Disc drag sideways** = skip: left for the next track, right for
+  the previous, the way a stack of cards is pushed along. **Arm** = drag only.
+- **The swipe rule is one pure module**, `core/discSwipe.ts`, shared by both skins: what counts as
+  a drag rather than a click, how far the record follows, and what a release means. The flat-lay
+  drags a div and the machine looks drag a mesh, but none of those three answers was going to stay
+  the same if each skin worked it out for itself.
+- **The slop and the threshold are asymmetric on purpose.** 6px stops a press that wobbles from
+  being a very short swipe; 90px is what a release needs to change the track. The gap between them
+  is the whole safety margin: a skip taken for a play/pause removes the song and has no undo, while
+  a play/pause taken for a skip costs one more gesture.
+- **The record follows, then springs home.** `swipeOffset` is asymptotic — it leaves at the
+  pointer's own speed so it does not feel stuck, and falls away toward a ceiling so a long drag
+  cannot throw it off the paper. Held exactly where the hand has it while the press lasts and
+  damped home afterwards; damping *during* the drag reads as lag, not as weight.
+- **Follow the drag on the `window`, never on the element.** A 90px throw leaves the disc long
+  before the release, and pointer capture does not hold it — measured, a drag from the record out
+  past its rim landed two moves, no release at all, and a distance of 504px gathered from a later
+  pass back over the disc. `event.target.setPointerCapture` is the pattern both arm drags use, so
+  they likely have the same hole.
+- **In the flat-lay the gesture can only start on the exposed part of the disc**, because the
+  sleeve covers its left half and takes the press there. That is the cover's own target, and the
+  two do not collide.
 - **Pause parks the arm.** Pause lifts the stylus a few millimetres *and* returns the arm to its rest position — the cradle in the machine looks, the vertical park in the flat-lay. The platter still spins down. This reverses the earlier cue-lever rule, where the arm hovered at its current angle: a paused turntable that has visibly stopped reads better than one frozen mid-sweep, and the rest position is the only part of the travel that says "not playing" on its own.
 - The arm **stays draggable while paused** and seek still commits on release; it simply returns to rest afterwards, because it is still paused. A drag outranks the park — `armAngleNow` in `core/armMath.ts` is the one place that ordering lives, and it is the same in every look.
 - **Opening the lid plays nothing.** It is mechanical: the lid rises and the machine waits. Playback starts when the **disc** is clicked, which issues the same bodiless `PUT /me/player/play` and resumes the last context.
@@ -163,6 +184,12 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
   `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.
+- **The sleeve's art is filled and slightly overscanned.** `object-fit: cover` and a 3% scale, so
+  it runs past the sleeve and is clipped. Plenty of covers are drawn with a pale border baked into
+  the artwork: the file is square and fills the sleeve exactly, and the band at the top and bottom
+  is the picture's own. Nothing in the layout can tell that from the art, so overscanning is the
+  only way to be sure none shows. It costs about 8px a side of a 528px cover — enough for a
+  hairline border, not for a thick one, and it should not try to be.
 - **The record is 5% smaller than its sleeve** (`RECORD_SCALE`), as a 302mm LP is to a 315mm
   jacket. Flush with it, the disc does not look like it could go back in. The label, hole and lands
   scale with it.

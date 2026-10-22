@@ -1485,7 +1485,9 @@ input[type='text']:focus {
   /* Above the record by default: the cover starts in front. The frame loop
      swaps these two during a card move, in the middle of its hold. */
   z-index: 2;
-  border-radius: 2px;
+  /* The radius is set inline from `SLEEVE.CORNER_RADIUS`; it was duplicated
+     here, which is how the two came apart. `overflow` is what carries it to
+     the artwork inside. */
   overflow: hidden;
   background: #dcd6d0;
   cursor: pointer;
@@ -1504,6 +1506,19 @@ input[type='text']:focus {
 .flatlay__sleeve-art {
   position: absolute;
   inset: 0;
+  /* Filled, not fitted: a square image in a square sleeve needs no cropping,
+     but saying so means a sleeve can never letterbox if one ever arrives that
+     is not square. */
+  object-fit: cover;
+  /* And a little over the edge on top of that.
+     Plenty of covers are drawn with a pale border baked into the artwork --
+     the file is square and fills the sleeve exactly, and the band you see at
+     the top and bottom is the picture's own. Nothing in the layout can tell
+     that from the art, so the only way to be sure none shows is to let the
+     art run past the sleeve and be clipped. 3% costs about 8px a side of a
+     528px cover, which swallows a hairline border without visibly cropping
+     the image; a thick one it will not save, and should not try to. */
+  transform: scale(1.03);
 }
 
 /* §9: the art changes while the disc is hidden, but the sleeve never is --
