@@ -478,6 +478,25 @@ input[type='text']:focus {
   pointer-events: none;
 }
 
+/* Nudged right and down, but only on a window with the room for it.
+   Asked for "when the app is maximised", and the small-window layout left
+   alone -- so it is a breakpoint and not an addition to the scaled offsets
+   above, which would move it at every size.
+
+   The order matters, and it is not two independent nudges. Measured at a
+   maximised 1536x842: the machine has 75px of clear window to its right but
+   only 6px above the armboard, so dropping it 15px on its own would put it
+   9px over the board. Going right far enough to clear the board's right edge
+   first -- its ink starts 19px left of it -- makes the drop free, because
+   there is nothing but field below that point. Hence 25 right and 15 down,
+   the 25 being what buys the 15 rather than a taste of its own. */
+@media (min-width: 1400px) and (min-height: 800px) {
+  .stage__machine--preview {
+    top: calc(-14 * var(--fit) + 15px);
+    right: calc(-40 * var(--fit) - 25px);
+  }
+}
+
 /* react-three-fiber sets `pointer-events: auto` *inline* on its own event
    container, so this cannot be done by setting `none` on the box above and
    letting it inherit -- an inline declaration outranks that. Without it the

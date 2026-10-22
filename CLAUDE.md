@@ -172,6 +172,14 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   browser bar's line and the clamp is gone.** Anything fixed-size put back in that corner brings
   the problem with it. Verified per pixel at 640×520 (the app's minimum), 820×560, 960×620 and
   1100×700, both resting arrangements: nothing covered.
+- **The maximised window gets a nudge the others do not.** A `@media (min-width: 1400px) and
+  (min-height: 800px)` rule puts the preview 25px further right and 15px further down. It is a
+  breakpoint rather than an addition to the scaled offsets because it was asked for on a maximised
+  window with the smaller layouts left alone, and the scaled version would move it at every size.
+  The two numbers are not independent: measured at a maximised 1536×842 the machine has 75px of
+  clear window to its right but **6px** above the armboard, so dropping it 15px alone would put it
+  9px over the board — going right far enough to clear the board's right edge first is what makes
+  the drop free. The 25 buys the 15.
 - **What has to clear them is the machine, not the box.** With no field behind it the box's empty
   margins lie over anything with nothing showing; the ink is 191×179 of the 413×244 (figures at a 1280×800 window).
 - **Measuring that needs care, and two obvious methods are both wrong.** Never box against box:
