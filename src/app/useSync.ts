@@ -33,6 +33,16 @@ import { IDLE_TRANSITION, stepTransition, type Transition } from '../core/transi
 /** Panel text refresh. The scene reads the ref at 60fps; text needs 4Hz. */
 const READOUT_HZ = 4
 
+/**
+ * How long a skip's optimistic cover outlives the command.
+ *
+ * Long enough to cover the poll's own interval -- it answers every 3-5s and
+ * the command has to reach Spotify first -- and short enough that a skip which
+ * never took effect gives the display back rather than stranding it on a track
+ * that is not playing.
+ */
+const DISPLAY_OVERRIDE_MS = 6000
+
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
   return {
@@ -120,6 +130,18 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     artist: null,
   })
   const displayRef = useRef<Display>(display)
+  /**
+   * What a skip has asked the scene to draw before the poll agrees, and the
+   * track it was skipping away from -- the poll moving off that id is how we
+   * know it has caught up.
+   */
+  const displayOverrideRef = useRef<{
+    shows: Display
+    fromTrackId: string | null
+    until: number
+  } | null>(null)
+  /** The last track the poll reported, read by the override above. */
+  const polledTrackIdRef = useRef<string | null>(null)
   const [active, setActive] = useState(false)
   const [readout, setReadout] = useState<Readout>({
     progressMs: 0,
@@ -193,10 +215,31 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       // The one React write in this loop that is not throttled, because it
       // happens once per swap rather than once per frame: which track the
       // scene is drawing.
+      // What the scene is drawing. Normally the polled track, or the queued
+      // one while the M6 swap is mid-flight.
       const shown = transition.showNext && nextUp ? nextUp : value.track
-      const shownArt = shown?.albumArtUrl ?? null
-      const shownTitle = shown?.title ?? null
-      const shownArtist = shown?.artist ?? null
+
+      // A skip writes an optimistic override, the same discipline the clock
+      // uses: the poll is up to five seconds behind a command, and without
+      // this the frame after the skip reads the *old* track back out of it and
+      // puts the old cover straight back up. Measured, that showed as the new
+      // cover appearing, reverting, and arriving again a second later.
+      //
+      // It lives until the poll reports some other track -- which is the poll
+      // catching up, whether or not it agrees with the guess -- or until it
+      // times out, so a skip that silently failed cannot strand the display.
+      let override = displayOverrideRef.current
+      if (override) {
+        const polled = value.track?.trackId ?? null
+        if (now > override.until || (polled !== null && polled !== override.fromTrackId)) {
+          displayOverrideRef.current = null
+          override = null
+        }
+      }
+      polledTrackIdRef.current = value.track?.trackId ?? null
+      const shownArt = override ? override.shows.albumArtUrl : (shown?.albumArtUrl ?? null)
+      const shownTitle = override ? override.shows.title : (shown?.title ?? null)
+      const shownArtist = override ? override.shows.artist : (shown?.artist ?? null)
       const drawn = displayRef.current
       if (
         shownArt !== drawn.albumArtUrl ||
@@ -373,13 +416,62 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     engine.applyPoll(poll, Date.now())
   }, [engine, store])
 
+  /**
+   * Skip, without waiting for the poll to notice.
+   *
+   * `display` follows `value.track`, which only moves when `GET /me/player`
+   * answers -- measured at about 1.6s after a skip, and up to the poll's full
+   * 3-5s interval at worst. The music has already changed by then, so the
+   * cover and the field behind it sit on the old track for a beat.
+   *
+   * Two halves to the fix. The queue's head is already pre-fetched for the M6
+   * swap, so on `next` the right cover is in hand before the command is even
+   * sent and can be drawn at once; and either way the poll is asked again
+   * shortly after, rather than on its own schedule. `previous` has nothing
+   * pre-fetched -- the queue only looks forward -- so it gets the re-poll
+   * alone.
+   */
+  const repoll = useCallback(() => {
+    // Spotify needs a moment to apply the command before it reports it. Two
+    // goes, because one at 300ms is sometimes still the old track.
+    window.setTimeout(() => void pollNow(), 300)
+    window.setTimeout(() => void pollNow(), 900)
+  }, [pollNow])
+
+  const actions = useMemo<Actions>(
+    () => ({
+      ...engine.actions,
+      next: () => {
+        const queued = nextTrackRef.current
+        if (queued) {
+          displayOverrideRef.current = {
+            shows: {
+              albumArtUrl: queued.albumArtUrl ?? null,
+              title: queued.title ?? null,
+              artist: queued.artist ?? null,
+            },
+            fromTrackId: polledTrackIdRef.current,
+            until: Date.now() + DISPLAY_OVERRIDE_MS,
+          }
+        }
+        engine.actions.next()
+        repoll()
+      },
+      previous: () => {
+        engine.actions.previous()
+        repoll()
+      },
+    }),
+    [engine, repoll],
+  )
+
   const beginArmDrag = useCallback(() => engine.beginArmDrag(), [engine])
   const dragToProgress = useCallback((ms: number) => engine.dragToProgress(ms), [engine])
   const endArmDrag = useCallback(() => engine.endArmDrag(Date.now()), [engine])
 
   return {
     stateRef,
-    actions: engine.actions,
+    actions,
     track,
     display,
     readout,

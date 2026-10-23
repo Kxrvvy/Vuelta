@@ -30,6 +30,16 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
 - Extrapolate locally between polls with rAF.
 - Reconcile by **easing** toward truth, not snapping, unless drift > ~2s.
 - Every user action writes an **optimistic override** with a ~5s TTL. Contradicting poll data is discarded while the override lives. Without this, in-flight polls make the UI jump backwards.
+- **Which track is *drawn* needs the same treatment.** `display` follows the polled track, so after
+  a skip it sits on the old cover until the poll answers — measured at ~1.6s, and up to the full
+  3–5s interval at worst, with the music already changed. `next` therefore writes a display
+  override from the queue head, which M6 has pre-fetched anyway, and the loop honours it until the
+  poll reports *some other* track or the TTL runs out. Writing it without the override and letting
+  the loop recompute does not work: the next frame reads the stale poll and puts the old cover
+  straight back, which showed as the new cover appearing, reverting, and arriving again a second
+  later. `previous` gets no guess — the queue only looks forward — so it gets the re-poll alone.
+- **A skip also asks the poll again**, at 300ms and 900ms, rather than waiting for its own
+  schedule. One re-poll is not enough: at 300ms Spotify often still reports the old track.
 - `seek` commits on drag release only, never during the drag.
 - `volume` throttled to ~1 call per 400ms.
 - Handle 429 with `Retry-After`.
@@ -214,6 +224,10 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   keeps the jacket the brightest thing on screen. Measured against the alternative — extracting a
   single colour — the average of a sleeve is always mud, and its most common colour matches so
   closely that a dark cover dissolves into its own field.
+- **A null cover is a gap, not an instruction.** The backdrop keeps the last one rather than
+  clearing: between tracks the poll can briefly report no track at all, and clearing drops the
+  whole field to the bare `--bg`, which reads as the background going dark and coming back instead
+  of one cover dissolving into the next.
 - **Two art layers, never one.** `background-image` does not transition, so a track change fades a
   new layer over the old one and drops the old one when it is covered. Keeping it would leave a
   second full-window blur running for the rest of the track, which is the most expensive thing on
