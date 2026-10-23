@@ -8,11 +8,11 @@
  * on the network. Drawing our own softboxes costs nothing and gives direct
  * control over where the sheen falls across the record.
  *
- * Staging is a dark field (spec §19's open question, now answered): the unit
- * floats on the app's own background rather than sitting on a surface, so
- * there is no ground plane and no contact shadow. `transparent` drops the
- * field for the close-up's corner preview, which needs the machine on paper. Shadows that remain are
- * self-shadows — the arm onto the record, the lid onto the deck.
+ * Staging paints no field at all. The unit floats on whatever is behind the
+ * canvas, which is one DOM layer carrying the blurred cover -- see
+ * `app/FieldBackdrop.tsx` -- so there is no ground plane and no contact
+ * shadow here either. Shadows that remain are self-shadows: the arm onto the
+ * record, the lid onto the deck.
  */
 
 import { useFrame, useThree } from '@react-three/fiber'
@@ -20,7 +20,7 @@ import { useEffect, useRef } from 'react'
 import { PMREMGenerator } from 'three'
 import { studioEnvironmentTexture } from '../materials/textures.js'
 
-export function Staging({ transparent = false }: { transparent?: boolean }) {
+export function Staging() {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
   const frame = useRef(0)
@@ -55,17 +55,10 @@ export function Staging({ transparent = false }: { transparent?: boolean }) {
 
   return (
     <>
-      {/* The dark field. Left off for the corner preview in the close-up,
-          where the machine has to sit on the flat-lay's paper rather than on
-          a dark card -- and where a background is the one thing a thumbnail
-          of a floating object does not need. Nothing else in here paints a
-          backdrop, because the unit floats and has no ground plane, so
-          dropping this is all it takes to clear the frame to the page.
-
-          Not a second scene: the same scene, the same camera and the same
-          lighting, with one attachment conditional. R3F restores the previous
-          background when it detaches, so switching looks puts it back. */}
-      {transparent ? null : <color attach="background" args={['#141210']} />}
+      {/* No field here. It was `<color attach="background">`, and for a while
+          it was conditional so the close-up's corner preview could sit on the
+          flat-lay's paper. With one background for the whole app behind the
+          canvas, there is nothing left to paint or to switch. */}
       <ambientLight intensity={0.38} />
 
       {/* Key: high and to the left-back, which is where the reference's main

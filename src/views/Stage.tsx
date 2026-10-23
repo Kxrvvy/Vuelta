@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
+import { FieldBackdrop } from '../app/FieldBackdrop.js'
 import { LyricsColumn } from '../app/lyrics/LyricsColumn.js'
 import { useLyrics } from '../app/lyrics/useLyrics.js'
 import { NowPlayingPanel } from '../app/panel/NowPlayingPanel.js'
@@ -187,6 +188,11 @@ export function Stage({
 
   return (
     <div className="stage">
+      {/* The field, behind everything: the playing cover blurred until only
+          its colour is left. One layer for all three looks -- the canvas above
+          it paints no background of its own, and neither does the flat-lay. */}
+      <FieldBackdrop albumArtUrl={sync.display.albumArtUrl} />
+
       {/* Never unmounted. Tearing the Canvas down would throw away the
           generated environment map and every texture, and rebuild both on the
           way back.
@@ -210,7 +216,6 @@ export function Stage({
           reserveRightPx={reserveRight}
           // In the corner preview the dark field comes off, so the machine
           // sits on the paper rather than on a card.
-          preview={flatlayShown}
           // Main only: the Lyrics view and the corner preview show the bare
           // deck, and the camera frames a wider machine when these are out.
           speakers={view === 'main'}

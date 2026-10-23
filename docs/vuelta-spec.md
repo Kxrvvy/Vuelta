@@ -414,7 +414,7 @@ outside of the bearing circle is the right-hand edge, not the record's rim — s
 centred on the two cards by eye sits well to the left, with about a third of the frame empty
 beside it. That is exactly what it did at first.
 
-**The scene.** A flat bone-white field, `#EEEAE7`, with a generated grain at about 3% and a very
+**The scene.** No field of its own at all: the app draws one backdrop behind every look — the playing cover, blurred to 60px and dimmed — and the flat-lay's `--paper` is transparent so it shows through. Over it, a generated grain at about 3% and a very
 soft vignette; the sleeve with its art bleeding to all four edges, a 10px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
 disc, which has its own section below. Nothing in the scene is pure black.
@@ -673,7 +673,9 @@ What's actually needed — smaller than a design system:
 
 ## 19. Still open
 
-1. ~~Background treatment for the player~~ — **settled, and it is two answers.** The machine looks (Main, Lyrics) keep the **dark field**: the unit floats on the app background, with no desk surface, no ground plane and no contact shadow. The flat-lay (§12) is lit instead, on a **warm paper field, `#EEEAE7`**, with a faint grain and a very soft vignette — it is a photograph of two objects lying on a desk, so it needs the surface the machine does not. Light mode only for now: a dark variant of that scene needs a different light model and different material values, and is not worth building twice. The tokens (`--paper`, `--ink`, `--disc`, `--metal`) exist so it can be.
+1. ~~Background treatment for the player~~ — **settled twice, and the second answer is one field for all three looks.** The flat-lay's field is now `#141210`, the same the machine floats on. That undoes the paragraph below, which stood for some time and is kept because it says what the light scene was for, and what moving off it costs: **the flat-lay was drawn against light.** The vinyl is near-black by design, so on this field the disc's rim sits about nine levels off the ground it lies on and all but disappears; the sleeve's contact shadow and the record's cast shadow are dark on dark and no longer hold either object down; and the armboard, a soft pale plate meant to read as light card, is now the brightest thing in the frame. None of that is a bug to be found later — it is the known price of the field, and the levers are lifting the vinyl, inverting the shadows to light, and restyling the board. The original decision:
+
+   **Settled, and it is two answers.** The machine looks (Main, Lyrics) keep the **dark field**: the unit floats on the app background, with no desk surface, no ground plane and no contact shadow. The flat-lay (§12) is lit instead, on a **warm paper field, `#EEEAE7`**, with a faint grain and a very soft vignette — it is a photograph of two objects lying on a desk, so it needs the surface the machine does not. Light mode only for now: a dark variant of that scene needs a different light model and different material values, and is not worth building twice. The tokens (`--paper`, `--ink`, `--disc`, `--metal`) exist so it can be.
 2. ~~The paused-position marker on the disc~~ — **dropped, and worth revisiting.** It was dropped because the cue-lever pause left the arm hovering at its angle, which was itself the position indicator. Pause now parks the arm (§11), so while paused nothing on the disc shows where playback stopped. Dragging still works and still commits on release, so nothing is broken — but the thing the marker was for has come back.
 3. Auto-launching the Spotify client via the `spotify:` URI scheme when no device is found, as an M7 stretch goal. Needs a polling loop with a timeout and a graceful fall back to NO_DEVICE.
 4. ~~Whether the SETUP flow gets its own milestone~~ — **settled: folded into M0**, as built.

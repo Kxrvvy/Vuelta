@@ -50,11 +50,6 @@ export type TurntableProps = {
   /** CSS pixels the overlay panel occupies on the right, measured live. */
   reserveRightPx: number
   /**
-   * Drawn as the close-up's corner preview: no dark field, so the machine
-   * sits on the flat-lay's paper. The scene is otherwise identical.
-   */
-  preview?: boolean
-  /**
    * A speaker either side of the deck. Main only, so it is a prop rather than
    * a fixture: the camera has to frame a wider machine when they are out, and
    * the Lyrics view and the corner preview show the bare deck.
@@ -79,7 +74,6 @@ export function Turntable({
   onArmDragEnd,
   onBackgroundClick,
   reserveRightPx,
-  preview = false,
   speakers = false,
 }: TurntableProps) {
   // This is a desktop app that spends most of its life idle. Rendering sixty
@@ -142,7 +136,7 @@ export function Turntable({
         <RenderStateProvider value={state}>
           <InteractionProvider value={interaction}>
             <CameraRig reserveRightPx={reserveRightPx} pose={pose} speakers={speakers} />
-            <Staging transparent={preview} />
+            <Staging />
 
             <Cabinet />
             {speakers ? <Speakers /> : null}
