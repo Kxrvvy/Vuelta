@@ -140,11 +140,10 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
   a picture of one". It is not a second scene or a second viewport: it is the *same* canvas and the
   same camera, given a 413×244 box in the top right to frame themselves in, so the only thing that changes is the
   size of the element the renderer is already drawing into.
-- **The preview has no field behind it.** `Staging` takes a `transparent` prop and leaves its
-  `<color attach="background">` off here, so the machine stands on the paper instead of on a dark
-  card. Nothing else in the scene paints a backdrop — the unit floats and has no ground plane — so
-  dropping that one attachment clears the frame to the page. R3F puts the field back on the way
-  out; the other two looks are untouched.
+- **The preview has no field behind it**, and neither does anything else: `Staging` paints no
+  background at all now. It was a `transparent` prop for a while, so the preview alone could sit on
+  the flat-lay's paper; with one backdrop behind the whole app there is nothing left to switch, and
+  the prop and the flag that fed it are gone.
 - **The preview takes no clicks at all, box included.** Its contents cannot, by `!important`: R3F
   sets `pointer-events: auto` inline on its own container, which outranks anything inherited, and
   without the override a click raycasts into the real scene and works the lid. The box is
@@ -204,14 +203,24 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **Switching to it shrinks the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
   away the generated environment map and every texture and rebuilds both on the way back, so
   `Stage` sets `display: none` on `.stage__machine` instead.
-- **One field for all three looks.** The flat-lay's `--paper` is `#141210`, the same dark the
-  machine floats on, and the spindle hole still punches through to it. It was warm paper for a
-  long time, and **the scene is still drawn for light**: the vinyl is near-black, so the disc's rim
-  now sits about nine levels off its own ground and all but vanishes; the sleeve's contact shadow
-  and the record's cast shadow are dark on dark and hold nothing down; and the armboard, a pale
-  plate meant to read as light card, is the brightest thing in the frame. That is the price of the
-  field, not a fault to be discovered — the levers are lifting the vinyl, inverting the shadows,
-  and restyling the board.
+- **One field for all three looks, and it is the playing cover.** `app/FieldBackdrop.tsx` draws the
+  album art behind the whole app, blurred to 60px so only its colour survives, dimmed to half
+  brightness and lifted slightly in saturation. **Nothing else paints a background any more**: the
+  three.js scene's `<color attach="background">` is gone and the flat-lay's `--paper` is
+  `transparent`, so the canvas and the paper both let it through. Two of those to keep in step
+  through every track change was one too many.
+- **Why those three numbers.** The blur has to be past recognition or the backdrop competes with
+  the sleeve for attention; the dimming is what keeps white chrome legible over a pale cover and
+  keeps the jacket the brightest thing on screen. Measured against the alternative — extracting a
+  single colour — the average of a sleeve is always mud, and its most common colour matches so
+  closely that a dark cover dissolves into its own field.
+- **Two art layers, never one.** `background-image` does not transition, so a track change fades a
+  new layer over the old one and drops the old one when it is covered. Keeping it would leave a
+  second full-window blur running for the rest of the track, which is the most expensive thing on
+  screen.
+- **The backdrop is `.backdrop`, not `.field`.** `.field` is already the setup screen's form row;
+  a full-window absolutely positioned rule under that name takes the Client ID form off the screen
+  on first run.
 - **The flat-lay is laid out in a fixed 1280×800 design box**, scaled to the window by one
   `transform` (and zoomed by `SCENE_SCALE`; see below). That is what lets the spec's pixel values — shadow offsets, hairlines, the groove
   period — be taken literally. Nothing reflows; the composition is one shape at one aspect.

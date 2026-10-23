@@ -391,6 +391,49 @@ input[type='text']:focus {
   overflow: hidden;
 }
 
+/* The field: the playing cover, blurred until only its colour is left.
+   Named `backdrop` and not `field`, because `.field` is already the setup
+   screen's form row -- a full-window absolutely positioned rule under that
+   name takes the Client ID form off the screen on first run.
+   Behind everything — the canvas above it is transparent and so is the
+   flat-lay's paper, so this is the only background in the app. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Under the art, and what shows when there is no cover to blur. */
+  background: var(--bg);
+}
+
+.backdrop__art {
+  position: absolute;
+  /* Overdrawn, because a blur of this radius pulls the edges inward and would
+     otherwise leave the window's corners dark. */
+  inset: -25%;
+  background-size: cover;
+  background-position: center;
+  /* Unreadable on purpose. The brightness is what keeps white chrome legible
+     over a pale cover and keeps the sleeve the brightest thing on screen. */
+  filter: blur(60px) brightness(0.5) saturate(1.2);
+}
+
+/* `background-image` does not transition, so a track change is a dissolve
+   between two layers rather than one layer changing its picture. */
+.backdrop__art--in {
+  animation: backdrop-in 900ms ease-out both;
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* The 3D skin's host. Absolute so that hiding it for the flat-lay leaves the
    stage's other children exactly where they were. */
 .stage__machine {
@@ -1194,12 +1237,15 @@ input[type='text']:focus {
    =========================================================================== */
 
 .flatlay {
-  /* The same field the machine looks stand on, which is `--bg`.
-     It was #eeeae7, warm paper, and the whole scene was drawn for it: the
-     vinyl is near-black, the shadows are dark and soft, and the sleeve has a
-     contact shadow holding it down. All of that was contrast against light.
-     See the note below `.flatlay` for what that costs. */
-  --paper: #141210;
+  /* Nothing of its own any more: the field is the blurred cover behind the
+     whole app, and the flat-lay lets it through. It was #eeeae7 warm paper,
+     then #141210 to match the machine looks; now there is one background for
+     all three and this token's job is to get out of its way.
+
+     Still a token, and still read in two places, because both of them mean
+     "whatever the scene is lying on" — the sheet itself, and the spindle hole
+     punched through it. */
+  --paper: transparent;
   --ink: #2a2724;
   --ink-soft: #3d3936;
   --ink-muted: #6b6762;

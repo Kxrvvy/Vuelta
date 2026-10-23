@@ -414,7 +414,7 @@ outside of the bearing circle is the right-hand edge, not the record's rim — s
 centred on the two cards by eye sits well to the left, with about a third of the frame empty
 beside it. That is exactly what it did at first.
 
-**The scene.** The same dark field the machine looks stand on, `#141210` — see the reversal recorded in §19 — with a generated grain at about 3% and a very
+**The scene.** No field of its own at all: the app draws one backdrop behind every look — the playing cover, blurred to 60px and dimmed — and the flat-lay's `--paper` is transparent so it shows through. Over it, a generated grain at about 3% and a very
 soft vignette; the sleeve with its art bleeding to all four edges, a 10px corner radius, a
 directional shadow from the upper left and a tight contact shadow so it sits *on* the paper; the
 disc, which has its own section below. Nothing in the scene is pure black.
