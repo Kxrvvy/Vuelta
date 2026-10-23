@@ -28,6 +28,12 @@ export function FieldBackdrop({ albumArtUrl }: { albumArtUrl: string | null }) {
   const shown = useRef<string | null>(albumArtUrl)
 
   useEffect(() => {
+    // A null is a gap, not an instruction. Between tracks the poll can come
+    // back with no track at all for a moment, and clearing on that drops the
+    // whole field to the bare `--bg` -- which reads as the background going
+    // dark and then coming back, rather than as one cover dissolving into the
+    // next. The last cover stays up until there is another one to replace it.
+    if (!albumArtUrl) return
     if (albumArtUrl === shown.current) return
     setPrevious(shown.current)
     setCurrent(albumArtUrl)
