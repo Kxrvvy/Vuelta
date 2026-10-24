@@ -282,8 +282,11 @@ export type PlayerPoll =
  * plays no music. So the renderer gets the cause, not just a boolean.
  */
 export type LaunchSpotifyResult =
-  /** Transferred and playing. */
-  | { kind: 'started' }
+  /**
+   * Spotify is up and is now the active device, but deliberately not playing
+   * yet: the machine opens its lid first and the renderer sends play after.
+   */
+  | { kind: 'armed' }
   /** A device was already there, so nothing was launched. */
   | { kind: 'device-already' }
   /** The `spotify:` link went nowhere. */

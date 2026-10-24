@@ -20,7 +20,7 @@
  * either side changed.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { BrowserBar } from '../app/browser/BrowserBar.js'
 import { FieldBackdrop } from '../app/FieldBackdrop.js'
 import { LyricsColumn } from '../app/lyrics/LyricsColumn.js'
@@ -84,8 +84,20 @@ export function Stage({
   sync,
   scopesStale,
   onReconnect,
+  notice,
 }: {
   sync: Sync
+  /**
+   * Shown along the bottom, over the scene, instead of a screen of its own.
+   *
+   * The no-device state used to be a page of text with no machine on it. That
+   * made the wait look like an error, and it hid the one thing worth watching:
+   * the deck is sitting there with its lid shut, and the lid rises when the
+   * music starts. Keeping the machine on screen throughout also means the
+   * canvas is long since drawn by the time a device appears, so that opening
+   * is seen rather than happening behind a blank window.
+   */
+  notice?: ReactNode
   /** The stored session was granted fewer scopes than Vuelta now asks for. */
   scopesStale: boolean
   onReconnect: () => void
@@ -262,6 +274,8 @@ export function Stage({
           visible={panelShown}
         />
       )}
+
+      {notice ? <div className="notice">{notice}</div> : null}
 
       {/* Lid shut is the front pose, which is bare by design — no chrome at
           all until the machine is open. */}

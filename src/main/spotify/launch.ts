@@ -3,7 +3,9 @@
  *
  * Vuelta is a remote control, so it needs something to control. When it starts
  * and there is nothing there, this fetches the deck: it opens Spotify, waits
- * for it to register itself with the account, and transfers playback to it.
+ * for it to register itself with the account, and makes it the active device
+ * -- stopping deliberately short of playing, so the machine can open its lid
+ * before the music rather than after it.
  *
  * In `main/` because both halves belong here -- `shell` is the only way out to
  * the desktop, and every HTTP call in the app lives in this layer.
@@ -14,7 +16,7 @@
 
 import { shell } from 'electron'
 import type { LaunchSpotifyResult } from '../../core/contract.js'
-import { getPlayer, listDevices, transferTo } from './client.js'
+import { listDevices, transferTo } from './client.js'
 
 /**
  * The URI the desktop client registers on Windows.
@@ -30,15 +32,6 @@ const APPEAR_TIMEOUT_MS = 25_000
 
 /** How often to ask whether it has appeared yet. */
 const POLL_EVERY_MS = 900
-
-/**
- * After the transfer, how long to let playback actually begin.
- *
- * The transfer can succeed against an account with nothing to resume: control
- * moves to the device and no music follows. That reads as a hang unless it is
- * checked for and named, so this is the grace period before calling it.
- */
-const PLAY_GRACE_MS = 2_500
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -78,13 +71,12 @@ export async function launchSpotify(clientId: string): Promise<LaunchSpotifyResu
   }
   if (deviceId === null) return { kind: 'never-appeared' }
 
-  const moved = await transferTo(clientId, deviceId)
+  // Transferred but *not* started. Making the device active is enough to end
+  // the no-device state, which puts the machine on screen with its lid shut;
+  // the renderer then opens the lid and sends play, so the first note lands
+  // on an open deck rather than a closed one. Whether anything was there to
+  // resume is that play's answer to give, not this one's.
+  const moved = await transferTo(clientId, deviceId, false)
   if (!moved.ok) return { kind: 'failed', message: moved.message }
-
-  // Transferred, but is it playing? An account with nothing to resume says
-  // yes to the transfer and then sits silent.
-  await wait(PLAY_GRACE_MS)
-  const poll = await getPlayer(clientId)
-  if (poll.kind === 'ok' && poll.snapshot.isPlaying) return { kind: 'started' }
-  return { kind: 'nothing-to-resume' }
+  return { kind: 'armed' }
 }

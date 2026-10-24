@@ -3,27 +3,35 @@
  *
  * `GET /me/player` answering 204 with an empty body is not an error; it means
  * Spotify isn't running or isn't the active device. The spec is explicit that
- * this "happens constantly" and "needs a designed screen, not an error toast".
+ * this "happens constantly" and "needs a designed screen, not an error toast"
+ * -- and it is no longer a screen at all, which is further in the same
+ * direction: the machine stays on screen with its lid shut and this is a strip
+ * along the bottom of it.
  *
  * It no longer only waits. Vuelta is a remote control, so landing here with
- * nothing to control is a dead end the app can get itself out of: on the first
- * time this screen appears in a session it opens Spotify and starts playback
- * itself, and this screen is what you watch while that happens.
+ * nothing to control is a dead end the app can get itself out of: the first
+ * time this screen appears in a session it fetches Spotify itself.
+ *
+ * The sequence it starts does not live here, though — see `useSync`. Arming
+ * the device ends the no-device state, so this screen is unmounted halfway
+ * through, and the lid and the music both happen after it has gone. All this
+ * owns is the one-shot that starts it, and the message if it fails.
  *
  * **Once per session, and only on startup.** The app reaches this state in two
- * ways that look identical from here -- Spotify was never running, or you just
- * closed it -- and a rule of "no device, so launch it" turns the second into a
- * fight you can only win by quitting Vuelta first. So the attempt is made once
- * and never again on its own; afterwards the button is yours.
+ * ways that look identical from here — Spotify was never running, or you just
+ * closed it — and a rule of "no device, so launch it" turns the second into a
+ * fight you can only win by quitting Vuelta first.
  */
 
-import { useEffect, useRef, useState } from 'react'
-import type { LaunchSpotifyResult } from '../../core/contract.js'
+import { useEffect, useRef } from 'react'
+import type { LaunchState } from '../useSync.js'
 
 /** What each ending says. Every one of these is silent if it is not named. */
-function message(result: LaunchSpotifyResult): string {
-  switch (result.kind) {
-    case 'started':
+function message(state: LaunchState): string | null {
+  if (state.phase === 'running') return 'Opening Spotify…'
+  if (!state.outcome) return null
+  switch (state.outcome.kind) {
+    case 'armed':
       return 'Spotify is playing.'
     case 'device-already':
       return 'Spotify is available but idle. Press play there, or on another device.'
@@ -34,51 +42,50 @@ function message(result: LaunchSpotifyResult): string {
     case 'nothing-to-resume':
       return 'Spotify is connected, but there was nothing to resume. Start a track there.'
     case 'failed':
-      return result.message
+      return state.outcome.message
   }
 }
 
-export function NoDeviceScreen({ busy, onRetry }: { busy: boolean; onRetry: () => void }) {
-  const [launching, setLaunching] = useState(false)
-  const [outcome, setOutcome] = useState<LaunchSpotifyResult | null>(null)
+export function NoDeviceScreen({
+  busy,
+  onRetry,
+  launch,
+  onLaunch,
+}: {
+  busy: boolean
+  onRetry: () => void
+  launch: LaunchState
+  onLaunch: () => void
+}) {
   /** The once in "once per session". A ref, so a re-render cannot spend it. */
   const spent = useRef(false)
-
-  const attempt = (): void => {
-    if (launching) return
-    setLaunching(true)
-    setOutcome(null)
-    void window.vuelta
-      .launchSpotify()
-      .then((result) => setOutcome(result))
-      .catch(() => setOutcome({ kind: 'failed', message: 'Could not reach Spotify.' }))
-      .finally(() => setLaunching(false))
-  }
 
   useEffect(() => {
     if (spent.current) return
     spent.current = true
-    attempt()
-    // Deliberately once, on first mount, with no dependencies. See the note
-    // at the top of the file: re-running this when the device goes away again
-    // would reopen Spotify every time the user closed it.
+    onLaunch()
+    // Deliberately once, on first mount, with no dependencies: re-running it
+    // when the device goes away again would reopen Spotify every time the
+    // user closed it.
   }, [])
 
+  const running = launch.phase === 'running'
+  const said = message(launch)
+
+  // No heading and no page. This is a strip along the bottom of the scene
+  // now: the machine is on screen behind it with its lid shut, which says
+  // "nothing is playing" better than a sentence can, and leaves this to say
+  // only what is being done about it.
   return (
-    <div className="screen screen--centered">
-      <h1>No turntable connected</h1>
-
-      {launching ? (
-        <p>Opening Spotify…</p>
-      ) : outcome ? (
-        <p>{message(outcome)}</p>
-      ) : (
-        <p>Open Spotify and press play.</p>
-      )}
-
-      <button type="button" disabled={busy || launching} onClick={outcome ? attempt : onRetry}>
-        {launching ? 'Opening…' : busy ? 'Checking…' : outcome ? 'Try again' : 'Check again'}
+    <>
+      <span className="notice__text">{said ?? 'Nothing is playing.'}</span>
+      <button
+        type="button"
+        disabled={busy || running}
+        onClick={launch.outcome ? onLaunch : onRetry}
+      >
+        {running ? 'Opening…' : busy ? 'Checking…' : launch.outcome ? 'Try again' : 'Check again'}
       </button>
-    </div>
+    </>
   )
 }

@@ -535,13 +535,17 @@ export async function listDevices(clientId: string): Promise<{ id: string | null
 }
 
 /**
- * Move playback to a device and start it in the same breath.
+ * Move playback to a device, optionally starting it.
  *
- * `play: true` is what makes this one call instead of two. A transfer followed
- * by a separate play races itself: the device is not reliably active the
- * instant the transfer returns, and the play then lands on nothing.
+ * `play: false` is the interesting one: it makes the device active without
+ * any music, which is what lets the machine open its lid before the first
+ * note rather than after it. The renderer sends play when the lid is up.
  */
-export async function transferTo(clientId: string, deviceId: string): Promise<CommandResult> {
+export async function transferTo(
+  clientId: string,
+  deviceId: string,
+  play: boolean,
+): Promise<CommandResult> {
   // Not through `command`, for the reason given above `playContext`: that one
   // sends no body on purpose, because a bodiless play is what resumes the
   // user's last context, and widening it would put a body on the disc click.
@@ -549,7 +553,7 @@ export async function transferTo(clientId: string, deviceId: string): Promise<Co
     await request(clientId, '/me/player', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device_ids: [deviceId], play: true }),
+      body: JSON.stringify({ device_ids: [deviceId], play }),
     })
     return { ok: true }
   } catch (cause) {

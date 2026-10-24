@@ -44,6 +44,15 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
 - `volume` throttled to ~1 call per 400ms.
 - Handle 429 with `Retry-After`.
 - `GET /me/player` returning **204 with an empty body is not an error** — it is the NO_DEVICE state.
+- **The lid leads the music, on the automatic launch only.** The sequence is: fetch Spotify, make
+  it the active device **without starting it**, let the machine appear with its lid shut, open the
+  lid, then send play. Arming without playing is what makes this possible — it ends the no-device
+  state, which is what puts the deck on screen at all, and the lid cannot rise on a screen that has
+  no deck. Pressing play by hand is never held back; only this one path pays the wait.
+- **The sequence lives in `useSync`, not on the screen that starts it.** Arming the device ends the
+  no-device state, so `NoDeviceScreen` is unmounted halfway through and would take the rest of the
+  sequence with it. The screen owns the one-shot that begins it and the message if it fails;
+  everything after the device appears belongs to `useSync`, which already owns the lid and actions.
 - **Vuelta fetches the deck, once.** Landing on NO_DEVICE with nothing to control is a dead end the
   app can get itself out of: `main/spotify/launch.ts` opens the `spotify:` URI, waits for the
   client to register as a device, and transfers playback to it with `play: true` — one call, because
@@ -59,7 +68,9 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
   than a boolean: the URI goes nowhere when Spotify is not installed (`openExternal` rejects, which
   is the only way to tell that from a slow start); a signed-out client never registers, so there is
   a 25s ceiling rather than a loop; and an account with nothing to resume accepts the transfer and
-  then plays nothing, which is checked for after a grace period.
+  then plays nothing — which is now the *play's* answer to give, since the transfer no longer
+  starts anything. That play goes through the bridge rather than `engine.actions.play()`, which
+  returns nothing: it is the one play in the app whose result is needed.
 - **No new scopes.** Devices and transfer both ride on the two already granted, which matters
   because a refresh never widens them.
 
@@ -123,6 +134,21 @@ the read fail with a 403.
   — a closed lid over a turning record is the app contradicting itself. This is the only
   music → lid direction; everything below about lid → music is unchanged. It runs for the whole
   session, not just at startup, because the record can start from the Spotify client at any time.
+- **The waiting state is the machine, not a page.** NO_DEVICE keeps the deck on screen with its
+  lid shut and puts the message in a strip along the bottom, on the browser bar's line. A page of
+  text made an ordinary wait look like an error and hid the thing worth watching — and it also
+  deferred mounting the canvas, so the lid's travel happened behind a blank window. With the
+  machine up throughout, the scene is long since drawn by the time a device appears and the
+  opening is simply seen. Measured from an empty start: deck visible at 1.8s with the lid shut,
+  five seconds of it, lid opens at 6.9s.
+- **The lid stays shut until the machine is on screen, whatever the music is doing.** Connecting is
+  not the same moment as appearing: finding or arming a device mounts the 3D canvas from nothing,
+  and measured across three cold mounts the machine is not drawn for about 1.0–1.2s (1222, 1044,
+  1039ms). Spotify often resumes by itself when launched, so `isPlaying` can be true before the
+  canvas has drawn a frame — the lid then travelled through a blank window and the deck appeared
+  already open. `LID_HOLD_AFTER_CONNECT_MS` makes the opening wait for the machine to exist on
+  screen; the music only says which way it should go. Measured after: the shut deck is visible for
+  about 1.0–1.8s before the lid moves.
 - **A lid shut by hand wins for 5 seconds.** Closing is the stop gesture, so it pauses and usually
   settles itself — a paused deck has no music for the lid to answer. But if the pause does not land,
   or the music is really on another device, `isPlaying` stays true and the lid springs open under

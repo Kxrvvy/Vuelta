@@ -21,7 +21,7 @@ import type {
   PlayerPoll,
   RenderState,
   TrackSummary,
-} from '../core/contract.js'
+  LaunchSpotifyResult,} from '../core/contract.js'
 import { INITIAL_RENDER_STATE, PLATTER_RPM } from '../core/contract.js'
 import type { Engine } from '../core/engine.js'
 import { createEngine } from '../core/engine.js'
@@ -54,6 +54,52 @@ const DISPLAY_OVERRIDE_MS = 6000
  * and the poll to catch up; short enough that it is not a mode.
  */
 const LID_HELD_SHUT_MS = 5000
+
+/**
+ * The launch sequence's two pauses.
+ *
+ * `LID_SETTLE_MS` is how long the music waits for the lid. The lid is damped
+ * rather than timed -- it eases toward open at lambda 3.2 -- so there is no
+ * duration to read off it; this is where it looks open. Only the automatic
+ * launch pays it. Pressing play by hand is never held back.
+ *
+ * `STAGE_SETTLE_MS` is the beat before that, and it is long because it is not
+ * waiting for React -- it is waiting for the scene to be *drawn*. Arming the
+ * device ends the no-device state, which mounts the canvas from nothing:
+ * shaders compile, the environment map is generated, textures load. For a good
+ * fraction of a second the window shows the backdrop and no machine at all.
+ *
+ * Measured across three cold mounts, the machine is not visibly drawn until
+ * about 1.0-1.2s in (1222ms, 1044ms, 1039ms). At 300ms the whole beat was
+ * spent inside that blank period: the lid began rising some 800ms before
+ * anything was on screen, so the deck first appeared with its lid already
+ * most of the way up and the closed pose was never seen -- which is the one
+ * thing this sequence exists to show.
+ *
+ * 2000 leaves roughly 900ms of visibly shut deck after it paints, which is
+ * long enough to read as shut rather than as a frame that flickered past.
+ */
+const LID_SETTLE_MS = 1100
+const STAGE_SETTLE_MS = 2000
+
+/**
+ * How long the lid stays shut after the app first connects, whatever the
+ * music is doing.
+ *
+ * The deck must be *seen* shut before it opens, and connecting is not the
+ * same moment as appearing: arming or finding a device mounts the 3D canvas
+ * from nothing, and measured across three cold mounts the machine is not
+ * drawn until about 1.0-1.2s later (1222ms, 1044ms, 1039ms).
+ *
+ * Without this hold the lid opens the instant the poll says playing -- which,
+ * when Spotify resumes by itself on launch, is before the canvas has drawn a
+ * single frame. The lid then travels through a blank window and the deck
+ * appears already open. The sequence was right and invisible.
+ *
+ * So the opening waits for the machine to exist on screen rather than for the
+ * music, and the music merely says which way it should go.
+ */
+const LID_HOLD_AFTER_CONNECT_MS = 1800
 
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
@@ -99,7 +145,21 @@ export type Display = {
   artist: string | null
 }
 
+/**
+ * Where the launch sequence has got to, for the screen that shows it.
+ *
+ * `outcome` is null until there is something to say. An `armed` outcome at
+ * the end means the whole sequence ran: Spotify came up, the lid opened and
+ * the music started.
+ */
+export type LaunchState = {
+  phase: 'idle' | 'running' | 'done'
+  outcome: LaunchSpotifyResult | null
+}
+
 export type Sync = {
+  launch: LaunchState
+  runLaunch: () => Promise<void>
   /** Live state for the skin. Mutated in place; never triggers a render. */
   stateRef: React.RefObject<RenderState>
   actions: Actions
@@ -132,6 +192,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
    * (`performance.now()`). See `LID_HELD_SHUT_MS`.
    */
   const closedByHandAt = useRef(Number.NEGATIVE_INFINITY)
+  /** When the app first had a device to mirror. Same clock. */
+  const connectedAt = useRef<number | null>(null)
 
   // M6. The transition is stepped every frame, so it lives in a ref; the
   // pre-fetched next track does too, because the frame loop reads it and must
@@ -242,9 +304,15 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       // "the record is already playing" is true whenever it is true -- the
       // music can start from the Spotify client at any point, not just before
       // Vuelta opens.
+      // First frame with a track in hand is the app connecting. On the rAF
+      // clock, like everything else compared against `now`.
+      if (connectedAt.current === null && value.track !== null) connectedAt.current = now
+
       if (
         value.isPlaying &&
         !lidOpenRef.current &&
+        connectedAt.current !== null &&
+        now - connectedAt.current > LID_HOLD_AFTER_CONNECT_MS &&
         now - closedByHandAt.current > LID_HELD_SHUT_MS
       ) {
         setLid(true)
@@ -508,6 +576,54 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     [engine, repoll],
   )
 
+  /**
+   * The launch sequence: fetch Spotify, show the closed deck, open the lid,
+   * then play.
+   *
+   * It lives here rather than on the no-device screen that starts it, because
+   * it outlives that screen: arming the device ends the no-device state, so
+   * the screen is unmounted halfway through and would take the rest of the
+   * sequence with it.
+   */
+  const [launch, setLaunch] = useState<LaunchState>({ phase: 'idle', outcome: null })
+
+  const runLaunch = useCallback(async (): Promise<void> => {
+    setLaunch({ phase: 'running', outcome: null })
+
+    let outcome: LaunchSpotifyResult
+    try {
+      outcome = await window.vuelta.launchSpotify()
+    } catch {
+      outcome = { kind: 'failed', message: 'Could not reach Spotify.' }
+    }
+
+    if (outcome.kind !== 'armed') {
+      setLaunch({ phase: 'done', outcome })
+      return
+    }
+
+    // Spotify is the active device but silent. Ask the poll for it straight
+    // away so the app leaves the no-device screen now rather than at the
+    // poll's own pace, then let the machine render before moving its lid.
+    await pollNow()
+    await new Promise((resolve) => setTimeout(resolve, STAGE_SETTLE_MS))
+
+    setLid(true)
+    await new Promise((resolve) => setTimeout(resolve, LID_SETTLE_MS))
+
+    // Through the bridge rather than `engine.actions.play()`, which returns
+    // nothing: this is the one play in the app whose answer is needed, because
+    // an account with no history accepts the transfer and then has nothing to
+    // resume, and that has to be told apart from success. The poll straight
+    // after is what lets the engine catch up without its optimistic override.
+    const played = await window.vuelta.play()
+    await pollNow()
+    setLaunch({
+      phase: 'done',
+      outcome: played.ok ? { kind: 'armed' } : { kind: 'nothing-to-resume' },
+    })
+  }, [pollNow, setLid])
+
   const beginArmDrag = useCallback(() => engine.beginArmDrag(), [engine])
   const dragToProgress = useCallback((ms: number) => engine.dragToProgress(ms), [engine])
   const endArmDrag = useCallback(() => engine.endArmDrag(Date.now()), [engine])
@@ -515,6 +631,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
   return {
     stateRef,
     actions,
+    launch,
+    runLaunch,
     track,
     display,
     readout,
