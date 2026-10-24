@@ -82,6 +82,25 @@ const LID_HELD_SHUT_MS = 5000
 const LID_SETTLE_MS = 1100
 const STAGE_SETTLE_MS = 2000
 
+/**
+ * How long the lid stays shut after the app first connects, whatever the
+ * music is doing.
+ *
+ * The deck must be *seen* shut before it opens, and connecting is not the
+ * same moment as appearing: arming or finding a device mounts the 3D canvas
+ * from nothing, and measured across three cold mounts the machine is not
+ * drawn until about 1.0-1.2s later (1222ms, 1044ms, 1039ms).
+ *
+ * Without this hold the lid opens the instant the poll says playing -- which,
+ * when Spotify resumes by itself on launch, is before the canvas has drawn a
+ * single frame. The lid then travels through a blank window and the deck
+ * appears already open. The sequence was right and invisible.
+ *
+ * So the opening waits for the machine to exist on screen rather than for the
+ * music, and the music merely says which way it should go.
+ */
+const LID_HOLD_AFTER_CONNECT_MS = 1800
+
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
   return {
@@ -173,6 +192,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
    * (`performance.now()`). See `LID_HELD_SHUT_MS`.
    */
   const closedByHandAt = useRef(Number.NEGATIVE_INFINITY)
+  /** When the app first had a device to mirror. Same clock. */
+  const connectedAt = useRef<number | null>(null)
 
   // M6. The transition is stepped every frame, so it lives in a ref; the
   // pre-fetched next track does too, because the frame loop reads it and must
@@ -283,9 +304,15 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       // "the record is already playing" is true whenever it is true -- the
       // music can start from the Spotify client at any point, not just before
       // Vuelta opens.
+      // First frame with a track in hand is the app connecting. On the rAF
+      // clock, like everything else compared against `now`.
+      if (connectedAt.current === null && value.track !== null) connectedAt.current = now
+
       if (
         value.isPlaying &&
         !lidOpenRef.current &&
+        connectedAt.current !== null &&
+        now - connectedAt.current > LID_HOLD_AFTER_CONNECT_MS &&
         now - closedByHandAt.current > LID_HELD_SHUT_MS
       ) {
         setLid(true)

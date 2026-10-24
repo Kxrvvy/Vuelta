@@ -134,6 +134,14 @@ the read fail with a 403.
   — a closed lid over a turning record is the app contradicting itself. This is the only
   music → lid direction; everything below about lid → music is unchanged. It runs for the whole
   session, not just at startup, because the record can start from the Spotify client at any time.
+- **The lid stays shut until the machine is on screen, whatever the music is doing.** Connecting is
+  not the same moment as appearing: finding or arming a device mounts the 3D canvas from nothing,
+  and measured across three cold mounts the machine is not drawn for about 1.0–1.2s (1222, 1044,
+  1039ms). Spotify often resumes by itself when launched, so `isPlaying` can be true before the
+  canvas has drawn a frame — the lid then travelled through a blank window and the deck appeared
+  already open. `LID_HOLD_AFTER_CONNECT_MS` makes the opening wait for the machine to exist on
+  screen; the music only says which way it should go. Measured after: the shut deck is visible for
+  about 1.0–1.8s before the lid moves.
 - **A lid shut by hand wins for 5 seconds.** Closing is the stop gesture, so it pauses and usually
   settles itself — a paused deck has no music for the lid to answer. But if the pause does not land,
   or the music is really on another device, `isPlaying` stays true and the lid springs open under
