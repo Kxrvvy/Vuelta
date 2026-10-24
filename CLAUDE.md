@@ -119,6 +119,23 @@ the read fail with a 403.
   two do not collide.
 - **Pause parks the arm.** Pause lifts the stylus a few millimetres *and* returns the arm to its rest position — the cradle in the machine looks, the vertical park in the flat-lay. The platter still spins down. This reverses the earlier cue-lever rule, where the arm hovered at its current angle: a paused turntable that has visibly stopped reads better than one frozen mid-sweep, and the rest position is the only part of the travel that says "not playing" on its own.
 - The arm **stays draggable while paused** and seek still commits on release; it simply returns to rest afterwards, because it is still paused. A drag outranks the park — `armAngleNow` in `core/armMath.ts` is the one place that ordering lives, and it is the same in every look.
+- **The lid answers the music.** Whenever playback is playing and the lid is shut, it opens itself
+  — a closed lid over a turning record is the app contradicting itself. This is the only
+  music → lid direction; everything below about lid → music is unchanged. It runs for the whole
+  session, not just at startup, because the record can start from the Spotify client at any time.
+- **A lid shut by hand wins for 5 seconds.** Closing is the stop gesture, so it pauses and usually
+  settles itself — a paused deck has no music for the lid to answer. But if the pause does not land,
+  or the music is really on another device, `isPlaying` stays true and the lid springs open under
+  the hand that just shut it. `LID_HELD_SHUT_MS` is that guard.
+- **Stamp it with `performance.now()`, never `Date.now()`.** The frame loop compares against the
+  rAF timestamp, which counts from page load; epoch milliseconds against it give a difference of
+  about −1.8e12, which is never greater than the grace. The lid could then never reopen at all,
+  and the first open at startup came five seconds late while the rAF clock climbed past the window
+  from zero. Both symptoms, one mixed clock.
+- **The view needs no equivalent.** `Stage` unmounts while there is no device and remounts when
+  playback appears, so the look resets to Main on its own every time the app comes back from
+  having nothing to control — and after that the user's choice stands. Playback starting again
+  must not pull them off Lyrics or the close-up.
 - **Opening the lid plays nothing.** It is mechanical: the lid rises and the machine waits. Playback starts when the **disc** is clicked, which issues the same bodiless `PUT /me/player/play` and resumes the last context.
 - **Closing the lid is the stop gesture** — only then does the arm return to `REST_ANGLE`. Closing the lid also pauses playback. The asymmetry with opening is deliberate.
 - **There is no stop button.** Spotify has no stop endpoint, and the lid is the stop gesture.
