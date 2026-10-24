@@ -43,6 +43,18 @@ const READOUT_HZ = 4
  */
 const DISPLAY_OVERRIDE_MS = 6000
 
+/**
+ * How long a lid closed by hand stays closed.
+ *
+ * Closing is the stop gesture, so it pauses -- and normally that settles it,
+ * because a paused deck has no music for the lid to answer to. But the pause
+ * has to reach Spotify and the poll has to agree, and if the music is really
+ * coming from another device it never will. Without this the lid springs back
+ * open under the hand that just shut it. Long enough for the command to land
+ * and the poll to catch up; short enough that it is not a mode.
+ */
+const LID_HELD_SHUT_MS = 5000
+
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
   return {
@@ -115,6 +127,11 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
 
   const stateRef = useRef<RenderState>({ ...INITIAL_RENDER_STATE })
   const lidOpenRef = useRef(false)
+  /**
+   * When the user last shut the lid themselves, on the frame loop's own clock
+   * (`performance.now()`). See `LID_HELD_SHUT_MS`.
+   */
+  const closedByHandAt = useRef(Number.NEGATIVE_INFINITY)
 
   // M6. The transition is stepped every frame, so it lives in a ref; the
   // pre-fetched next track does too, because the frame loop reads it and must
@@ -217,6 +234,22 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       // scene is drawing.
       // What the scene is drawing. Normally the polled track, or the queued
       // one while the M6 swap is mid-flight.
+      // A closed lid over a turning record is the app contradicting itself, so
+      // the lid answers the music. Only this direction is new: opening still
+      // plays nothing, and closing is still the stop gesture.
+      //
+      // It runs for the whole session rather than once at startup, because
+      // "the record is already playing" is true whenever it is true -- the
+      // music can start from the Spotify client at any point, not just before
+      // Vuelta opens.
+      if (
+        value.isPlaying &&
+        !lidOpenRef.current &&
+        now - closedByHandAt.current > LID_HELD_SHUT_MS
+      ) {
+        setLid(true)
+      }
+
       const shown = transition.showNext && nextUp ? nextUp : value.track
 
       // A skip writes an optimistic override, the same discipline the clock
@@ -398,6 +431,16 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
       if (lidOpenRef.current === open) return
       lidOpenRef.current = open
       setLidOpen(open)
+      // Stamped on the way down, so the automatic open below can tell a lid
+      // the user just shut from one that was never opened.
+      //
+      // `performance.now()`, not `Date.now()`: the frame loop compares this
+      // against the rAF timestamp, which counts from page load, and epoch
+      // milliseconds against it gives a difference of about -1.8e12. That is
+      // never greater than the grace, so the lid could never reopen -- and at
+      // startup it put the first automatic open five seconds late, because
+      // the rAF clock had to climb past the window from zero.
+      if (!open) closedByHandAt.current = performance.now()
       // Asymmetric on purpose, not a missing branch. Opening is mechanical:
       // the lid rises and the machine waits, because a lid does not start a
       // record — clicking the disc does. Closing is the stop gesture (spec
