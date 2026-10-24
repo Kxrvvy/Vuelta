@@ -391,6 +391,44 @@ input[type='text']:focus {
   overflow: hidden;
 }
 
+/* Where the system title bar was.
+   `titleBarStyle: 'hidden'` gives the renderer the whole window, so the
+   backdrop runs to the top edge and this strip sits on it carrying nothing
+   but the name. It is a drag region, because with no system bar there is
+   nothing else to pick the window up by -- and it is only 34px tall, matching
+   the overlay's height in main, because a drag region swallows clicks and the
+   close-up's corner preview is directly beneath it.
+
+   Above the settings corner's 50 so the caption buttons never fight it, and
+   `right` stops short of them: Windows draws its three over this strip's
+   right-hand end, and a drag region under them is harmless but a *label*
+   under them would not be. */
+.titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  padding-left: 0.95rem;
+  -webkit-app-region: drag;
+  pointer-events: auto;
+}
+
+.titlebar__mark {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  /* Over a blurred cover of any brightness, a bare light grey can vanish.
+     The shadow is what keeps it readable without giving it a plate to sit on. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
 /* The field: the playing cover, blurred until only its colour is left.
    Named `backdrop` and not `field`, because `.field` is already the setup
    screen's form row -- a full-window absolutely positioned rule under that

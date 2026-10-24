@@ -43,6 +43,15 @@ function applyContentSecurityPolicy(): void {
   })
 }
 
+/**
+ * The caption buttons' strip, in CSS pixels.
+ *
+ * Shared with the renderer through the stylesheet rather than through IPC:
+ * both sides need it, it never changes at runtime, and a round trip for a
+ * constant is a round trip for nothing.
+ */
+const TITLE_BAR_HEIGHT = 34
+
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 980,
@@ -54,6 +63,28 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#141210',
     title: 'Vuelta',
+    /**
+     * No system title bar. The window's own background is the playing cover,
+     * blurred, and a strip of OS grey across the top of it reads as a
+     * different application -- measured, Windows paints it a flat rgb(31,31,35)
+     * from the system theme, which has no relation to anything on screen.
+     *
+     * `hidden` hands the whole window to the renderer and leaves Windows
+     * drawing only the caption buttons, as an overlay. So the backdrop runs to
+     * the top edge and the buttons sit on it. The title and the icon go with
+     * the bar, which is why the app draws its own name -- see `TitleBar`.
+     *
+     * The overlay is transparent so the cover shows through behind the
+     * buttons; `symbolColor` is what keeps the glyphs legible over it, and it
+     * is the one thing here that cannot follow the artwork, so it is set light
+     * and left alone. M7 takes this the rest of the way to frameless.
+     */
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: 'rgba(0,0,0,0)',
+      symbolColor: '#e9e4dd',
+      height: TITLE_BAR_HEIGHT,
+    },
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       // The three settings that make the preload bridge the only way in.
