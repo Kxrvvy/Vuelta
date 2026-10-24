@@ -520,6 +520,46 @@ export async function playContext(
   }
 }
 
+/**
+ * The devices Spotify can see for this account.
+ *
+ * Rides on `user-read-playback-state`, the scope the mirror already needs, so
+ * this costs nothing in the consent screen.
+ */
+export async function listDevices(clientId: string): Promise<{ id: string | null; name: string }[]> {
+  const body = await request<{ devices?: { id: string | null; name: string }[] }>(
+    clientId,
+    '/me/player/devices',
+  )
+  return body?.devices ?? []
+}
+
+/**
+ * Move playback to a device and start it in the same breath.
+ *
+ * `play: true` is what makes this one call instead of two. A transfer followed
+ * by a separate play races itself: the device is not reliably active the
+ * instant the transfer returns, and the play then lands on nothing.
+ */
+export async function transferTo(clientId: string, deviceId: string): Promise<CommandResult> {
+  // Not through `command`, for the reason given above `playContext`: that one
+  // sends no body on purpose, because a bodiless play is what resumes the
+  // user's last context, and widening it would put a body on the disc click.
+  try {
+    await request(clientId, '/me/player', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_ids: [deviceId], play: true }),
+    })
+    return { ok: true }
+  } catch (cause) {
+    const error = toVueltaError(cause)
+    return error.retryAfterMs === undefined
+      ? { ok: false, code: error.code, message: error.message }
+      : { ok: false, code: error.code, message: error.message, retryAfterMs: error.retryAfterMs }
+  }
+}
+
 export function addToQueue(clientId: string, trackUri: string): Promise<CommandResult> {
   return command(clientId, 'POST', `/me/player/queue?uri=${encodeURIComponent(trackUri)}`)
 }

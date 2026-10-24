@@ -273,6 +273,28 @@ export type PlayerPoll =
  * invoking remote method …", which is exactly the raw-error experience
  * spec §3 warns against.
  */
+/**
+ * What came of trying to open Spotify and start it.
+ *
+ * Every failure here ends in silence if it is not named: the URI goes nowhere
+ * when Spotify is not installed, a signed-out client never registers as a
+ * device, and an account with nothing to resume transfers happily and then
+ * plays no music. So the renderer gets the cause, not just a boolean.
+ */
+export type LaunchSpotifyResult =
+  /** Transferred and playing. */
+  | { kind: 'started' }
+  /** A device was already there, so nothing was launched. */
+  | { kind: 'device-already' }
+  /** The `spotify:` link went nowhere. */
+  | { kind: 'not-installed' }
+  /** Launched, but no device ever registered. Signed out, or just slow. */
+  | { kind: 'never-appeared' }
+  /** Connected, but the account had no playback to continue. */
+  | { kind: 'nothing-to-resume' }
+  /** Spotify answered, and said no. */
+  | { kind: 'failed'; message: string }
+
 export type CommandResult =
   | { ok: true }
   | { ok: false; code: VueltaErrorCode; message: string; retryAfterMs?: number }
@@ -360,6 +382,7 @@ export type VueltaBridge = {
   // --- playback control ---------------------------------------------------
   // Mirrors `Actions`, but async and fallible, because each one is a network
   // round trip through Spotify's servers to the desktop client.
+  launchSpotify(): Promise<LaunchSpotifyResult>
   play(): Promise<CommandResult>
   pause(): Promise<CommandResult>
   /** Commits on drag release only, never during the drag. */

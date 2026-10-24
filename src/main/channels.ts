@@ -12,6 +12,7 @@ export const CHANNELS = {
 
   // Playback control. Each is a round trip to Spotify's servers, which relay
   // to the desktop client — Vuelta plays no audio of its own.
+  launchSpotify: 'vuelta:launch-spotify',
   play: 'vuelta:play',
   pause: 'vuelta:pause',
   seek: 'vuelta:seek',

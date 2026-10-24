@@ -44,6 +44,24 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
 - `volume` throttled to ~1 call per 400ms.
 - Handle 429 with `Retry-After`.
 - `GET /me/player` returning **204 with an empty body is not an error** — it is the NO_DEVICE state.
+- **Vuelta fetches the deck, once.** Landing on NO_DEVICE with nothing to control is a dead end the
+  app can get itself out of: `main/spotify/launch.ts` opens the `spotify:` URI, waits for the
+  client to register as a device, and transfers playback to it with `play: true` — one call, because
+  a transfer followed by a separate play races itself.
+- **Once per session, and only on startup — this is the rule that matters.** The app reaches
+  NO_DEVICE two ways that look identical from inside: Spotify was never running, or the user just
+  closed it. "No device, so launch it" turns the second into a fight the user can only win by
+  quitting Vuelta first. The attempt is spent on first mount of the screen and never retried on its
+  own; after that the button is theirs.
+- **If any device already exists, it launches nothing.** An idle phone is something the user can
+  already reach, and opening a second player on top of it is presumptuous.
+- **Every failure here is silent unless named**, so `LaunchSpotifyResult` carries the cause rather
+  than a boolean: the URI goes nowhere when Spotify is not installed (`openExternal` rejects, which
+  is the only way to tell that from a slow start); a signed-out client never registers, so there is
+  a 25s ceiling rather than a loop; and an account with nothing to resume accepts the transfer and
+  then plays nothing, which is checked for after a grace period.
+- **No new scopes.** Devices and transfer both ride on the two already granted, which matters
+  because a refresh never widens them.
 
 ## Auth rules
 

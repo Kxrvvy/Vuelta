@@ -21,6 +21,7 @@ const bridge: VueltaBridge = {
   play: () => ipcRenderer.invoke(CHANNELS.play),
   pause: () => ipcRenderer.invoke(CHANNELS.pause),
   seek: (positionMs) => ipcRenderer.invoke(CHANNELS.seek, positionMs),
+  launchSpotify: () => ipcRenderer.invoke(CHANNELS.launchSpotify),
   next: () => ipcRenderer.invoke(CHANNELS.next),
   previous: () => ipcRenderer.invoke(CHANNELS.previous),
   setVolume: (percent) => ipcRenderer.invoke(CHANNELS.setVolume, percent),
