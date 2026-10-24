@@ -63,12 +63,24 @@ const LID_HELD_SHUT_MS = 5000
  * duration to read off it; this is where it looks open. Only the automatic
  * launch pays it. Pressing play by hand is never held back.
  *
- * `STAGE_SETTLE_MS` is the beat before that, which buys the machine time to
- * appear at all: arming the device ends the no-device state, and the deck has
- * to be on screen with its lid shut before opening it means anything.
+ * `STAGE_SETTLE_MS` is the beat before that, and it is long because it is not
+ * waiting for React -- it is waiting for the scene to be *drawn*. Arming the
+ * device ends the no-device state, which mounts the canvas from nothing:
+ * shaders compile, the environment map is generated, textures load. For a good
+ * fraction of a second the window shows the backdrop and no machine at all.
+ *
+ * Measured across three cold mounts, the machine is not visibly drawn until
+ * about 1.0-1.2s in (1222ms, 1044ms, 1039ms). At 300ms the whole beat was
+ * spent inside that blank period: the lid began rising some 800ms before
+ * anything was on screen, so the deck first appeared with its lid already
+ * most of the way up and the closed pose was never seen -- which is the one
+ * thing this sequence exists to show.
+ *
+ * 2000 leaves roughly 900ms of visibly shut deck after it paints, which is
+ * long enough to read as shut rather than as a frame that flickered past.
  */
 const LID_SETTLE_MS = 1100
-const STAGE_SETTLE_MS = 300
+const STAGE_SETTLE_MS = 2000
 
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
