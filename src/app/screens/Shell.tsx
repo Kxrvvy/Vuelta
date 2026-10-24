@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { TitleBar } from '../TitleBar.js'
 
 /**
  * The frame every screen sits in: the screen itself, and a settings button in
@@ -73,6 +74,12 @@ export function Shell({ children, settings }: { children: ReactNode; settings: R
 
   return (
     <div className="shell">
+      {/* The window's own title strip. In the shell rather than the stage, so
+          the setup and no-device screens have a name and a drag handle too --
+          they have no stage at all, and a window that cannot be moved is a
+          worse first run than a plain one. */}
+      <TitleBar />
+
       {children}
 
       {/* A backdrop rather than a window listener, so the click that closes

@@ -213,6 +213,18 @@ Switched from the browser bar or with keys 1/2/3. Session-only; starts on **Main
 - **Switching to it shrinks the canvas, it does not unmount it.** Tearing the `<Canvas>` down throws
   away the generated environment map and every texture and rebuilds both on the way back, so
   `Stage` sets `display: none` on `.stage__machine` instead.
+- **There is no system title bar.** `titleBarStyle: 'hidden'` hands the whole window to the
+  renderer and leaves Windows drawing only the caption buttons, as a transparent overlay — so the
+  backdrop runs to the top edge and the buttons sit on the artwork. A strip of OS grey across the
+  top read as a different application once the field became a blurred cover; measured, Windows
+  paints it a flat `rgb(31,31,35)` from the system theme, which answers to nothing on screen.
+- **Hiding it costs two things, and both have to come back.** The title and icon go, so `TitleBar`
+  draws the name itself; and there is nothing left to pick the window up by, so that strip is a
+  **drag region**. It is only 34px tall and no taller, because a drag region swallows clicks and
+  the close-up's corner preview is directly beneath it. It lives in the shell, not the stage, so
+  the setup and no-device screens can be moved too.
+- **`symbolColor` is the one thing that cannot follow the artwork.** The caption glyphs are drawn
+  by Windows over whatever the cover happens to be, so they are set light once and left alone.
 - **One field for all three looks, and it is the playing cover.** `app/FieldBackdrop.tsx` draws the
   album art behind the whole app, blurred to 60px so only its colour survives, dimmed to half
   brightness and lifted slightly in saturation. **Nothing else paints a background any more**: the
