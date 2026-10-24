@@ -134,6 +134,13 @@ the read fail with a 403.
   — a closed lid over a turning record is the app contradicting itself. This is the only
   music → lid direction; everything below about lid → music is unchanged. It runs for the whole
   session, not just at startup, because the record can start from the Spotify client at any time.
+- **The waiting state is the machine, not a page.** NO_DEVICE keeps the deck on screen with its
+  lid shut and puts the message in a strip along the bottom, on the browser bar's line. A page of
+  text made an ordinary wait look like an error and hid the thing worth watching — and it also
+  deferred mounting the canvas, so the lid's travel happened behind a blank window. With the
+  machine up throughout, the scene is long since drawn by the time a device appears and the
+  opening is simply seen. Measured from an empty start: deck visible at 1.8s with the lid shut,
+  five seconds of it, lid opens at 6.9s.
 - **The lid stays shut until the machine is on screen, whatever the music is doing.** Connecting is
   not the same moment as appearing: finding or arming a device mounts the 3D canvas from nothing,
   and measured across three cold mounts the machine is not drawn for about 1.0–1.2s (1222, 1044,

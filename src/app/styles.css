@@ -391,6 +391,42 @@ input[type='text']:focus {
   overflow: hidden;
 }
 
+/* The waiting strip, along the foot of the scene.
+
+   The no-device state used to be a page of text with no machine on it, which
+   made an ordinary wait look like an error and hid the thing worth watching:
+   the deck is right there with its lid shut, and the lid rises when the music
+   starts. Sitting on the browser bar's line, because it is the same kind of
+   thing and stands where the bar will stand once the lid is up. */
+.notice {
+  position: absolute;
+  left: 50%;
+  bottom: 0.85rem;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(22, 19, 17, 0.82);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.notice__text {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.notice button {
+  padding: 0.32rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
 /* Where the system title bar was.
    `titleBarStyle: 'hidden'` gives the renderer the whole window, so the
    backdrop runs to the top edge and this strip sits on it carrying nothing

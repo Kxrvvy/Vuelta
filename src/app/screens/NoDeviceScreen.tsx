@@ -3,7 +3,10 @@
  *
  * `GET /me/player` answering 204 with an empty body is not an error; it means
  * Spotify isn't running or isn't the active device. The spec is explicit that
- * this "happens constantly" and "needs a designed screen, not an error toast".
+ * this "happens constantly" and "needs a designed screen, not an error toast"
+ * -- and it is no longer a screen at all, which is further in the same
+ * direction: the machine stays on screen with its lid shut and this is a strip
+ * along the bottom of it.
  *
  * It no longer only waits. Vuelta is a remote control, so landing here with
  * nothing to control is a dead end the app can get itself out of: the first
@@ -69,10 +72,13 @@ export function NoDeviceScreen({
   const running = launch.phase === 'running'
   const said = message(launch)
 
+  // No heading and no page. This is a strip along the bottom of the scene
+  // now: the machine is on screen behind it with its lid shut, which says
+  // "nothing is playing" better than a sentence can, and leaves this to say
+  // only what is being done about it.
   return (
-    <div className="screen screen--centered">
-      <h1>No turntable connected</h1>
-      <p>{said ?? 'Open Spotify and press play.'}</p>
+    <>
+      <span className="notice__text">{said ?? 'Nothing is playing.'}</span>
       <button
         type="button"
         disabled={busy || running}
@@ -80,6 +86,6 @@ export function NoDeviceScreen({
       >
         {running ? 'Opening…' : busy ? 'Checking…' : launch.outcome ? 'Try again' : 'Check again'}
       </button>
-    </div>
+    </>
   )
 }
