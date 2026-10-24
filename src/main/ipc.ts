@@ -7,6 +7,7 @@
  * core/contract.ts.
  */
 
+import { launchSpotify } from './spotify/launch.js'
 import { clipboard, ipcMain } from 'electron'
 import type {
   AuthOutcome,
@@ -18,7 +19,7 @@ import type {
   QueueResult,
   SaveClientIdResult,
   SetupInfo,
-} from '../core/contract.js'
+  LaunchSpotifyResult,} from '../core/contract.js'
 import { scopesSatisfied } from '../core/contract.js'
 import { runAuthFlow } from './auth/flow.js'
 import { CHANNELS } from './channels.js'
@@ -137,6 +138,17 @@ export function registerIpcHandlers(): void {
       }
       return run(clientId)
     }
+
+  // Fetching the deck: open Spotify, wait for it, hand playback to it. One
+  // call, because every step of it needs the client id and the network, and
+  // both live on this side.
+  ipcMain.handle(CHANNELS.launchSpotify, async (): Promise<LaunchSpotifyResult> => {
+    // Not through `withClientId`: that one answers with a `CommandResult`,
+    // and this call's whole point is to say *which* way it failed.
+    const { clientId } = readConfig()
+    if (!clientId) return { kind: 'failed', message: 'No Client ID has been set yet.' }
+    return launchSpotify(clientId)
+  })
 
   ipcMain.handle(CHANNELS.play, withClientId(play))
   ipcMain.handle(CHANNELS.pause, withClientId(pause))
