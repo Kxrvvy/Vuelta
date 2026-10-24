@@ -21,7 +21,7 @@ import type {
   PlayerPoll,
   RenderState,
   TrackSummary,
-} from '../core/contract.js'
+  LaunchSpotifyResult,} from '../core/contract.js'
 import { INITIAL_RENDER_STATE, PLATTER_RPM } from '../core/contract.js'
 import type { Engine } from '../core/engine.js'
 import { createEngine } from '../core/engine.js'
@@ -54,6 +54,21 @@ const DISPLAY_OVERRIDE_MS = 6000
  * and the poll to catch up; short enough that it is not a mode.
  */
 const LID_HELD_SHUT_MS = 5000
+
+/**
+ * The launch sequence's two pauses.
+ *
+ * `LID_SETTLE_MS` is how long the music waits for the lid. The lid is damped
+ * rather than timed -- it eases toward open at lambda 3.2 -- so there is no
+ * duration to read off it; this is where it looks open. Only the automatic
+ * launch pays it. Pressing play by hand is never held back.
+ *
+ * `STAGE_SETTLE_MS` is the beat before that, which buys the machine time to
+ * appear at all: arming the device ends the no-device state, and the deck has
+ * to be on screen with its lid shut before opening it means anything.
+ */
+const LID_SETTLE_MS = 1100
+const STAGE_SETTLE_MS = 300
 
 /** The port, backed by the preload bridge. This is the only place they meet. */
 function bridgePort(): PlaybackPort {
@@ -99,7 +114,21 @@ export type Display = {
   artist: string | null
 }
 
+/**
+ * Where the launch sequence has got to, for the screen that shows it.
+ *
+ * `outcome` is null until there is something to say. An `armed` outcome at
+ * the end means the whole sequence ran: Spotify came up, the lid opened and
+ * the music started.
+ */
+export type LaunchState = {
+  phase: 'idle' | 'running' | 'done'
+  outcome: LaunchSpotifyResult | null
+}
+
 export type Sync = {
+  launch: LaunchState
+  runLaunch: () => Promise<void>
   /** Live state for the skin. Mutated in place; never triggers a render. */
   stateRef: React.RefObject<RenderState>
   actions: Actions
@@ -508,6 +537,54 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
     [engine, repoll],
   )
 
+  /**
+   * The launch sequence: fetch Spotify, show the closed deck, open the lid,
+   * then play.
+   *
+   * It lives here rather than on the no-device screen that starts it, because
+   * it outlives that screen: arming the device ends the no-device state, so
+   * the screen is unmounted halfway through and would take the rest of the
+   * sequence with it.
+   */
+  const [launch, setLaunch] = useState<LaunchState>({ phase: 'idle', outcome: null })
+
+  const runLaunch = useCallback(async (): Promise<void> => {
+    setLaunch({ phase: 'running', outcome: null })
+
+    let outcome: LaunchSpotifyResult
+    try {
+      outcome = await window.vuelta.launchSpotify()
+    } catch {
+      outcome = { kind: 'failed', message: 'Could not reach Spotify.' }
+    }
+
+    if (outcome.kind !== 'armed') {
+      setLaunch({ phase: 'done', outcome })
+      return
+    }
+
+    // Spotify is the active device but silent. Ask the poll for it straight
+    // away so the app leaves the no-device screen now rather than at the
+    // poll's own pace, then let the machine render before moving its lid.
+    await pollNow()
+    await new Promise((resolve) => setTimeout(resolve, STAGE_SETTLE_MS))
+
+    setLid(true)
+    await new Promise((resolve) => setTimeout(resolve, LID_SETTLE_MS))
+
+    // Through the bridge rather than `engine.actions.play()`, which returns
+    // nothing: this is the one play in the app whose answer is needed, because
+    // an account with no history accepts the transfer and then has nothing to
+    // resume, and that has to be told apart from success. The poll straight
+    // after is what lets the engine catch up without its optimistic override.
+    const played = await window.vuelta.play()
+    await pollNow()
+    setLaunch({
+      phase: 'done',
+      outcome: played.ok ? { kind: 'armed' } : { kind: 'nothing-to-resume' },
+    })
+  }, [pollNow, setLid])
+
   const beginArmDrag = useCallback(() => engine.beginArmDrag(), [engine])
   const dragToProgress = useCallback((ms: number) => engine.dragToProgress(ms), [engine])
   const endArmDrag = useCallback(() => engine.endArmDrag(Date.now()), [engine])
@@ -515,6 +592,8 @@ export function useSync(store: VueltaStore, enabled: boolean): Sync {
   return {
     stateRef,
     actions,
+    launch,
+    runLaunch,
     track,
     display,
     readout,

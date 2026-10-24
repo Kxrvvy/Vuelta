@@ -44,6 +44,15 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
 - `volume` throttled to ~1 call per 400ms.
 - Handle 429 with `Retry-After`.
 - `GET /me/player` returning **204 with an empty body is not an error** — it is the NO_DEVICE state.
+- **The lid leads the music, on the automatic launch only.** The sequence is: fetch Spotify, make
+  it the active device **without starting it**, let the machine appear with its lid shut, open the
+  lid, then send play. Arming without playing is what makes this possible — it ends the no-device
+  state, which is what puts the deck on screen at all, and the lid cannot rise on a screen that has
+  no deck. Pressing play by hand is never held back; only this one path pays the wait.
+- **The sequence lives in `useSync`, not on the screen that starts it.** Arming the device ends the
+  no-device state, so `NoDeviceScreen` is unmounted halfway through and would take the rest of the
+  sequence with it. The screen owns the one-shot that begins it and the message if it fails;
+  everything after the device appears belongs to `useSync`, which already owns the lid and actions.
 - **Vuelta fetches the deck, once.** Landing on NO_DEVICE with nothing to control is a dead end the
   app can get itself out of: `main/spotify/launch.ts` opens the `spotify:` URI, waits for the
   client to register as a device, and transfers playback to it with `play: true` — one call, because
@@ -59,7 +68,9 @@ If `core/` imports React, or a skin imports an API client, the boundary is broke
   than a boolean: the URI goes nowhere when Spotify is not installed (`openExternal` rejects, which
   is the only way to tell that from a slow start); a signed-out client never registers, so there is
   a 25s ceiling rather than a loop; and an account with nothing to resume accepts the transfer and
-  then plays nothing, which is checked for after a grace period.
+  then plays nothing — which is now the *play's* answer to give, since the transfer no longer
+  starts anything. That play goes through the bridge rather than `engine.actions.play()`, which
+  returns nothing: it is the one play in the app whose result is needed.
 - **No new scopes.** Devices and transfer both ride on the two already granted, which matters
   because a refresh never widens them.
 

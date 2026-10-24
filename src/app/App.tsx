@@ -146,7 +146,14 @@ export function App() {
       case 'connecting':
         return <ConnectingScreen />
       case 'no-device':
-        return <NoDeviceScreen busy={busy} onRetry={() => void checkAgain()} />
+        return (
+          <NoDeviceScreen
+            busy={busy}
+            onRetry={() => void checkAgain()}
+            launch={sync.launch}
+            onLaunch={() => void sync.runLaunch()}
+          />
+        )
       case 'playing':
       case 'paused':
         return (
