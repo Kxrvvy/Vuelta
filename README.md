@@ -102,10 +102,21 @@ shows what Spotify is playing; it only lets you decide which record goes on.
 
 ### It fetches the deck for you
 
+<p align="center">
+  <img src="docs/images/waiting.png" alt="Vuelta waiting with nothing to control: the turntable seen from the front with its lid closed, and a small strip along the bottom reading Opening Spotify" width="100%">
+</p>
+
 Open Vuelta with Spotify closed and it opens Spotify, waits for it to register, makes it the
 active device, **opens the lid, and then starts the music** — in that order, so the first note
 lands on an open deck rather than a closed one. Measured from cold with Spotify quit: deck on
 screen at 1.1s, playing by 10.2s.
+
+**The waiting state is the machine, not a page.** Above is what you see while that happens: the
+deck sitting there with its lid shut, and the message in a strip along the bottom where the browser
+bar will be. It used to be a page of text, which made an ordinary wait look like an error and hid
+the one thing worth watching — and because that page deferred mounting the 3D canvas, the lid's
+travel happened behind a blank window. With the machine up throughout, the scene is long since
+drawn by the time a device appears, so the lid opening is simply *seen*.
 
 It does this once per launch and never again. "No device, so launch it" as a standing rule would
 turn closing Spotify into a fight you could only win by quitting Vuelta first.
