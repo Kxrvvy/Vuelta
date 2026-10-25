@@ -463,6 +463,90 @@ input[type='text']:focus {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
   -webkit-app-region: no-drag;
   user-select: none;
+  /* The same fade as the browser bar and the settings gear, so all of the
+     chrome goes together. */
+  transition: opacity 260ms ease;
+}
+
+/* Minimise, maximise and close -- the app's own, because Windows' overlay
+   could not be dismissed with the rest of the chrome. Pushed to the right
+   edge, where the OS used to draw them. */
+.titlebar__controls {
+  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  -webkit-app-region: no-drag;
+  transition: opacity 260ms ease;
+}
+
+.titlebar__button {
+  /* 46px is what Windows gives a caption button, and the muscle memory for
+     the close button's corner is worth matching exactly. */
+  width: 46px;
+  height: 100%;
+  /* The global button rule sets 0.5rem 1.1rem, and with border-box that is
+     wider than this button: the content box would collapse and the glyph
+     would sit off-centre. An explicitly sized button must clear it. */
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  display: grid;
+  place-items: center;
+  /* The mark beside it carries one for the same reason: over a blurred cover
+     of any brightness a bare light grey can vanish. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.titlebar__button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.titlebar__button:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Windows' own close-button red. The one control that warns you what it is. */
+.titlebar__button--close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.titlebar__button--close:active {
+  background: #f1707a;
+}
+
+/* Dismissing the chrome takes the title and the caption buttons with it.
+   The fade is on these two and never on `.titlebar`, which stays a drag
+   region throughout -- hiding the chrome must not nail the window to the
+   desktop. The buttons also stop taking clicks, because an invisible close
+   button is a trap. */
+body[data-caption='hidden'] .titlebar__mark,
+body[data-caption='hidden'] .titlebar__controls {
+  opacity: 0;
+}
+
+body[data-caption='hidden'] .titlebar__controls {
+  pointer-events: none;
+}
+
+/* The second way back: reaching for the top edge. These outrank the rules
+   above on specificity, so the peek wins while the pointer is up there and
+   the dismissed state resumes the moment it leaves. */
+body[data-caption='hidden'] .titlebar[data-peek='true'] .titlebar__mark,
+body[data-caption='hidden'] .titlebar[data-peek='true'] .titlebar__controls {
+  opacity: 1;
+}
+
+body[data-caption='hidden'] .titlebar[data-peek='true'] .titlebar__controls {
+  pointer-events: auto;
 }
 
 /* The field: the playing cover, blurred until only its colour is left.

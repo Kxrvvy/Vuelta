@@ -30,4 +30,13 @@ export const CHANNELS = {
   // Lyrics, from LRCLIB rather than Spotify. One fetch per track, and only
   // while the lyrics view is open.
   getLyrics: 'vuelta:get-lyrics',
+
+  // The window's own caption buttons. Windows draws none of its own for
+  // this window any more -- see `titleBarStyle` in index.ts -- so minimise,
+  // maximise and close are the app's, which is what lets them be dismissed
+  // with the rest of the chrome.
+  windowMinimize: 'vuelta:window-minimize',
+  windowToggleMaximize: 'vuelta:window-toggle-maximize',
+  windowClose: 'vuelta:window-close',
+  windowIsMaximized: 'vuelta:window-is-maximized',
 } as const

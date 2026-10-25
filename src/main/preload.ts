@@ -35,6 +35,11 @@ const bridge: VueltaBridge = {
   addToQueue: (trackUri) => ipcRenderer.invoke(CHANNELS.addToQueue, trackUri),
 
   getLyrics: (query) => ipcRenderer.invoke(CHANNELS.getLyrics, query),
+
+  minimizeWindow: () => ipcRenderer.invoke(CHANNELS.windowMinimize),
+  toggleMaximizeWindow: () => ipcRenderer.invoke(CHANNELS.windowToggleMaximize),
+  closeWindow: () => ipcRenderer.invoke(CHANNELS.windowClose),
+  isWindowMaximized: () => ipcRenderer.invoke(CHANNELS.windowIsMaximized),
 }
 
 contextBridge.exposeInMainWorld('vuelta', bridge)
