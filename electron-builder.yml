@@ -1,11 +1,9 @@
 # Packaging configuration.
 #
-# Declared at M0 so the shape of the build is settled, but NOT exercised yet —
-# packaging is M7. Expect to revisit icons, signing, and the NSIS options then.
-#
 # Windows SmartScreen will flag the unsigned installer. That is expected and
 # documented rather than fixed: code signing certificates cost hundreds per year
-# and are not worth it for this project (spec §3).
+# and are not worth it for this project (spec §3). The way through is
+# "More info" -> "Run anyway", once, on first install.
 
 appId: com.vuelta.app
 productName: Vuelta
@@ -16,16 +14,32 @@ directories:
   buildResources: build
 
 # electron-vite has already bundled everything into out/, so only that ships.
+# There are no runtime `dependencies` at all -- every package is a devDependency
+# and is either bundled or build-time only -- so omitting node_modules here is
+# correct rather than an oversight. `externalizeDepsPlugin` externalizes
+# `dependencies` only, and there are none to externalize.
 files:
   - out/**/*
   - package.json
+
+# `Vuelta-0.1.0-setup.exe` rather than electron-builder's default
+# `Vuelta Setup 0.1.0.exe`: no spaces, so it survives being passed around.
+artifactName: ${productName}-${version}-setup.${ext}
 
 win:
   target:
     - target: nsis
       arch: [x64]
 
+# The icon is `build/icon.png`, found by convention in `buildResources` above
+# and never named here. electron-builder generates the whole multi-resolution
+# .ico from it, so there is no .ico in the repo to keep in step.
+
 nsis:
+  # A real installer, not a one-click drop: it asks where to go, installs for
+  # this user only (so it needs no admin prompt), and leaves an uninstaller in
+  # Add/Remove Programs.
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  shortcutName: Vuelta
