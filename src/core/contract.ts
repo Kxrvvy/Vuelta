@@ -409,6 +409,16 @@ export type VueltaBridge = {
   // Not Spotify: Spotify's Web API has no lyrics endpoint. This one goes to
   // LRCLIB, and only while the lyrics view is open.
   getLyrics(query: LyricsQuery): Promise<LyricsResult>
+
+  // --- the window itself ----------------------------------------------
+  // Windows draws no caption buttons for this window, so these three are
+  // the app's own. They are here and not in `Actions` because `Actions` is
+  // playback: a skin must not be able to close the window.
+  minimizeWindow(): Promise<void>
+  /** Resolves to whether the window ended up maximized. */
+  toggleMaximizeWindow(): Promise<boolean>
+  closeWindow(): Promise<void>
+  isWindowMaximized(): Promise<boolean>
 }
 
 /** Spotify Client IDs are 32 hex characters. Shared so both sides validate identically. */

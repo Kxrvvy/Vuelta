@@ -180,12 +180,21 @@ export function Stage({
   // so sits above this — it cannot be handed a prop. The flag goes on the
   // document and the stylesheet picks it up, so the corner comes and goes with
   // the browser bar instead of sitting over a dismissed scene on its own.
+  // The caption strip is a separate flag, and deliberately not the same one.
+  // With the lid shut there is no gesture to bring the chrome back --
+  // `dismiss` returns early -- so hiding the window's own minimise, maximise
+  // and close there would leave no way to close the app but Alt+F4. The title
+  // goes only when the user actually dismissed it, which needs an open lid.
+  const captionShown = barShown || !sync.lidOpen
+
   useEffect(() => {
     document.body.dataset.chrome = barShown ? 'shown' : 'hidden'
+    document.body.dataset.caption = captionShown ? 'shown' : 'hidden'
     return () => {
       delete document.body.dataset.chrome
+      delete document.body.dataset.caption
     }
-  }, [barShown])
+  }, [barShown, captionShown])
 
   // One measurement for whichever column is mounted. The hook takes a
   // callback ref precisely so it can follow the swap.

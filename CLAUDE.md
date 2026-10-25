@@ -484,7 +484,18 @@ Anticipated, not reactive. Pre-fetch `GET /me/player/queue` at track start. Begi
 | **M6** | Record-swap animation lands on the track boundary using queue pre-fetch. |
 | **M7** | Tray icon, always-on-top toggle, frameless window, NO_DEVICE screen, packaged installer. |
 
-**Currently on M0.** Do not build turntable UI during M0.
+**Currently on M7**, which is nearly done: the frameless window, the NO_DEVICE
+state and the packaged installer are all built. **The tray icon and the
+always-on-top toggle are what remain.**
+
+The app is packaged with `npm run dist` — electron-builder, configured in
+`electron-builder.yml`, writing an unsigned NSIS installer to `release/`. Two
+things about that are worth knowing before touching it. The icon is
+`build/icon.png` and is a **capture of the app's own Lyrics view**, not a
+drawing: that view is the bare deck, since the speakers are Main's alone. And
+**the Content-Security-Policy in `main/index.ts` only applies when packaged** —
+dev has none at all, so anything it blocks is invisible until you build. Use
+`npm run dist:dir` to exercise it without waiting for the installer to compile.
 
 The split at M1 matters: everything up to there is plumbing with real unknowns. Everything after is drawing and animating, where nothing can surprise you — only take time.
 

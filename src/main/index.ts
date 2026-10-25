@@ -1,6 +1,10 @@
 /**
- * Electron main entry. M0: a plain window, nothing framed or tray-bound yet —
- * that is M7.
+ * Electron main entry.
+ *
+ * No longer the plain window it describes itself as at M0: the frame is gone
+ * (`titleBarStyle: 'hidden'`, so the backdrop runs to the top edge) and the app
+ * is packaged by electron-builder. The tray icon and the always-on-top toggle
+ * are what is left of M7.
  */
 
 import { app, BrowserWindow, Menu, session, shell } from 'electron'
@@ -43,15 +47,6 @@ function applyContentSecurityPolicy(): void {
   })
 }
 
-/**
- * The caption buttons' strip, in CSS pixels.
- *
- * Shared with the renderer through the stylesheet rather than through IPC:
- * both sides need it, it never changes at runtime, and a round trip for a
- * constant is a round trip for nothing.
- */
-const TITLE_BAR_HEIGHT = 34
-
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 980,
@@ -64,27 +59,28 @@ function createWindow(): void {
     backgroundColor: '#141210',
     title: 'Vuelta',
     /**
-     * No system title bar. The window's own background is the playing cover,
-     * blurred, and a strip of OS grey across the top of it reads as a
-     * different application -- measured, Windows paints it a flat rgb(31,31,35)
-     * from the system theme, which has no relation to anything on screen.
+     * No system title bar, and no caption buttons either.
      *
-     * `hidden` hands the whole window to the renderer and leaves Windows
-     * drawing only the caption buttons, as an overlay. So the backdrop runs to
-     * the top edge and the buttons sit on it. The title and the icon go with
-     * the bar, which is why the app draws its own name -- see `TitleBar`.
+     * The window's own background is the playing cover, blurred, and a strip
+     * of OS grey across the top of it reads as a different application --
+     * measured, Windows paints it a flat rgb(31,31,35) from the system theme,
+     * which has no relation to anything on screen. `hidden` hands the whole
+     * window to the renderer, so the backdrop runs to the top edge.
      *
-     * The overlay is transparent so the cover shows through behind the
-     * buttons; `symbolColor` is what keeps the glyphs legible over it, and it
-     * is the one thing here that cannot follow the artwork, so it is set light
-     * and left alone. M7 takes this the rest of the way to frameless.
+     * There was a `titleBarOverlay` here, which left Windows drawing the
+     * minimise, maximise and close buttons itself. It is gone, and the app
+     * draws its own -- see `TitleBar`. The reason is the chrome gesture: a
+     * click on the empty field dismisses the browser bar, the settings gear
+     * and the title, and buttons painted by the OS cannot be dismissed with
+     * them. Three controls that stayed behind while everything around them
+     * went read as the app forgetting to clear up.
+     *
+     * It also retires `symbolColor`, which was the one thing here that could
+     * not follow the artwork: the glyphs were Windows' to draw over whatever
+     * the cover happened to be, so they were set light once and left. Drawn
+     * in the renderer they are ordinary elements and can be styled freely.
      */
     titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: 'rgba(0,0,0,0)',
-      symbolColor: '#e9e4dd',
-      height: TITLE_BAR_HEIGHT,
-    },
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       // The three settings that make the preload bridge the only way in.

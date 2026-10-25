@@ -8,7 +8,7 @@
  */
 
 import { launchSpotify } from './spotify/launch.js'
-import { clipboard, ipcMain } from 'electron'
+import { BrowserWindow, clipboard, ipcMain } from 'electron'
 import type {
   AuthOutcome,
   CommandResult,
@@ -233,4 +233,32 @@ export function registerIpcHandlers(): void {
     }
     return fetchLyrics({ title, artist, album, durationMs })
   })
+
+  // The window's own caption buttons.
+  //
+  // `fromWebContents(event.sender)` rather than a reference threaded down
+  // from `createWindow`: the sender is by definition the window asking, so
+  // a renderer cannot reach a window that is not its own. Each returns
+  // undefined rather than throwing if the window has already gone, which it
+  // can have between the click and the handler.
+  ipcMain.handle(CHANNELS.windowMinimize, (event): void => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+
+  ipcMain.handle(CHANNELS.windowToggleMaximize, (event): boolean => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return false
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+    return window.isMaximized()
+  })
+
+  ipcMain.handle(CHANNELS.windowClose, (event): void => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+
+  ipcMain.handle(
+    CHANNELS.windowIsMaximized,
+    (event): boolean => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false,
+  )
 }
